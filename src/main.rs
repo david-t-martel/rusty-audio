@@ -1,4 +1,3 @@
-
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -186,7 +185,8 @@ impl eframe::App for AudioPlayerApp {
 impl AudioPlayerApp {
     fn open_file(&mut self, ctx: &egui::Context) {
         if let Some(handle) = rfd::FileDialog::new()
-            .add_filter("Audio Files", &["mp3", "wav", "flac", "ogg"])
+            .add_filter("Audio Files", &["mp3", "wav", "flac", "ogg", "m4a", "aac"])
+            .add_filter("All Files", &["*"])
             .pick_file()
         {
             let handle = Arc::new(FileHandle::from(handle));
