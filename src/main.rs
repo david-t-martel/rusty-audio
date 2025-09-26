@@ -1,6 +1,5 @@
-
 use eframe::{egui, NativeOptions};
-use egui::{Color32, RichText, Vec2};
+use egui::{Color32, RichText, Vec2, TextureHandle};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
 use kira::sound::static_sound::{StaticSoundData, StaticSoundSettings};
 use lofty::file::TaggedFileExt;
@@ -31,6 +30,7 @@ struct AudioPlayerApp {
     total_duration: Duration,
     is_seeking: bool,
     error: Option<String>,
+    album_art: Option<Arc<TextureHandle>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,6 +61,7 @@ impl Default for AudioPlayerApp {
             total_duration: Duration::ZERO,
             is_seeking: false,
             error: None,
+            album_art: None,
         }
     }
 }
@@ -70,6 +71,17 @@ impl eframe::App for AudioPlayerApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Rusty Audio");
             ui.separator();
+
+            // Album Art
+            ui.vertical_centered(|ui| {
+                if let Some(album_art) = &self.album_art {
+                    ui.image(album_art.id(), Vec2::new(200.0, 200.0));
+                } else {
+                    ui.colored_label(Color32::GRAY, "No album art");
+                }
+            });
+
+            ui.add_space(10.0);
 
             // Display Area
             let filename = self
@@ -322,7 +334,7 @@ impl AudioPlayerApp {
 fn main() -> Result<(), eframe::Error> {
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size(Vec2::new(450.0, 400.0))
+            .with_inner_size(Vec2::new(450.0, 600.0))
             .with_resizable(true),
         ..Default::default()
     };
