@@ -1,4 +1,3 @@
-
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle, load::SizedTexture};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -12,6 +11,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use image::GenericImageView;
 use clap::Parser;
+use spectrum_analyzer::{samples_fft_to_spectrum, scaling, windows};
+use spectrum_analyzer::FrequencyLimit;
 
 // Statically create the audio manager.
 static AUDIO_MANAGER: Lazy<
@@ -216,7 +217,7 @@ impl AudioPlayerApp {
         self.handle_keyboard_input(ui);
 
         // Tick
-        ctx.request_repaint_after(Duration::from_millis(250));
+        ctx.request_repaint_after(Duration::from_millis(16));
         self.tick();
     }
 
