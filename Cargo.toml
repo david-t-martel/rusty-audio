@@ -22,3 +22,4 @@ smol_str = "0.2.2"
 image = "0.24.9"
 rustfft = "6.2.0"
 spectrum-analyzer = "1.1.1"
+clap = { version = "4.5.4", features = ["derive"] }
