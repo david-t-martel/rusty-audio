@@ -111,7 +111,7 @@ impl AccessibleButton {
     ) -> Response {
         // Calculate button size
         let text_size = ui.painter().layout_no_wrap(
-            if self.loading { "Loading..." } else { &self.text },
+            &if self.loading { "Loading...".to_string() } else { self.text.clone() },
             egui::FontId::default(),
             Color32::WHITE,
         ).size();

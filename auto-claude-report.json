@@ -1,0 +1,2942 @@
+{
+  "tools": {
+    "clippy": {
+      "issues": [
+        {
+          "file": "libs\\web-audio-api-rs\\src\\events.rs",
+          "message": "unused `ControlFlow` that must be used",
+          "code": "unused_must_use",
+          "location": {
+            "line": 226,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\signal_generators.rs",
+          "message": "unused import: `super::SAMPLE_RATE`",
+          "code": "unused_imports",
+          "location": {
+            "line": 8,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\spectrum_analysis.rs",
+          "message": "unused import: `AnalyserNode`",
+          "code": "unused_imports",
+          "location": {
+            "line": 8,
+            "column": 38
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused import: `SpectrumAnalysis`",
+          "code": "unused_imports",
+          "location": {
+            "line": 10,
+            "column": 45
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\integration_tests.rs",
+          "message": "unused import: `AudioScheduledSourceNode`",
+          "code": "unused_imports",
+          "location": {
+            "line": 7,
+            "column": 38
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\integration_tests.rs",
+          "message": "unused import: `std::sync::Arc`",
+          "code": "unused_imports",
+          "location": {
+            "line": 11,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\property_tests.rs",
+          "message": "unused import: `TestResult as AudioTestResult`",
+          "code": "unused_imports",
+          "location": {
+            "line": 8,
+            "column": 24
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\property_tests.rs",
+          "message": "unused import: `std::f32::consts::PI`",
+          "code": "unused_imports",
+          "location": {
+            "line": 11,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `CursorIcon`, `Modifiers`, and `Vec2`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 16
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `CursorIcon`, `Modifiers`, and `Vec2`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 68
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `CursorIcon`, `Modifiers`, and `Vec2`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 79
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `ColorUtils` and `DrawUtils`",
+          "code": "unused_imports",
+          "location": {
+            "line": 5,
+            "column": 36
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `ColorUtils` and `DrawUtils`",
+          "code": "unused_imports",
+          "location": {
+            "line": 5,
+            "column": 48
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_controls.rs",
+          "message": "unused import: `RichText`",
+          "code": "unused_imports",
+          "location": {
+            "line": 3,
+            "column": 46
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "unused imports: `Button` and `Color32`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "unused imports: `Button` and `Color32`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 41
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "unused import: `ColorUtils`",
+          "code": "unused_imports",
+          "location": {
+            "line": 4,
+            "column": 36
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\mod.rs",
+          "message": "ambiguous glob re-exports",
+          "code": "ambiguous_glob_reexports",
+          "location": {
+            "line": 16,
+            "column": 9
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "unused import: `std::collections::VecDeque`",
+          "code": "unused_imports",
+          "location": {
+            "line": 5,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "unused import: `windows::Win32::Foundation::*`",
+          "code": "unused_imports",
+          "location": {
+            "line": 407,
+            "column": 17
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "unused import: `windows::Win32::Foundation::*`",
+          "code": "unused_imports",
+          "location": {
+            "line": 447,
+            "column": 17
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\security\\thread_safe_state.rs",
+          "message": "unused import: `Mutex`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 27
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_engine.rs",
+          "message": "unused import: `ErrorContext`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 32
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_engine.rs",
+          "message": "unused import: `std::sync::Arc`",
+          "code": "unused_imports",
+          "location": {
+            "line": 8,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_engine.rs",
+          "message": "unused import: `error`",
+          "code": "unused_imports",
+          "location": {
+            "line": 10,
+            "column": 27
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\metadata.rs",
+          "message": "unused import: `ErrorContext`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 47
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\noise_reduction.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\volume_normalizer.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\format_optimizer.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\playlist_generator.rs",
+          "message": "unused import: `crate::ai::feature_extractor::AudioFeatures`",
+          "code": "unused_imports",
+          "location": {
+            "line": 4,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_classifier.rs",
+          "message": "unused import: `crate::ai::feature_extractor::AudioFeatures`",
+          "code": "unused_imports",
+          "location": {
+            "line": 4,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 5,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "unused import: `ArrayD`",
+          "code": "unused_imports",
+          "location": {
+            "line": 11,
+            "column": 31
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\mod.rs",
+          "message": "unused import: `std::sync::Arc`",
+          "code": "unused_imports",
+          "location": {
+            "line": 20,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\mod.rs",
+          "message": "unused import: `parking_lot::RwLock`",
+          "code": "unused_imports",
+          "location": {
+            "line": 21,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "no associated item named `CYAN` found for struct `egui::Color32` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 166,
+            "column": 37
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "no associated item named `CYAN` found for struct `egui::Color32` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 179,
+            "column": 30
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "no associated item named `MAGENTA` found for struct `egui::Color32` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 181,
+            "column": 30
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_controls.rs",
+          "message": "can't call method `max` on ambiguous numeric type `{float}`",
+          "code": "E0689",
+          "location": {
+            "line": 124,
+            "column": 23
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_controls.rs",
+          "message": "can't call method `max` on ambiguous numeric type `{float}`",
+          "code": "E0689",
+          "location": {
+            "line": 129,
+            "column": 23
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_button.rs",
+          "message": "mismatched types",
+          "code": "E0308",
+          "location": {
+            "line": 114,
+            "column": 31
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_button.rs",
+          "message": "mismatched types",
+          "code": "E0308",
+          "location": {
+            "line": 114,
+            "column": 53
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "no method named `as_bool` found for enum `std::result::Result` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 411,
+            "column": 77
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\security\\mod.rs",
+          "message": "`?` couldn't convert the error to `security::file_validator::SecurityError`",
+          "code": "E0277",
+          "location": {
+            "line": 26,
+            "column": 49
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\security\\mod.rs",
+          "message": "mismatched types",
+          "code": "E0308",
+          "location": {
+            "line": 28,
+            "column": 49
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\metadata.rs",
+          "message": "no method named `properties` found for struct `lofty::file::TaggedFile` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 78,
+            "column": 38
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\metadata.rs",
+          "message": "no method named `album_artist` found for reference `&lofty::tag::Tag` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 101,
+            "column": 35
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\metadata.rs",
+          "message": "no method named `as_str` found for enum `std::option::Option` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 130,
+            "column": 56
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\error.rs",
+          "message": "`E` doesn't implement `std::fmt::Debug`",
+          "code": "E0277",
+          "location": {
+            "line": 139,
+            "column": 59
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "can't call method `max` on ambiguous numeric type `{float}`",
+          "code": "E0689",
+          "location": {
+            "line": 407,
+            "column": 23
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "can't call method `min` on ambiguous numeric type `{float}`",
+          "code": "E0689",
+          "location": {
+            "line": 287,
+            "column": 20
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\signal_generators.rs",
+          "message": "unused variable: `freq`",
+          "code": "unused_variables",
+          "location": {
+            "line": 341,
+            "column": 17
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\spectrum_analysis.rs",
+          "message": "unused variable: `freq_error`",
+          "code": "unused_variables",
+          "location": {
+            "line": 303,
+            "column": 21
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `omega`",
+          "code": "unused_variables",
+          "location": {
+            "line": 197,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `input_analysis`",
+          "code": "unused_variables",
+          "location": {
+            "line": 229,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `filter`",
+          "code": "unused_variables",
+          "location": {
+            "line": 219,
+            "column": 39
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `q`",
+          "code": "unused_variables",
+          "location": {
+            "line": 221,
+            "column": 47
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `eq_bands`",
+          "code": "unused_variables",
+          "location": {
+            "line": 315,
+            "column": 34
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\property_tests.rs",
+          "message": "unused variable: `analysis`",
+          "code": "unused_variables",
+          "location": {
+            "line": 233,
+            "column": 9
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\components.rs",
+          "message": "unused variable: `painter`",
+          "code": "unused_variables",
+          "location": {
+            "line": 480,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\components.rs",
+          "message": "unused variable: `dt`",
+          "code": "unused_variables",
+          "location": {
+            "line": 518,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\layout.rs",
+          "message": "unused variable: `id`",
+          "code": "unused_variables",
+          "location": {
+            "line": 221,
+            "column": 14
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\layout.rs",
+          "message": "unused variable: `ui`",
+          "code": "unused_variables",
+          "location": {
+            "line": 414,
+            "column": 34
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\layout.rs",
+          "message": "unused variable: `ui`",
+          "code": "unused_variables",
+          "location": {
+            "line": 535,
+            "column": 40
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\controls.rs",
+          "message": "unused variable: `angle`",
+          "code": "unused_variables",
+          "location": {
+            "line": 367,
+            "column": 21
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\controls.rs",
+          "message": "unused variable: `last_pos`",
+          "code": "unused_variables",
+          "location": {
+            "line": 370,
+            "column": 29
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\controls.rs",
+          "message": "unused variable: `rect`",
+          "code": "unused_variables",
+          "location": {
+            "line": 408,
+            "column": 29
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\utils.rs",
+          "message": "unused variable: `mesh`",
+          "code": "unused_variables",
+          "location": {
+            "line": 189,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\utils.rs",
+          "message": "unused variable: `glow_color`",
+          "code": "unused_variables",
+          "location": {
+            "line": 218,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `ui`",
+          "code": "unused_variables",
+          "location": {
+            "line": 376,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `ui`",
+          "code": "unused_variables",
+          "location": {
+            "line": 446,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `control_type`",
+          "code": "unused_variables",
+          "location": {
+            "line": 453,
+            "column": 48
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `rect`",
+          "code": "unused_variables",
+          "location": {
+            "line": 453,
+            "column": 84
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `dt`",
+          "code": "unused_variables",
+          "location": {
+            "line": 564,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_controls.rs",
+          "message": "unused variable: `rect`",
+          "code": "unused_variables",
+          "location": {
+            "line": 659,
+            "column": 29
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_button.rs",
+          "message": "unused variable: `colors`",
+          "code": "unused_variables",
+          "location": {
+            "line": 220,
+            "column": 49
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_button.rs",
+          "message": "unused variable: `loading_factor`",
+          "code": "unused_variables",
+          "location": {
+            "line": 247,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "unused variable: `now`",
+          "code": "unused_variables",
+          "location": {
+            "line": 108,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "closure requires unique access to `self.errors` but it is already borrowed",
+          "code": "E0500",
+          "location": {
+            "line": 148,
+            "column": 33
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "borrow of moved value: `details`",
+          "code": "E0382",
+          "location": {
+            "line": 367,
+            "column": 12
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "unused variable: `path`",
+          "code": "unused_variables",
+          "location": {
+            "line": 229,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "variable does not need to be mutable",
+          "code": "unused_mut",
+          "location": {
+            "line": 274,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\performance_monitor.rs",
+          "message": "cannot borrow `alerts` as immutable because it is also borrowed as mutable",
+          "code": "E0502",
+          "location": {
+            "line": 230,
+            "column": 29
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\security\\thread_safe_state.rs",
+          "message": "borrow of moved value: `error`",
+          "code": "E0382",
+          "location": {
+            "line": 168,
+            "column": 12
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_engine.rs",
+          "message": "cannot borrow `*source_node` as mutable, as it is behind a `&` reference",
+          "code": "E0596",
+          "location": {
+            "line": 210,
+            "column": 21
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "borrow of moved value: `spectral_features`",
+          "code": "E0382",
+          "location": {
+            "line": 38,
+            "column": 65
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "borrow of moved value: `temporal_features`",
+          "code": "E0382",
+          "location": {
+            "line": 38,
+            "column": 85
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 191,
+            "column": 48
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 347,
+            "column": 55
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `window_size`",
+          "code": "unused_variables",
+          "location": {
+            "line": 359,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 377,
+            "column": 43
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 377,
+            "column": 59
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 190,
+            "column": 9
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused variable: `delta`",
+          "code": "unused_variables",
+          "location": {
+            "line": 340,
+            "column": 17
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 337,
+            "column": 91
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 376,
+            "column": 37
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\noise_reduction.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 475,
+            "column": 45
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\preset_recommender.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 14,
+            "column": 33
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\anomaly_detector.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 13,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 116,
+            "column": 73
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 171,
+            "column": 75
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 197,
+            "column": 71
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 311,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 311,
+            "column": 46
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 316,
+            "column": 39
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 321,
+            "column": 39
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 321,
+            "column": 55
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `spectrum`",
+          "code": "unused_variables",
+          "location": {
+            "line": 342,
+            "column": 42
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 404,
+            "column": 48
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "unused variable: `path`",
+          "code": "unused_variables",
+          "location": {
+            "line": 147,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "unused variable: `update`",
+          "code": "unused_variables",
+          "location": {
+            "line": 196,
+            "column": 26
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "cannot borrow data in dereference of `parking_lot::lock_api::RwLockReadGuard<'_, parking_lot::RawRwLock, lru::LruCache<u64, ai::ml_models::ModelOutput>>` as mutable",
+          "code": "E0596",
+          "location": {
+            "line": 442,
+            "column": 9
+          },
+          "severity": "error",
+          "type": "rust"
+        }
+      ],
+      "fixed": 0,
+      "errors": [],
+      "cache_hits": 0,
+      "before_count": 0,
+      "after_count": 115
+    },
+    "rust-analyzer": {
+      "issues": [
+        {
+          "file": "libs\\web-audio-api-rs\\src\\events.rs",
+          "message": "unused `ControlFlow` that must be used",
+          "code": "unused_must_use",
+          "location": {
+            "line": 226,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\signal_generators.rs",
+          "message": "unused import: `super::SAMPLE_RATE`",
+          "code": "unused_imports",
+          "location": {
+            "line": 8,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\spectrum_analysis.rs",
+          "message": "unused import: `AnalyserNode`",
+          "code": "unused_imports",
+          "location": {
+            "line": 8,
+            "column": 38
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused import: `SpectrumAnalysis`",
+          "code": "unused_imports",
+          "location": {
+            "line": 10,
+            "column": 45
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\integration_tests.rs",
+          "message": "unused import: `AudioScheduledSourceNode`",
+          "code": "unused_imports",
+          "location": {
+            "line": 7,
+            "column": 38
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\integration_tests.rs",
+          "message": "unused import: `std::sync::Arc`",
+          "code": "unused_imports",
+          "location": {
+            "line": 11,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\property_tests.rs",
+          "message": "unused import: `TestResult as AudioTestResult`",
+          "code": "unused_imports",
+          "location": {
+            "line": 8,
+            "column": 24
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\property_tests.rs",
+          "message": "unused import: `std::f32::consts::PI`",
+          "code": "unused_imports",
+          "location": {
+            "line": 11,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `CursorIcon`, `Modifiers`, and `Vec2`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 16
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `CursorIcon`, `Modifiers`, and `Vec2`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 68
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `CursorIcon`, `Modifiers`, and `Vec2`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 79
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `ColorUtils` and `DrawUtils`",
+          "code": "unused_imports",
+          "location": {
+            "line": 5,
+            "column": 36
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused imports: `ColorUtils` and `DrawUtils`",
+          "code": "unused_imports",
+          "location": {
+            "line": 5,
+            "column": 48
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_controls.rs",
+          "message": "unused import: `RichText`",
+          "code": "unused_imports",
+          "location": {
+            "line": 3,
+            "column": 46
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "unused imports: `Button` and `Color32`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "unused imports: `Button` and `Color32`",
+          "code": "unused_imports",
+          "location": {
+            "line": 1,
+            "column": 41
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "unused import: `ColorUtils`",
+          "code": "unused_imports",
+          "location": {
+            "line": 4,
+            "column": 36
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\mod.rs",
+          "message": "ambiguous glob re-exports",
+          "code": "ambiguous_glob_reexports",
+          "location": {
+            "line": 16,
+            "column": 9
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "unused import: `std::collections::VecDeque`",
+          "code": "unused_imports",
+          "location": {
+            "line": 5,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "unused import: `windows::Win32::Foundation::*`",
+          "code": "unused_imports",
+          "location": {
+            "line": 407,
+            "column": 17
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "unused import: `windows::Win32::Foundation::*`",
+          "code": "unused_imports",
+          "location": {
+            "line": 447,
+            "column": 17
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\security\\thread_safe_state.rs",
+          "message": "unused import: `Mutex`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 27
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_engine.rs",
+          "message": "unused import: `ErrorContext`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 32
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_engine.rs",
+          "message": "unused import: `std::sync::Arc`",
+          "code": "unused_imports",
+          "location": {
+            "line": 8,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_engine.rs",
+          "message": "unused import: `error`",
+          "code": "unused_imports",
+          "location": {
+            "line": 10,
+            "column": 27
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\metadata.rs",
+          "message": "unused import: `ErrorContext`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 47
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\noise_reduction.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\volume_normalizer.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\format_optimizer.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\playlist_generator.rs",
+          "message": "unused import: `crate::ai::feature_extractor::AudioFeatures`",
+          "code": "unused_imports",
+          "location": {
+            "line": 4,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_classifier.rs",
+          "message": "unused import: `crate::ai::feature_extractor::AudioFeatures`",
+          "code": "unused_imports",
+          "location": {
+            "line": 4,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 5,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "unused import: `Context`",
+          "code": "unused_imports",
+          "location": {
+            "line": 6,
+            "column": 22
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "unused import: `ArrayD`",
+          "code": "unused_imports",
+          "location": {
+            "line": 11,
+            "column": 31
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\mod.rs",
+          "message": "unused import: `std::sync::Arc`",
+          "code": "unused_imports",
+          "location": {
+            "line": 20,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\mod.rs",
+          "message": "unused import: `parking_lot::RwLock`",
+          "code": "unused_imports",
+          "location": {
+            "line": 21,
+            "column": 5
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "no associated item named `CYAN` found for struct `Color32` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 166,
+            "column": 37
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "no associated item named `CYAN` found for struct `Color32` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 179,
+            "column": 30
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "no associated item named `MAGENTA` found for struct `Color32` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 181,
+            "column": 30
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_controls.rs",
+          "message": "can't call method `max` on ambiguous numeric type `{float}`",
+          "code": "E0689",
+          "location": {
+            "line": 124,
+            "column": 23
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_controls.rs",
+          "message": "can't call method `max` on ambiguous numeric type `{float}`",
+          "code": "E0689",
+          "location": {
+            "line": 129,
+            "column": 23
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_button.rs",
+          "message": "mismatched types",
+          "code": "E0308",
+          "location": {
+            "line": 114,
+            "column": 31
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_button.rs",
+          "message": "mismatched types",
+          "code": "E0308",
+          "location": {
+            "line": 114,
+            "column": 53
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "no method named `as_bool` found for enum `std::result::Result` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 411,
+            "column": 77
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\security\\mod.rs",
+          "message": "`?` couldn't convert the error to `SecurityError`",
+          "code": "E0277",
+          "location": {
+            "line": 26,
+            "column": 49
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\security\\mod.rs",
+          "message": "mismatched types",
+          "code": "E0308",
+          "location": {
+            "line": 28,
+            "column": 49
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\metadata.rs",
+          "message": "no method named `properties` found for struct `TaggedFile` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 78,
+            "column": 38
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\metadata.rs",
+          "message": "no method named `album_artist` found for reference `&lofty::tag::Tag` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 101,
+            "column": 35
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\metadata.rs",
+          "message": "no method named `as_str` found for enum `std::option::Option` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 130,
+            "column": 56
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\error.rs",
+          "message": "`E` doesn't implement `std::fmt::Debug`",
+          "code": "E0277",
+          "location": {
+            "line": 139,
+            "column": 59
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "can't call method `max` on ambiguous numeric type `{float}`",
+          "code": "E0689",
+          "location": {
+            "line": 407,
+            "column": 23
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "can't call method `min` on ambiguous numeric type `{float}`",
+          "code": "E0689",
+          "location": {
+            "line": 287,
+            "column": 20
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "mismatched types",
+          "code": "E0308",
+          "location": {
+            "line": 436,
+            "column": 20
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "no method named `get` found for struct `parking_lot::lock_api::RwLock` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 442,
+            "column": 20
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "no method named `put` found for struct `parking_lot::lock_api::RwLock` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 446,
+            "column": 20
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "no method named `clear` found for struct `parking_lot::lock_api::RwLock` in the current scope",
+          "code": "E0599",
+          "location": {
+            "line": 450,
+            "column": 20
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\signal_generators.rs",
+          "message": "unused variable: `freq`",
+          "code": "unused_variables",
+          "location": {
+            "line": 341,
+            "column": 17
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\spectrum_analysis.rs",
+          "message": "unused variable: `freq_error`",
+          "code": "unused_variables",
+          "location": {
+            "line": 303,
+            "column": 21
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `omega`",
+          "code": "unused_variables",
+          "location": {
+            "line": 197,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `input_analysis`",
+          "code": "unused_variables",
+          "location": {
+            "line": 229,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `filter`",
+          "code": "unused_variables",
+          "location": {
+            "line": 219,
+            "column": 39
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `q`",
+          "code": "unused_variables",
+          "location": {
+            "line": 221,
+            "column": 47
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\equalizer_tests.rs",
+          "message": "unused variable: `eq_bands`",
+          "code": "unused_variables",
+          "location": {
+            "line": 315,
+            "column": 34
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\testing\\property_tests.rs",
+          "message": "unused variable: `analysis`",
+          "code": "unused_variables",
+          "location": {
+            "line": 233,
+            "column": 9
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\components.rs",
+          "message": "unused variable: `painter`",
+          "code": "unused_variables",
+          "location": {
+            "line": 480,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\components.rs",
+          "message": "unused variable: `dt`",
+          "code": "unused_variables",
+          "location": {
+            "line": 518,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\layout.rs",
+          "message": "unused variable: `id`",
+          "code": "unused_variables",
+          "location": {
+            "line": 221,
+            "column": 14
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\layout.rs",
+          "message": "unused variable: `ui`",
+          "code": "unused_variables",
+          "location": {
+            "line": 414,
+            "column": 34
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\layout.rs",
+          "message": "unused variable: `ui`",
+          "code": "unused_variables",
+          "location": {
+            "line": 535,
+            "column": 40
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\controls.rs",
+          "message": "unused variable: `angle`",
+          "code": "unused_variables",
+          "location": {
+            "line": 367,
+            "column": 21
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\controls.rs",
+          "message": "unused variable: `last_pos`",
+          "code": "unused_variables",
+          "location": {
+            "line": 370,
+            "column": 29
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\controls.rs",
+          "message": "unused variable: `rect`",
+          "code": "unused_variables",
+          "location": {
+            "line": 408,
+            "column": 29
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\utils.rs",
+          "message": "unused variable: `mesh`",
+          "code": "unused_variables",
+          "location": {
+            "line": 189,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\utils.rs",
+          "message": "unused variable: `glow_color`",
+          "code": "unused_variables",
+          "location": {
+            "line": 218,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `ui`",
+          "code": "unused_variables",
+          "location": {
+            "line": 376,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `ui`",
+          "code": "unused_variables",
+          "location": {
+            "line": 446,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `control_type`",
+          "code": "unused_variables",
+          "location": {
+            "line": 453,
+            "column": 48
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `rect`",
+          "code": "unused_variables",
+          "location": {
+            "line": 453,
+            "column": 84
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\accessibility.rs",
+          "message": "unused variable: `dt`",
+          "code": "unused_variables",
+          "location": {
+            "line": 564,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_controls.rs",
+          "message": "unused variable: `rect`",
+          "code": "unused_variables",
+          "location": {
+            "line": 659,
+            "column": 29
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_button.rs",
+          "message": "unused variable: `colors`",
+          "code": "unused_variables",
+          "location": {
+            "line": 220,
+            "column": 49
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\enhanced_button.rs",
+          "message": "unused variable: `loading_factor`",
+          "code": "unused_variables",
+          "location": {
+            "line": 247,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "unused variable: `now`",
+          "code": "unused_variables",
+          "location": {
+            "line": 108,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "closure requires unique access to `self.errors` but it is already borrowed",
+          "code": "E0500",
+          "location": {
+            "line": 148,
+            "column": 33
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ui\\error_handling.rs",
+          "message": "borrow of moved value: `details`",
+          "code": "E0382",
+          "location": {
+            "line": 367,
+            "column": 12
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "unused variable: `path`",
+          "code": "unused_variables",
+          "location": {
+            "line": 229,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_optimizations.rs",
+          "message": "variable does not need to be mutable",
+          "code": "unused_mut",
+          "location": {
+            "line": 274,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\performance_monitor.rs",
+          "message": "cannot borrow `alerts` as immutable because it is also borrowed as mutable",
+          "code": "E0502",
+          "location": {
+            "line": 230,
+            "column": 29
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\security\\thread_safe_state.rs",
+          "message": "borrow of moved value: `error`",
+          "code": "E0382",
+          "location": {
+            "line": 168,
+            "column": 12
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\audio_engine.rs",
+          "message": "cannot borrow `*source_node` as mutable, as it is behind a `&` reference",
+          "code": "E0596",
+          "location": {
+            "line": 210,
+            "column": 21
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "borrow of moved value: `spectral_features`",
+          "code": "E0382",
+          "location": {
+            "line": 38,
+            "column": 65
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "borrow of moved value: `temporal_features`",
+          "code": "E0382",
+          "location": {
+            "line": 38,
+            "column": 85
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 191,
+            "column": 48
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 347,
+            "column": 55
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `window_size`",
+          "code": "unused_variables",
+          "location": {
+            "line": 359,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 377,
+            "column": 43
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\audio_analyzer.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 377,
+            "column": 59
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 190,
+            "column": 9
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused variable: `delta`",
+          "code": "unused_variables",
+          "location": {
+            "line": 340,
+            "column": 17
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 337,
+            "column": 91
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\eq_optimizer.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 376,
+            "column": 37
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\noise_reduction.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 475,
+            "column": 45
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\preset_recommender.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 14,
+            "column": 33
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\anomaly_detector.rs",
+          "message": "unused variable: `features`",
+          "code": "unused_variables",
+          "location": {
+            "line": 13,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 116,
+            "column": 73
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 171,
+            "column": 75
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 197,
+            "column": 71
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 311,
+            "column": 30
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 311,
+            "column": 46
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 316,
+            "column": 39
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `buffer`",
+          "code": "unused_variables",
+          "location": {
+            "line": 321,
+            "column": 39
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 321,
+            "column": 55
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `spectrum`",
+          "code": "unused_variables",
+          "location": {
+            "line": 342,
+            "column": 42
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\feature_extractor.rs",
+          "message": "unused variable: `sample_rate`",
+          "code": "unused_variables",
+          "location": {
+            "line": 404,
+            "column": 48
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "cannot borrow `self.model_cache` as mutable, as it is behind a `&` reference",
+          "code": "E0596",
+          "location": {
+            "line": 69,
+            "column": 31
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "cannot borrow `self.model_cache` as mutable, as it is behind a `&` reference",
+          "code": "E0596",
+          "location": {
+            "line": 77,
+            "column": 9
+          },
+          "severity": "error",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "unused variable: `path`",
+          "code": "unused_variables",
+          "location": {
+            "line": 147,
+            "column": 13
+          },
+          "severity": "warning",
+          "type": "rust"
+        },
+        {
+          "file": "src\\ai\\ml_models.rs",
+          "message": "unused variable: `update`",
+          "code": "unused_variables",
+          "location": {
+            "line": 196,
+            "column": 26
+          },
+          "severity": "warning",
+          "type": "rust"
+        }
+      ],
+      "fixed": 0,
+      "errors": [],
+      "cache_hits": 0
+    }
+  },
+  "summary": {
+    "files": 303,
+    "issues": 235,
+    "fixed": 0,
+    "errors": 0,
+    "duplicates": 4
+  },
+  "timing": {
+    "duration": 10285.411199999999,
+    "started": "1970-01-01T00:00:00.120Z"
+  },
+  "discovered": {
+    "python": [],
+    "typescript": [],
+    "javascript": [],
+    "config": [
+      "C:\\users\\david\\rusty-audio\\Cargo.toml",
+      "C:\\users\\david\\rusty-audio\\duplication-violations.json",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\Cargo.toml",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\Cargo.toml",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\.github\\dependabot.yaml",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\showcase\\mic_playback\\Cargo.toml",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\.github\\dependabot.yaml",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\.github\\workflows\\benchmark-post-result.yaml",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\.github\\workflows\\benchmark.yaml",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\.github\\workflows\\build.yaml",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\.github\\workflows\\msrv.yaml",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\.github\\workflows\\pre-commit.yaml",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\showcase\\mic_playback\\Cargo.toml",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\.github\\workflows\\benchmark-post-result.yaml",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\.github\\workflows\\benchmark.yaml",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\.github\\workflows\\build.yaml",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\.github\\workflows\\msrv.yaml",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\.github\\workflows\\pre-commit.yaml"
+    ],
+    "rust": [
+      "C:\\users\\david\\rusty-audio\\build.rs",
+      "C:\\users\\david\\rusty-audio\\benches\\audio_benchmarks.rs",
+      "C:\\users\\david\\rusty-audio\\benches\\audio_quality_benchmarks.rs",
+      "C:\\users\\david\\rusty-audio\\benches\\memory_benchmarks.rs",
+      "C:\\users\\david\\rusty-audio\\benches\\performance_benchmarks.rs",
+      "C:\\users\\david\\rusty-audio\\benches\\realtime_benchmarks.rs",
+      "C:\\users\\david\\rusty-audio\\tests\\comprehensive_unit_tests.rs",
+      "C:\\users\\david\\rusty-audio\\tests\\integration_test.rs",
+      "C:\\users\\david\\rusty-audio\\tests\\mathematical_framework_tests.rs",
+      "C:\\users\\david\\rusty-audio\\tests\\pipeline_integration_tests.rs",
+      "C:\\users\\david\\rusty-audio\\tests\\property_based_tests.rs",
+      "C:\\users\\david\\rusty-audio\\tests\\safety_protection_tests.rs",
+      "C:\\users\\david\\rusty-audio\\examples\\mathematical_testing_demo.rs",
+      "C:\\users\\david\\rusty-audio\\src\\async_audio_loader.rs",
+      "C:\\users\\david\\rusty-audio\\src\\audio_engine.rs",
+      "C:\\users\\david\\rusty-audio\\src\\audio_optimizations.rs",
+      "C:\\users\\david\\rusty-audio\\src\\audio_performance.rs",
+      "C:\\users\\david\\rusty-audio\\src\\audio_performance_optimized.rs",
+      "C:\\users\\david\\rusty-audio\\src\\error.rs",
+      "C:\\users\\david\\rusty-audio\\src\\lib.rs",
+      "C:\\users\\david\\rusty-audio\\src\\main.rs",
+      "C:\\users\\david\\rusty-audio\\src\\metadata.rs",
+      "C:\\users\\david\\rusty-audio\\src\\optimized_signal_generators.rs",
+      "C:\\users\\david\\rusty-audio\\src\\performance_monitor.rs",
+      "C:\\users\\david\\rusty-audio\\src\\property_tests.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui_extensions.rs",
+      "C:\\users\\david\\rusty-audio\\src\\bin\\test_audio.rs",
+      "C:\\users\\david\\rusty-audio\\src\\bin\\test_runner.rs",
+      "C:\\users\\david\\rusty-audio\\src\\testing\\equalizer_tests.rs",
+      "C:\\users\\david\\rusty-audio\\src\\testing\\integration_tests.rs",
+      "C:\\users\\david\\rusty-audio\\src\\testing\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\src\\testing\\property_tests.rs",
+      "C:\\users\\david\\rusty-audio\\src\\testing\\signal_generators.rs",
+      "C:\\users\\david\\rusty-audio\\src\\testing\\spectrum_analysis.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\accessibility.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\components.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\controls.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\enhanced_button.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\enhanced_controls.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\error_handling.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\layout.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\signal_generator.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\spectrum.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\theme.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ui\\utils.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\benches\\my_benchmark.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\benches\\worklet.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\analysis.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\buffer.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\capacity.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\decoding.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\events.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\lib.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\media_element.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\message.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\message_port.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\param.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\periodic_wave.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\resampling.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\spatial.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\worklet.rs",
+      "C:\\users\\david\\rusty-audio\\src\\security\\audio_safety.rs",
+      "C:\\users\\david\\rusty-audio\\src\\security\\file_validator.rs",
+      "C:\\users\\david\\rusty-audio\\src\\security\\input_validator.rs",
+      "C:\\users\\david\\rusty-audio\\src\\security\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\src\\security\\secure_config.rs",
+      "C:\\users\\david\\rusty-audio\\src\\security\\security_monitor.rs",
+      "C:\\users\\david\\rusty-audio\\src\\security\\thread_safe_state.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\tests\\denormals.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\tests\\media_element.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\tests\\mixing.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\tests\\offline.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\tests\\online.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\tests\\processor_error.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\tests\\stall_render.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\amplitude_modulation.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\analyser.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\audio_buffer.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\audio_buffer_source_events.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\audio_buffer_source_pitching.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\benchmarks.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\biquad.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\change_state.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\compressor.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\constant_source.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\convolution.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\decode_multithreaded.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\decoding.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\doppler.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\feedback_delay.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\granular.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\iir.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\latency_attributes.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\many_oscillators.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\many_oscillators_with_env.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\media_element.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\merger.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\microphone.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\mono.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\multichannel.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\oscillators.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\panner_cone.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\recorder.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\resampling.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\roundtrip_latency_test.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\script_processor.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\simple_delay.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\sink_id.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\spatial.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\stereo_panner.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\toy_webrtc.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\trigger_soundfile.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\waveshaper.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\worklet.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\worklet_bitcrusher.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\worklet_message_port.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\adaptive_ui.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\anomaly_detector.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\audio_analyzer.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\audio_classifier.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\eq_optimizer.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\feature_extractor.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\format_optimizer.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\ml_models.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\noise_reduction.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\playlist_generator.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\preset_recommender.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\voice_commands.rs",
+      "C:\\users\\david\\rusty-audio\\src\\ai\\volume_normalizer.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\context\\base.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\context\\concrete_base.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\context\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\context\\offline.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\context\\online.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\media_devices\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\tests\\denormals.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\tests\\media_element.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\tests\\mixing.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\tests\\offline.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\tests\\online.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\tests\\processor_error.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\tests\\stall_render.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\amplitude_modulation.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\analyser.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\audio_buffer.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\audio_buffer_source_events.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\audio_buffer_source_pitching.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\benchmarks.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\biquad.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\change_state.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\compressor.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\constant_source.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\convolution.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\decode_multithreaded.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\decoding.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\doppler.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\feedback_delay.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\granular.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\iir.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\latency_attributes.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\many_oscillators.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\many_oscillators_with_env.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\media_element.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\merger.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\microphone.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\mono.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\multichannel.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\oscillators.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\panner_cone.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\recorder.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\resampling.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\roundtrip_latency_test.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\script_processor.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\simple_delay.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\sink_id.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\spatial.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\stereo_panner.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\toy_webrtc.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\trigger_soundfile.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\waveshaper.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\worklet.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\worklet_bitcrusher.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\worklet_message_port.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\render\\graph.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\render\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\render\\node_collection.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\render\\processor.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\render\\quantum.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\render\\thread.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\benches\\my_benchmark.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\benches\\worklet.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\analysis.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\buffer.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\capacity.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\decoding.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\events.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\lib.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\media_element.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\message.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\message_port.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\param.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\periodic_wave.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\resampling.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\spatial.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\worklet.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\analyser.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\audio_buffer_source.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\audio_node.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\biquad_filter.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\channel_merger.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\channel_splitter.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\constant_source.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\convolver.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\delay.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\destination.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\dynamics_compressor.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\gain.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\iir_filter.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\media_element_source.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\media_stream_destination.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\media_stream_source.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\media_stream_track_source.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\oscillator.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\panner.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\scheduled_source.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\script_processor.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\stereo_panner.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\node\\waveshaper.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\media_streams\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\media_recorder\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\io\\cpal.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\io\\cubeb.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\io\\microphone.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\io\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\io\\none.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\showcase\\mic_playback\\src\\main.rs",
+      "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\src\\render\\graph\\test.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\media_streams\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\render\\graph.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\render\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\render\\node_collection.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\render\\processor.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\render\\quantum.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\render\\thread.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\media_recorder\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\io\\cpal.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\io\\cubeb.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\io\\microphone.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\io\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\io\\none.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\analyser.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\audio_buffer_source.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\audio_node.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\biquad_filter.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\channel_merger.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\channel_splitter.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\constant_source.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\convolver.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\delay.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\destination.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\dynamics_compressor.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\gain.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\iir_filter.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\media_element_source.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\media_stream_destination.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\media_stream_source.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\media_stream_track_source.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\oscillator.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\panner.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\scheduled_source.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\script_processor.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\stereo_panner.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\node\\waveshaper.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\media_devices\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\context\\base.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\context\\concrete_base.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\context\\mod.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\context\\offline.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\context\\online.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\showcase\\mic_playback\\src\\main.rs",
+      "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\src\\render\\graph\\test.rs"
+    ],
+    "total": 303,
+    "skipped": {
+      "max_depth": 0,
+      "excluded_dirs": 1,
+      "excluded_files": 0,
+      "max_files": 0
+    }
+  },
+  "duplicationEnforced": true,
+  "git": {
+    "branch": "main",
+    "totalCommits": 18,
+    "filesAnalyzed": 303,
+    "stagedFiles": 0
+  }
+}

@@ -426,28 +426,28 @@ impl Model for MoodClassifierModel {
 
 /// Model cache for inference results
 struct ModelCache {
-    cache: lru::LruCache<u64, ModelOutput>,
+    cache: RwLock<lru::LruCache<u64, ModelOutput>>,
     max_size: usize,
 }
 
 impl ModelCache {
     fn new(max_size: usize) -> Self {
         Self {
-            cache: lru::LruCache::new(std::num::NonZeroUsize::new(1000).unwrap()),
+            cache: RwLock::new(lru::LruCache::new(std::num::NonZeroUsize::new(1000).unwrap())),
             max_size,
         }
     }
 
-    fn get(&mut self, key: &u64) -> Option<ModelOutput> {
-        self.cache.get(key).cloned()
+    fn get(&self, key: &u64) -> Option<ModelOutput> {
+        self.cache.write().get(key).cloned()
     }
 
-    fn put(&mut self, key: u64, value: ModelOutput) {
-        self.cache.put(key, value);
+    fn put(&self, key: u64, value: ModelOutput) {
+        self.cache.write().put(key, value);
     }
 
-    fn clear(&mut self) {
-        self.cache.clear();
+    fn clear(&self) {
+        self.cache.write().clear();
     }
 }
 

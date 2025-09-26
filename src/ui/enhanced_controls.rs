@@ -121,12 +121,12 @@ impl AccessibleSlider {
     ) -> Response {
         let desired_size = match self.orientation {
             SliderOrientation::Horizontal => Vec2::new(
-                200.0.max(self.style.touch_target_size * 3.0),
+                200.0_f32.max(self.style.touch_target_size * 3.0),
                 self.style.touch_target_size,
             ),
             SliderOrientation::Vertical => Vec2::new(
                 self.style.touch_target_size,
-                200.0.max(self.style.touch_target_size * 3.0),
+                200.0_f32.max(self.style.touch_target_size * 3.0),
             ),
         };
 

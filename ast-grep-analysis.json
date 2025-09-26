@@ -1,0 +1,7 @@
+error: unexpected argument '--reporter' found
+
+  tip: a similar argument exists: '--report-style'
+
+Usage: ast-grep.exe scan --report-style <REPORT_STYLE> [PATHS]...
+
+For more information, try '--help'.

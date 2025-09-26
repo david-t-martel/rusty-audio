@@ -1,0 +1,154 @@
+language: rust
+
+rules:
+  # Security rules
+  - id: unsafe-block-detection
+    message: "Unsafe block detected - ensure safety invariants"
+    rule:
+      pattern: "unsafe { $$$BODY }"
+    severity: warning
+
+  - id: unwrap-usage
+    message: "Consider using proper error handling instead of unwrap()"
+    rule:
+      pattern: "$VAR.unwrap()"
+    severity: warning
+
+  - id: expect-usage
+    message: "Consider using proper error handling instead of expect()"
+    rule:
+      pattern: "$VAR.expect($MSG)"
+    severity: info
+
+  - id: panic-usage
+    message: "Direct panic usage detected - consider returning Result instead"
+    rule:
+      any:
+        - pattern: "panic!($MSG)"
+        - pattern: "unimplemented!()"
+        - pattern: "unreachable!()"
+    severity: warning
+
+  # Performance rules
+  - id: string-allocation
+    message: "Consider using &str or String::with_capacity for better performance"
+    rule:
+      pattern: "String::new()"
+    severity: info
+
+  - id: vec-allocation
+    message: "Consider using Vec::with_capacity for better performance"
+    rule:
+      pattern: "Vec::new()"
+    severity: info
+
+  - id: clone-in-loop
+    message: "Cloning in loop detected - consider borrowing or moving"
+    rule:
+      pattern: |
+        for $VAR in $ITER {
+          $$$BEFORE
+          $ITEM.clone()
+          $$$AFTER
+        }
+    severity: warning
+
+  # Audio-specific rules
+  - id: buffer-bounds-check
+    message: "Audio buffer access should include bounds checking"
+    rule:
+      pattern: "$BUFFER[$INDEX]"
+    severity: warning
+
+  - id: sample-rate-constant
+    message: "Consider using a constant for sample rate"
+    rule:
+      pattern: "44100"
+    severity: info
+
+  - id: audio-thread-safety
+    message: "Audio processing should be thread-safe"
+    rule:
+      pattern: |
+        fn $NAME($$$PARAMS) {
+          $$$BODY
+          Arc::new($VAR)
+          $$$REST
+        }
+    severity: info
+
+  # Code quality rules
+  - id: todo-comments
+    message: "TODO comments should be addressed"
+    rule:
+      pattern: "// TODO: $MSG"
+    severity: info
+
+  - id: magic-numbers
+    message: "Consider using named constants instead of magic numbers"
+    rule:
+      pattern: |
+        $VAR = $NUMBER
+    where:
+      NUMBER:
+        regex: "^[0-9]+$"
+        not:
+          any:
+            - pattern: "0"
+            - pattern: "1"
+            - pattern: "2"
+    severity: info
+
+  # Error handling patterns
+  - id: result-ignore
+    message: "Result should not be ignored - use proper error handling"
+    rule:
+      pattern: "$EXPR.is_ok()"
+    severity: warning
+
+  - id: option-unwrap
+    message: "Option unwrap without checking - consider pattern matching"
+    rule:
+      pattern: "$VAR.unwrap()"
+    severity: warning
+
+  # Memory management
+  - id: box-leak
+    message: "Box::leak usage detected - ensure this is intentional"
+    rule:
+      pattern: "Box::leak($VAR)"
+    severity: warning
+
+  - id: rc-cycle
+    message: "Potential Rc cycle - consider using Weak references"
+    rule:
+      pattern: "Rc::new($VAR)"
+    severity: info
+
+ruleSets:
+  audio-safety:
+    - unsafe-block-detection
+    - buffer-bounds-check
+    - audio-thread-safety
+
+  performance:
+    - string-allocation
+    - vec-allocation
+    - clone-in-loop
+
+  error-handling:
+    - unwrap-usage
+    - expect-usage
+    - result-ignore
+    - option-unwrap
+
+  code-quality:
+    - todo-comments
+    - magic-numbers
+    - panic-usage
+
+ignore:
+  - "target/**"
+  - "libs/**"
+  - "web-audio-api-rs/**"
+  - "*.generated.rs"

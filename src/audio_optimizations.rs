@@ -408,7 +408,7 @@ impl AudioThreadPriority {
 
             unsafe {
                 let thread = GetCurrentThread();
-                if SetThreadPriority(thread, THREAD_PRIORITY_TIME_CRITICAL).as_bool() {
+                if SetThreadPriority(thread, THREAD_PRIORITY_TIME_CRITICAL).is_ok() {
                     Ok(())
                 } else {
                     Err("Failed to set thread priority".to_string())

@@ -1,0 +1,32 @@
+{
+  "violations": [
+    {
+      "file": "C:\\users\\david\\rusty-audio\\tests\\integration_test.rs",
+      "pattern": "_test\\.(ts|js|py|rs|jsx|tsx|cjs|mjs)$",
+      "suggestedName": "integration.rs",
+      "severity": "error"
+    },
+    {
+      "file": "C:\\users\\david\\rusty-audio\\src\\optimized_signal_generators.rs",
+      "pattern": "^optimized_.*\\.(ts|js|py|rs|jsx|tsx|cjs|mjs)$",
+      "suggestedName": "signal_generators.rs",
+      "severity": "error"
+    },
+    {
+      "file": "C:\\users\\david\\rusty-audio\\web-audio-api-rs\\examples\\roundtrip_latency_test.rs",
+      "pattern": "_test\\.(ts|js|py|rs|jsx|tsx|cjs|mjs)$",
+      "suggestedName": "roundtrip_latency.rs",
+      "severity": "error"
+    },
+    {
+      "file": "C:\\users\\david\\rusty-audio\\libs\\web-audio-api-rs\\examples\\roundtrip_latency_test.rs",
+      "pattern": "_test\\.(ts|js|py|rs|jsx|tsx|cjs|mjs)$",
+      "suggestedName": "roundtrip_latency.rs",
+      "severity": "error"
+    }
+  ],
+  "totalViolations": 4,
+  "filesScanned": 303,
+  "canAutoFix": true,
+  "timestamp": "2025-09-26T18:54:32.887Z"
+}

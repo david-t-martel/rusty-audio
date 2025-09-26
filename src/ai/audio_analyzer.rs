@@ -30,12 +30,14 @@ impl AudioAnalyzer {
         let statistical_features = self.extract_statistical_features(buffer)?;
         let rhythm_features = self.extract_rhythm_features(buffer, sample_rate)?;
 
+        let overall_quality_score = self.calculate_quality_score(&spectral_features, &temporal_features);
+
         Ok(AudioAnalysis {
             spectral_features,
             temporal_features,
             statistical_features,
             rhythm_features,
-            overall_quality_score: self.calculate_quality_score(&spectral_features, &temporal_features),
+            overall_quality_score,
         })
     }
 
@@ -404,7 +406,7 @@ impl AudioAnalyzer {
             score += 0.2;
         }
 
-        (score + 0.5).max(0.0).min(1.0)
+        (score + 0.5_f32).max(0.0).min(1.0)
     }
 }
 

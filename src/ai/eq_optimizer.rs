@@ -268,7 +268,7 @@ impl EQOptimizer {
 
     /// Calculate confidence in the optimization
     fn calculate_confidence(&self, features: &AudioFeatures) -> f32 {
-        let mut confidence = 0.5;
+        let mut confidence = 0.5_f32;
 
         // Higher confidence with more complete features
         if features.spectral_centroid.is_some() {
@@ -284,7 +284,7 @@ impl EQOptimizer {
             confidence += 0.1;
         }
 
-        confidence.min(1.0)
+        confidence.min(1.0_f32)
     }
 
     /// Initialize genre profiles with typical characteristics

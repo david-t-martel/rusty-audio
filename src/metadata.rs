@@ -75,8 +75,8 @@ impl MetadataExtractorInterface for LoftyMetadataExtractor {
         let tagged_file = lofty::read_from_path(path)
             .map_err(|e| MetadataError::LoftyError(e.to_string()))?;
 
-        let properties = tagged_file.properties();
-        let duration = properties.duration();
+        let properties = tagged_file.file_type();
+        let duration = tagged_file.properties().duration();
 
         let metadata = if let Some(tag) = tagged_file.primary_tag() {
             TrackMetadata {

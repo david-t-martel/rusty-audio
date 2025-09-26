@@ -205,7 +205,7 @@ impl AudioEngineInterface for WebAudioEngine {
                 self.playback_state = PlaybackState::Playing;
             }
             PlaybackState::Stopped => {
-                if let Some(source_node) = &self.source_node {
+                if let Some(source_node) = &mut self.source_node {
                     info!("Starting playback");
                     source_node.start();
                     self.playback_state = PlaybackState::Playing;

@@ -163,7 +163,7 @@ impl AccessibilityManager {
         if self.high_contrast_mode {
             ThemeColors {
                 primary: Color32::YELLOW,
-                secondary: Color32::CYAN,
+                secondary: Color32::from_rgb(0, 255, 255), // CYAN
                 accent: Color32::WHITE,
                 background: Color32::BLACK,
                 surface: Color32::from_gray(32),
@@ -176,9 +176,9 @@ impl AccessibilityManager {
                     Color32::RED,
                     Color32::YELLOW,
                     Color32::GREEN,
-                    Color32::CYAN,
+                    Color32::from_rgb(0, 255, 255), // CYAN
                     Color32::BLUE,
-                    Color32::MAGENTA,
+                    Color32::from_rgb(255, 0, 255), // MAGENTA
                     Color32::WHITE,
                     Color32::LIGHT_GRAY,
                 ],
