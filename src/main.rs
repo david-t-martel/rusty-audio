@@ -11,8 +11,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use image::GenericImageView;
 use clap::Parser;
-use spectrum_analyzer::{samples_fft_to_spectrum, scaling, windows};
-use spectrum_analyzer::FrequencyLimit;
 
 // Statically create the audio manager.
 static AUDIO_MANAGER: Lazy<
