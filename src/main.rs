@@ -1,3 +1,4 @@
+
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -322,7 +323,7 @@ fn main() -> Result<(), eframe::Error> {
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(Vec2::new(450.0, 400.0))
-            .with_resizable(false),
+            .with_resizable(true),
         ..Default::default()
     };
     eframe::run_native(
