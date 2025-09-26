@@ -1,3 +1,4 @@
+
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle, load::SizedTexture};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
