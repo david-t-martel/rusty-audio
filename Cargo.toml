@@ -1,0 +1,21 @@
+# This file defines the project metadata and dependencies for our Rust application.
+# Cargo, Rust's build tool and package manager, reads this file to understand
+# how to compile and run the project.
+
+[package]
+name = "rusty-audio"
+version = "0.1.0"
+edition = "2021"
+description = "A car-stereo-style audio player built with Rust and egui."
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+eframe = "0.27.2"
+egui = "0.27.2"
+rfd = "0.14.1"
+lofty = "0.20.0"
+once_cell = "1.19.0"
+kira = "0.8.5"
+parking_lot = "0.12.3"
+smol_str = "0.2.2"
