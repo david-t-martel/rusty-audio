@@ -1,3 +1,4 @@
+
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle, load::SizedTexture};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -11,6 +12,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use image::GenericImageView;
 use clap::Parser;
+use spectrum_analyzer::{samples_fft_to_spectrum, scaling, windows};
+use spectrum_analyzer::FrequencyLimit;
 
 // Statically create the audio manager.
 static AUDIO_MANAGER: Lazy<
@@ -41,6 +44,7 @@ struct AudioPlayerApp {
     error: Option<String>,
     album_art: Option<Arc<TextureHandle>>,
     active_tab: Tab,
+    spectrum: Vec<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +83,7 @@ impl Default for AudioPlayerApp {
             error: None,
             album_art: None,
             active_tab: Tab::Playback,
+            spectrum: vec![0.0; 1024],
         }
     }
 }
@@ -218,8 +223,15 @@ impl AudioPlayerApp {
     }
 
     fn draw_effects_tab(&mut self, ui: &mut egui::Ui) {
-        ui.label("VST Effects");
-        ui.label("VST hosting is not yet implemented.");
+        ui.label("Spectrum");
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 100.0), egui::Sense::hover());
+        let painter = ui.painter();
+        let color = Color32::from_rgb(0, 128, 255);
+        for (i, val) in self.spectrum.iter().enumerate() {
+            let x = rect.min.x + i as f32 * rect.width() / self.spectrum.len() as f32;
+            let y = rect.max.y - val * rect.height();
+            painter.line_segment([egui::pos2(x, rect.max.y), egui::pos2(x, y)], (1.0, color));
+        }
     }
 
     fn open_file(&mut self, ctx: &egui::Context) {
