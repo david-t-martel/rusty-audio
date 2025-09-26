@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use image::GenericImageView;
 use clap::Parser;
+use kira::track::effect::filter::FilterHandle;
 
 // Statically create the audio manager.
 static AUDIO_MANAGER: Lazy<
@@ -43,6 +44,7 @@ struct AudioPlayerApp {
     active_tab: Tab,
     spectrum: Vec<f32>,
     eq_bands: Vec<f32>,
+    eq_effect: Option<FilterHandle>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,6 +86,7 @@ impl Default for AudioPlayerApp {
             active_tab: Tab::Playback,
             spectrum: vec![0.0; 1024],
             eq_bands: vec![0.5; 8],
+            eq_effect: None,
         }
     }
 }
@@ -244,7 +247,11 @@ impl AudioPlayerApp {
             for (i, band) in self.eq_bands.iter_mut().enumerate() {
                 ui.vertical(|ui| {
                     ui.label(format!("{} Hz", 60 * 2_i32.pow(i as u32)));
-                    ui.add(egui::Slider::new(band, 0.0..=1.0).vertical());
+                    if ui.add(egui::Slider::new(band, 0.0..=1.0).vertical()).changed() {
+                        if let Some(eq_effect) = &mut self.eq_effect {
+                            let _ = eq_effect.set_gain(i as u32, *band as f64);
+                        }
+                    }
                 });
             }
         });
