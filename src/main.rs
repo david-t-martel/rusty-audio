@@ -1,5 +1,5 @@
 use eframe::{egui, NativeOptions};
-use egui::{Color32, RichText, Vec2, TextureHandle};
+use egui::{Color32, RichText, Vec2, TextureHandle, load::SizedTexture};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
 use kira::sound::static_sound::{StaticSoundData, StaticSoundSettings};
 use lofty::file::TaggedFileExt;
@@ -76,7 +76,7 @@ impl eframe::App for AudioPlayerApp {
             // Album Art
             ui.vertical_centered(|ui| {
                 if let Some(album_art) = &self.album_art {
-                    ui.image(album_art.id(), Vec2::new(200.0, 200.0));
+                    ui.image(SizedTexture::new(album_art.id(), Vec2::new(200.0, 200.0)));
                 } else {
                     ui.colored_label(Color32::GRAY, "No album art");
                 }
