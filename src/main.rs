@@ -1,3 +1,4 @@
+
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -9,6 +10,7 @@ use parking_lot::Mutex;
 use rfd::FileHandle;
 use std::sync::Arc;
 use std::time::Duration;
+use image::GenericImageView;
 
 // Statically create the audio manager.
 static AUDIO_MANAGER: Lazy<
@@ -133,7 +135,7 @@ impl eframe::App for AudioPlayerApp {
             // Control Buttons
             ui.horizontal(|ui| {
                 if ui.button("Open").clicked() {
-                    self.open_file();
+                    self.open_file(ctx);
                 }
 
                 let play_pause_text = if self.playback_state == PlaybackState::Playing { "⏸" } else { "▶" };
@@ -182,7 +184,7 @@ impl eframe::App for AudioPlayerApp {
 }
 
 impl AudioPlayerApp {
-    fn open_file(&mut self) {
+    fn open_file(&mut self, ctx: &egui::Context) {
         if let Some(handle) = rfd::FileDialog::new()
             .add_filter("Audio Files", &["mp3", "wav", "flac", "ogg"])
             .pick_file()
@@ -197,6 +199,17 @@ impl AudioPlayerApp {
                         album: tag.album().as_deref().unwrap_or("Unknown Album").into(),
                         year: tag.year().map(|y| y.to_string()).unwrap_or_else(|| "----".into()),
                     });
+                }
+                if let Some(picture) = tagged_file.primary_tag().and_then(|t| t.pictures().get(0)) {
+                    if let Ok(img) = image::load_from_memory(picture.data()) {
+                        let (width, height) = img.dimensions();
+                        let rgba = img.to_rgba8();
+                        let pixels = rgba.into_raw();
+                        let image = egui::ColorImage::from_rgba_unmultiplied([width as usize, height as usize], &pixels);
+                        self.album_art = Some(Arc::new(ctx.load_texture("album-art", image, Default::default())));
+                    }
+                } else {
+                    self.album_art = None;
                 }
             }
 
