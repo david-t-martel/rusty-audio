@@ -1,3 +1,4 @@
+
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle, load::SizedTexture};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -48,6 +49,7 @@ struct AudioPlayerApp {
 enum Tab {
     Playback,
     Effects,
+    Eq,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -94,6 +96,7 @@ impl eframe::App for AudioPlayerApp {
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.active_tab, Tab::Playback, "Playback");
                 ui.selectable_value(&mut self.active_tab, Tab::Effects, "Effects");
+                ui.selectable_value(&mut self.active_tab, Tab::Eq, "EQ");
             });
 
             ui.separator();
@@ -104,6 +107,9 @@ impl eframe::App for AudioPlayerApp {
                 }
                 Tab::Effects => {
                     self.draw_effects_tab(ui);
+                }
+                Tab::Eq => {
+                    self.draw_eq_tab(ui);
                 }
             }
         });
@@ -215,7 +221,7 @@ impl AudioPlayerApp {
         self.handle_keyboard_input(ui);
 
         // Tick
-        ctx.request_repaint_after(Duration::from_millis(16));
+        ctx.request_repaint_after(Duration::from_millis(250));
         self.tick();
     }
 
@@ -229,6 +235,11 @@ impl AudioPlayerApp {
             let y = rect.max.y - val * rect.height();
             painter.line_segment([egui::pos2(x, rect.max.y), egui::pos2(x, y)], (1.0, color));
         }
+    }
+
+    fn draw_eq_tab(&mut self, ui: &mut egui::Ui) {
+        ui.label("EQ");
+        ui.label("EQ is not yet implemented.");
     }
 
     fn open_file(&mut self, ctx: &egui::Context) {
