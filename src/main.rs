@@ -1,4 +1,3 @@
-
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle, load::SizedTexture};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -36,6 +35,7 @@ struct AudioPlayerApp {
     current_file: Option<Arc<FileHandle>>,
     metadata: Option<TrackMetadata>,
     volume: f64,
+    panning: f64,
     is_looping: bool,
     playback_pos: Duration,
     total_duration: Duration,
@@ -83,6 +83,7 @@ impl Default for AudioPlayerApp {
             current_file: None,
             metadata: None,
             volume: 0.5,
+            panning: 0.5,
             is_looping: false,
             playback_pos: Duration::ZERO,
             total_duration: Duration::ZERO,
@@ -223,6 +224,16 @@ impl AudioPlayerApp {
             if ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).show_value(false)).changed() {
                 if let Some(sound_handle) = &mut self.sound_handle {
                     let _ = sound_handle.set_volume(self.volume, Default::default());
+                }
+            }
+        });
+
+        // Panning Control
+        ui.horizontal(|ui| {
+            ui.label("Pan:");
+            if ui.add(egui::Slider::new(&mut self.panning, 0.0..=1.0).show_value(false)).changed() {
+                if let Some(sound_handle) = &mut self.sound_handle {
+                    let _ = sound_handle.set_panning(self.panning, Default::default());
                 }
             }
         });
