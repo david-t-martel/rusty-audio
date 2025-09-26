@@ -13,14 +13,85 @@ description = "A car-stereo-style audio player built with Rust and egui."
 [dependencies]
 eframe = "0.27.2"
 egui = "0.27.2"
+serde = { version = "1.0", features = ["derive"] }
 rfd = "0.14.1"
-lofty = "0.20.0"
 once_cell = "1.19.0"
-kira = "0.8.5"
+web-audio-api = { path = "libs/web-audio-api-rs", features = ["default"] }
 parking_lot = "0.12.3"
 smol_str = "0.2.2"
-image = "0.24.9"
-rustfft = "6.2.0"
-spectrum-analyzer = "1.1.1"
-clap = { version = "4.5.4", features = ["derive"] }
-cpal = "0.15.3"
+lofty = "0.22.4"
+image = "0.25.8"
+catppuccin-egui = { version = "5.6.0", features = ["egui27"], default-features = false }
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+num_cpus = "1.16"
+rand = "0.8"
+rustfft = "6.0"
+proptest = "1.0"
+quickcheck = "1.0"
+num-complex = "0.4.4"
+approx = "0.5.1"
+lru = "0.12"
+rayon = "1.10"
+sys-info = "0.9"
+
+# ML and AI libraries (optional - enable as needed)
+# candle-core = { version = "0.4", optional = true }
+# candle-nn = { version = "0.4", optional = true }
+# linfa = { version = "0.7", optional = true }
+# smartcore = { version = "0.3", optional = true }
+ndarray = "0.15"
+nalgebra = "0.32"
+
+# Audio processing extensions
+dasp = "0.11"
+hound = "3.5"
+# rubato = { version = "0.15", optional = true }
+# realfft = { version = "3.3", optional = true }
+
+# Additional utilities for AI
+ordered-float = "4.2"
+statrs = "0.16"
+
+# Security dependencies
+toml = "0.8"
+dirs = "5.0"
+tempfile = "3.8"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.bench]
+inherits = "release"
+
+[[bench]]
+name = "audio_benchmarks"
+harness = false
+
+[[bench]]
+name = "performance_benchmarks"
+harness = false
+
+[[example]]
+name = "mathematical_testing_demo"
+path = "examples/mathematical_testing_demo.rs"
+
+
+lru = "0.12"
+rayon = "1.10" 
+sys-info = "0.9"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = ["Win32_System_Threading", "Win32_Foundation"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
