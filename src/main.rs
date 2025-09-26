@@ -1,3 +1,4 @@
+
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle, load::SizedTexture};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -11,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use image::GenericImageView;
 use clap::Parser;
-use kira::track::effect::filter::FilterHandle;
+use cpal::traits::{DeviceTrait, HostTrait};
 
 // Statically create the audio manager.
 static AUDIO_MANAGER: Lazy<
@@ -44,7 +45,8 @@ struct AudioPlayerApp {
     active_tab: Tab,
     spectrum: Vec<f32>,
     eq_bands: Vec<f32>,
-    eq_effect: Option<FilterHandle>,
+    audio_devices: Vec<String>,
+    selected_audio_device: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,6 +54,7 @@ enum Tab {
     Playback,
     Effects,
     Eq,
+    Settings,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,6 +74,9 @@ struct TrackMetadata {
 
 impl Default for AudioPlayerApp {
     fn default() -> Self {
+        let host = cpal::default_host();
+        let devices = host.output_devices().unwrap();
+        let device_names = devices.map(|d| d.name().unwrap()).collect();
         Self {
             sound_handle: None,
             playback_state: PlaybackState::Stopped,
@@ -86,7 +92,8 @@ impl Default for AudioPlayerApp {
             active_tab: Tab::Playback,
             spectrum: vec![0.0; 1024],
             eq_bands: vec![0.5; 8],
-            eq_effect: None,
+            audio_devices: device_names,
+            selected_audio_device: 0,
         }
     }
 }
@@ -101,6 +108,7 @@ impl eframe::App for AudioPlayerApp {
                 ui.selectable_value(&mut self.active_tab, Tab::Playback, "Playback");
                 ui.selectable_value(&mut self.active_tab, Tab::Effects, "Effects");
                 ui.selectable_value(&mut self.active_tab, Tab::Eq, "EQ");
+                ui.selectable_value(&mut self.active_tab, Tab::Settings, "Settings");
             });
 
             ui.separator();
@@ -114,6 +122,9 @@ impl eframe::App for AudioPlayerApp {
                 }
                 Tab::Eq => {
                     self.draw_eq_tab(ui);
+                }
+                Tab::Settings => {
+                    self.draw_settings_tab(ui);
                 }
             }
         });
@@ -248,13 +259,25 @@ impl AudioPlayerApp {
                 ui.vertical(|ui| {
                     ui.label(format!("{} Hz", 60 * 2_i32.pow(i as u32)));
                     if ui.add(egui::Slider::new(band, 0.0..=1.0).vertical()).changed() {
-                        if let Some(eq_effect) = &mut self.eq_effect {
-                            let _ = eq_effect.set_gain(i as u32, *band as f64);
-                        }
+                        // TODO: Implement EQ logic
                     }
                 });
             }
         });
+    }
+
+    fn draw_settings_tab(&mut self, ui: &mut egui::Ui) {
+        ui.label("Audio Device");
+        egui::ComboBox::from_label("Select an audio device")
+            .selected_text(self.audio_devices[self.selected_audio_device].clone())
+            .show_ui(ui, |ui| {
+                for (i, device) in self.audio_devices.iter().enumerate() {
+                    if ui.selectable_label(i == self.selected_audio_device, device).clicked() {
+                        self.selected_audio_device = i;
+                        // TODO: Re-initialize audio manager
+                    }
+                }
+            });
     }
 
     fn open_file(&mut self, ctx: &egui::Context) {
