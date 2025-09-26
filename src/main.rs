@@ -1,4 +1,3 @@
-
 use eframe::{egui, NativeOptions};
 use egui::{Color32, RichText, Vec2, TextureHandle, load::SizedTexture};
 use kira::manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings};
@@ -43,6 +42,7 @@ struct AudioPlayerApp {
     album_art: Option<Arc<TextureHandle>>,
     active_tab: Tab,
     spectrum: Vec<f32>,
+    eq_bands: Vec<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,6 +83,7 @@ impl Default for AudioPlayerApp {
             album_art: None,
             active_tab: Tab::Playback,
             spectrum: vec![0.0; 1024],
+            eq_bands: vec![0.5; 8],
         }
     }
 }
@@ -238,8 +239,15 @@ impl AudioPlayerApp {
     }
 
     fn draw_eq_tab(&mut self, ui: &mut egui::Ui) {
-        ui.label("EQ");
-        ui.label("EQ is not yet implemented.");
+        ui.label("Equalizer");
+        ui.horizontal(|ui| {
+            for (i, band) in self.eq_bands.iter_mut().enumerate() {
+                ui.vertical(|ui| {
+                    ui.label(format!("{} Hz", 60 * 2_i32.pow(i as u32)));
+                    ui.add(egui::Slider::new(band, 0.0..=1.0).vertical());
+                });
+            }
+        });
     }
 
     fn open_file(&mut self, ctx: &egui::Context) {
