@@ -199,6 +199,15 @@ pub enum SecurityError {
 
     #[error("Security monitoring inactive")]
     MonitoringInactive,
+
+    #[error("Configuration error: {0}")]
+    ConfigError(String),
+}
+
+impl From<super::secure_config::ConfigError> for SecurityError {
+    fn from(err: super::secure_config::ConfigError) -> Self {
+        SecurityError::ConfigError(err.to_string())
+    }
 }
 
 #[cfg(test)]

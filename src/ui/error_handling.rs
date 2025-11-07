@@ -127,7 +127,7 @@ impl ErrorManager {
     pub fn show_errors(&mut self, ui: &mut Ui, colors: &ThemeColors, accessibility: &mut AccessibilityManager) -> Vec<RecoveryActionType> {
         let mut actions_to_execute = Vec::new();
 
-        let active_errors: Vec<_> = self.errors.iter().filter(|e| !e.dismissed).collect();
+        let active_errors: Vec<_> = self.errors.iter().filter(|e| !e.dismissed).cloned().collect();
         if active_errors.is_empty() {
             return actions_to_execute;
         }
@@ -340,6 +340,7 @@ impl ErrorManager {
 /// Helper functions for creating specific error types
 impl ErrorManager {
     pub fn add_file_load_error(&mut self, filename: &str, details: Option<String>) {
+        let has_details = details.is_some();
         let mut error = ErrorInfo {
             id: String::new(), // Will be set by add_detailed_error
             error_type: ErrorType::FileLoad,
@@ -364,7 +365,7 @@ impl ErrorManager {
             dismissed: false,
         };
 
-        if details.is_some() {
+        if has_details {
             error.message.push_str(" Check the technical details below for more information.");
         }
 

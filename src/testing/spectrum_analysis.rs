@@ -5,7 +5,7 @@
 
 use rustfft::{FftPlanner, Fft, num_complex::Complex32};
 use web_audio_api::context::{AudioContext, BaseAudioContext};
-use web_audio_api::node::{AudioNode, AnalyserNode, AudioScheduledSourceNode};
+use web_audio_api::node::{AudioNode, AudioScheduledSourceNode};
 use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
 use super::signal_generators::*;
 use std::sync::Arc;

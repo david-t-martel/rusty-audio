@@ -18,6 +18,6 @@ pub use theme::*;
 pub use utils::*;
 pub use signal_generator::*;
 pub use accessibility::*;
-pub use enhanced_controls::*;
+pub use enhanced_controls::{AccessibleSlider, AccessibleKnob};
 pub use enhanced_button::*;
 pub use error_handling::*;

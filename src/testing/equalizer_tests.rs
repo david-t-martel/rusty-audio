@@ -4,10 +4,10 @@
 // filter accuracy, and audio processing correctness.
 
 use web_audio_api::context::{AudioContext, BaseAudioContext};
-use web_audio_api::node::{AudioNode, BiquadFilterNode, BiquadFilterType, AudioScheduledSourceNode};
+use web_audio_api::node::{AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType};
 use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
 use super::signal_generators::*;
-use super::spectrum_analysis::{FftAnalyzer, SpectrumAnalysis};
+use super::spectrum_analysis::FftAnalyzer;
 use std::f32::consts::PI;
 
 /// Biquad filter coefficients for mathematical verification

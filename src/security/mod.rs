@@ -25,7 +25,13 @@ pub use security_monitor::{SecurityMonitor, SecurityEvent, Severity};
 pub fn initialize_security() -> Result<SecurityContext, SecurityError> {
     let config = SecureConfig::load_or_default()?;
     let file_validator = FileValidator::new(config.security.sandbox_path.clone());
-    let audio_limiter = AudioSafetyLimiter::new(config.audio.clone());
+    let audio_config = audio_safety::AudioConfig {
+        max_volume: config.audio.max_volume,
+        default_volume: config.audio.default_volume,
+        enable_limiter: config.audio.enable_limiter,
+        limiter_threshold: config.audio.limiter_threshold,
+    };
+    let audio_limiter = AudioSafetyLimiter::new(audio_config);
     let monitor = SecurityMonitor::new();
 
     Ok(SecurityContext {

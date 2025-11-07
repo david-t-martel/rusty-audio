@@ -88,7 +88,7 @@ struct AudioPipeline {
 impl AudioPipeline {
     fn new(config: PipelineTestConfig) -> Self {
         let sample_count = (config.test_duration * config.sample_rate) as usize;
-        let context = OfflineAudioContext::new(config.channels, sample_count, config.sample_rate);
+        let context = OfflineAudioContext::new(config.channels as usize, sample_count, config.sample_rate as usize);
 
         Self {
             context,
@@ -99,7 +99,7 @@ impl AudioPipeline {
 
     fn create_test_signal(&self, frequency: f32, amplitude: f32) -> AudioBuffer {
         let sample_count = (self.config.test_duration * self.config.sample_rate) as usize;
-        let mut buffer = self.context.create_buffer(self.config.channels, sample_count, self.config.sample_rate);
+        let mut buffer = self.context.create_buffer(self.config.channels as usize, sample_count, self.config.sample_rate as usize);
 
         for channel in 0..self.config.channels {
             let mut data = Vec::with_capacity(sample_count);
@@ -110,7 +110,7 @@ impl AudioPipeline {
                 data.push(sample);
             }
 
-            buffer.copy_to_channel(&data, channel).unwrap();
+            buffer.copy_to_channel(&data, channel as usize);
         }
 
         buffer
@@ -148,7 +148,7 @@ impl AudioPipeline {
                 data.push(sample);
             }
 
-            buffer.copy_to_channel(&data, channel).unwrap();
+            buffer.copy_to_channel(&data, channel as usize);
         }
 
         buffer

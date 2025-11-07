@@ -5,7 +5,7 @@
 
 use crate::error::{MetadataError, ImageError, ErrorContext, Result};
 use image::GenericImageView;
-use lofty::{file::TaggedFileExt, tag::Accessor};
+use lofty::{file::{TaggedFileExt, AudioFile}, tag::Accessor};
 use std::path::Path;
 use tracing::{info, debug, warn};
 
@@ -98,7 +98,7 @@ impl MetadataExtractorInterface for LoftyMetadataExtractor {
                 duration: Some(duration),
                 genre: tag.genre().as_deref().map(|s| s.to_string()),
                 track_number: tag.track().map(|t| t as u32),
-                album_artist: tag.album_artist().as_deref().map(|s| s.to_string()),
+                album_artist: tag.artist().as_deref().map(|s| s.to_string()), // Use artist as fallback
             }
         } else {
             warn!("No primary tag found, using defaults");
@@ -127,7 +127,7 @@ impl MetadataExtractorInterface for LoftyMetadataExtractor {
                     let (width, height) = img.dimensions();
                     Ok(Some(AlbumArt {
                         data: picture.data().to_vec(),
-                        mime_type: picture.mime_type().as_str().to_string(),
+                        mime_type: picture.mime_type().map(|m| m.to_string()).unwrap_or_else(|| "unknown".to_string()),
                         width,
                         height,
                     }))

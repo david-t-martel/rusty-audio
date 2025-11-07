@@ -1,0 +1,1137 @@
+warning: unused import: `AnalyserNode`
+ --> src\testing\spectrum_analysis.rs:8:38
+  |
+8 | use web_audio_api::node::{AudioNode, AnalyserNode, AudioScheduledSourceNode};
+  |                                      ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `SpectrumAnalysis`
+  --> src\testing\equalizer_tests.rs:10:45
+   |
+10 | use super::spectrum_analysis::{FftAnalyzer, SpectrumAnalysis};
+   |                                             ^^^^^^^^^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> src\testing\mod.rs:8:1
+   |
+ 8 | pub mod equalizer_tests;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AudioScheduledSourceNode`
+ --> src\testing\integration_tests.rs:7:38
+  |
+7 | use web_audio_api::node::{AudioNode, AudioScheduledSourceNode};
+  |                                      ^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+ --> src\testing\mod.rs:9:1
+  |
+9 | pub mod integration_tests;
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+  --> src\testing\integration_tests.rs:11:5
+   |
+11 | use std::sync::Arc;
+   |     ^^^^^^^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> src\testing\mod.rs:9:1
+   |
+ 9 | pub mod integration_tests;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TestResult as AudioTestResult`
+  --> src\testing\property_tests.rs:8:24
+   |
+ 8 | use super::{TestSuite, TestResult as AudioTestResult, SAMPLE_RATE, TOLERANCE};
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> src\testing\mod.rs:10:1
+   |
+10 | pub mod property_tests;
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::f32::consts::PI`
+  --> src\testing\property_tests.rs:11:5
+   |
+11 | use std::f32::consts::PI;
+   |     ^^^^^^^^^^^^^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> src\testing\mod.rs:10:1
+   |
+10 | pub mod property_tests;
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AccessibleButton`, `AccessibleKnob`, `AlbumArtDisplay`, `CircularKnob`, `EnhancedSlider`, `MetadataDisplay`, `ProgressIndicator`, `ResponsiveSize`, and `ScreenSize`
+  --> src\testing\ui_tests.rs:8:18
+   |
+ 8 |     components::{AlbumArtDisplay, ProgressBar, MetadataDisplay},
+   |                  ^^^^^^^^^^^^^^^               ^^^^^^^^^^^^^^^
+ 9 |     controls::{EnhancedSlider, CircularKnob, EnhancedButton},
+   |                ^^^^^^^^^^^^^^  ^^^^^^^^^^^^
+10 |     enhanced_controls::{AccessibleSlider, AccessibleKnob},
+   |                                           ^^^^^^^^^^^^^^
+11 |     enhanced_button::{AccessibleButton, ProgressIndicator},
+   |                       ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
+12 |     accessibility::AccessibilityManager,
+13 |     utils::{ScreenSize, ResponsiveSize},
+   |             ^^^^^^^^^^  ^^^^^^^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> src\testing\mod.rs:11:1
+   |
+11 | pub mod ui_tests;
+   | ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Color32` and `Response`
+  --> src\testing\ui_tests.rs:15:30
+   |
+15 | use egui::{Vec2, Rect, Pos2, Color32, Context, Response};
+   |                              ^^^^^^^           ^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> src\testing\mod.rs:11:1
+   |
+11 | pub mod ui_tests;
+   | ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AccessibleKnob`, `AccessibleSlider`, `AlbumArtDisplay`, `ButtonStyle`, `CircularKnob`, `EnhancedButton`, `EnhancedSlider`, `MetadataDisplay`, `MetadataLayout`, `ProgressBar`, `ResponsiveSize`, `ScreenSize`, and `accessibility::AccessibilityManager`
+  --> src\testing\visual_regression.rs:8:18
+   |
+ 8 |     components::{AlbumArtDisplay, ProgressBar, MetadataDisplay, MetadataLayout},
+   |                  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+ 9 |     controls::{EnhancedSlider, CircularKnob, EnhancedButton, ButtonStyle},
+   |                ^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^
+10 |     enhanced_controls::{AccessibleSlider, AccessibleKnob},
+   |                         ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+11 |     accessibility::AccessibilityManager,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+12 |     utils::{ScreenSize, ResponsiveSize},
+   |             ^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused imports: `Context`, `Pos2`, and `Rect`
+  --> src\testing\visual_regression.rs:14:18
+   |
+14 | use egui::{Vec2, Rect, Pos2, Color32, Context, ColorImage};
+   |                  ^^^^  ^^^^           ^^^^^^^
+
+warning: unused imports: `GeneratorState`, `TestResult`, `TestSuite`, `ThemeManager`, `Theme`, and `approx_equal`
+  --> src\testing\audio_feature_tests.rs:7:15
+   |
+ 7 |     testing::{TestResult, TestSuite, approx_equal, calculate_rms, calculate_peak},
+   |               ^^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^^^^
+ 8 |     ui::{
+ 9 |         signal_generator::{SignalGeneratorPanel, GeneratorState},
+   |                                                  ^^^^^^^^^^^^^^
+10 |         theme::{Theme, ThemeManager},
+   |                 ^^^^^  ^^^^^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> src\testing\mod.rs:13:1
+   |
+13 | pub mod audio_feature_tests;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AnalyserNode`, `AudioNode`, `AudioScheduledSourceNode`, and `BiquadFilterNode`
+  --> src\testing\audio_feature_tests.rs:15:12
+   |
+15 |     node::{AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType, AnalyserNode},
+   |            ^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^                    ^^^^^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> src\testing\mod.rs:13:1
+   |
+13 | pub mod audio_feature_tests;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `CursorIcon`, `Modifiers`, and `Vec2`
+ --> src\ui\accessibility.rs:1:16
+  |
+1 | use egui::{Ui, Vec2, Rect, Pos2, Color32, Response, RichText, Key, Modifiers, CursorIcon, Id};
+  |                ^^^^                                                ^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused imports: `ColorUtils` and `DrawUtils`
+ --> src\ui\accessibility.rs:5:36
+  |
+5 | use super::utils::{AnimationState, ColorUtils, DrawUtils};
+  |                                    ^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `RichText`
+ --> src\ui\enhanced_controls.rs:3:46
+  |
+3 |     emath::remap_clamp, epaint::CircleShape, RichText,
+  |                                              ^^^^^^^^
+
+warning: unused imports: `Button` and `Color32`
+ --> src\ui\error_handling.rs:1:22
+  |
+1 | use egui::{Ui, Vec2, Color32, RichText, Button};
+  |                      ^^^^^^^            ^^^^^^
+
+warning: unused import: `ColorUtils`
+ --> src\ui\error_handling.rs:4:36
+  |
+4 | use super::utils::{AnimationState, ColorUtils};
+  |                                    ^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+ --> src\audio_optimizations.rs:5:5
+  |
+5 | use std::collections::VecDeque;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `windows::Win32::Foundation::*`
+   --> src\audio_optimizations.rs:407:17
+    |
+407 |             use windows::Win32::Foundation::*;
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `windows::Win32::Foundation::*`
+   --> src\audio_optimizations.rs:447:17
+    |
+447 |             use windows::Win32::Foundation::*;
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Mutex`
+ --> src\security\thread_safe_state.rs:6:27
+  |
+6 | use parking_lot::{RwLock, Mutex};
+  |                           ^^^^^
+
+warning: unused import: `ErrorContext`
+ --> src\audio_engine.rs:6:32
+  |
+6 | use crate::error::{AudioError, ErrorContext, Result};
+  |                                ^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> src\audio_engine.rs:8:5
+  |
+8 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `error`
+  --> src\audio_engine.rs:10:27
+   |
+10 | use tracing::{info, warn, error, debug};
+   |                           ^^^^^
+
+warning: unused import: `ErrorContext`
+ --> src\metadata.rs:6:47
+  |
+6 | use crate::error::{MetadataError, ImageError, ErrorContext, Result};
+  |                                               ^^^^^^^^^^^^
+
+warning: unused import: `Context`
+ --> src\ai\audio_analyzer.rs:6:22
+  |
+6 | use anyhow::{Result, Context};
+  |                      ^^^^^^^
+
+warning: unused import: `Context`
+ --> src\ai\eq_optimizer.rs:6:22
+  |
+6 | use anyhow::{Result, Context};
+  |                      ^^^^^^^
+
+warning: unused import: `Context`
+ --> src\ai\noise_reduction.rs:6:22
+  |
+6 | use anyhow::{Result, Context};
+  |                      ^^^^^^^
+
+warning: unused import: `Context`
+ --> src\ai\volume_normalizer.rs:6:22
+  |
+6 | use anyhow::{Result, Context};
+  |                      ^^^^^^^
+
+warning: unused import: `Context`
+ --> src\ai\format_optimizer.rs:6:22
+  |
+6 | use anyhow::{Result, Context};
+  |                      ^^^^^^^
+
+warning: unused import: `crate::ai::feature_extractor::AudioFeatures`
+ --> src\ai\playlist_generator.rs:4:5
+  |
+4 | use crate::ai::feature_extractor::AudioFeatures;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::ai::feature_extractor::AudioFeatures`
+ --> src\ai\audio_classifier.rs:4:5
+  |
+4 | use crate::ai::feature_extractor::AudioFeatures;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Context`
+ --> src\ai\feature_extractor.rs:5:22
+  |
+5 | use anyhow::{Result, Context};
+  |                      ^^^^^^^
+
+warning: unused import: `Context`
+ --> src\ai\ml_models.rs:6:22
+  |
+6 | use anyhow::{Result, Context};
+  |                      ^^^^^^^
+
+warning: unused import: `ArrayD`
+  --> src\ai\ml_models.rs:11:31
+   |
+11 | use ndarray::{Array1, Array2, ArrayD};
+   |                               ^^^^^^
+
+warning: unused import: `std::sync::Arc`
+  --> src\ai\mod.rs:20:5
+   |
+20 | use std::sync::Arc;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `parking_lot::RwLock`
+  --> src\ai\mod.rs:21:5
+   |
+21 | use parking_lot::RwLock;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `freq`
+   --> src\testing\signal_generators.rs:340:17
+    |
+340 |             let freq = self.start_freq + (self.end_freq - self.start_freq) * t_norm;
+    |                 ^^^^
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+    |
+340 |             let _freq = self.start_freq + (self.end_freq - self.start_freq) * t_norm;
+    |                 +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+340 -             let freq = self.start_freq + (self.end_freq - self.start_freq) * t_norm;
+340 +             let security::input_validator::InputValidator::validate_playback_rate::MAX_RATE = self.start_freq + (self.end_freq - self.start_freq) * t_norm;
+    |
+
+warning: unused variable: `freq_error`
+   --> src\testing\spectrum_analysis.rs:303:21
+    |
+303 |                 let freq_error = (detected_freq - freq).abs();
+    |                     ^^^^^^^^^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+303 |                 let _freq_error = (detected_freq - freq).abs();
+    |                     +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+303 -                 let freq_error = (detected_freq - freq).abs();
+303 +                 let security::input_validator::InputValidator::validate_playback_rate::MAX_RATE = (detected_freq - freq).abs();
+    |
+
+warning: unused variable: `omega`
+   --> src\testing\equalizer_tests.rs:197:13
+    |
+197 |         let omega = 2.0 * PI * test_frequency / SAMPLE_RATE;
+    |             ^^^^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+197 |         let _omega = 2.0 * PI * test_frequency / SAMPLE_RATE;
+    |             +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+197 -         let omega = 2.0 * PI * test_frequency / SAMPLE_RATE;
+197 +         let security::input_validator::InputValidator::validate_playback_rate::MAX_RATE = 2.0 * PI * test_frequency / SAMPLE_RATE;
+    |
+
+warning: unused variable: `input_analysis`
+   --> src\testing\equalizer_tests.rs:229:13
+    |
+229 |         let input_analysis = self.analyzer.analyze(&sweep_samples, SAMPLE_RATE);
+    |             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_input_analysis`
+
+warning: unused variable: `filter`
+   --> src\testing\equalizer_tests.rs:219:39
+    |
+219 |     fn test_filter_empirically(&self, filter: &BiquadFilterNode,
+    |                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_filter`
+
+warning: unused variable: `q`
+   --> src\testing\equalizer_tests.rs:221:47
+    |
+221 | ...                   frequency: f32, q: f32, gain: f32) -> TestSuite {
+    |                                       ^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+221 |                               frequency: f32, _q: f32, gain: f32) -> TestSuite {
+    |                                               +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+221 -                               frequency: f32, q: f32, gain: f32) -> TestSuite {
+221 +                               frequency: f32, security::input_validator::InputValidator::validate_playback_rate::MAX_RATE: f32, gain: f32) -> TestSuite {
+    |
+
+warning: unused variable: `eq_bands`
+   --> src\testing\equalizer_tests.rs:315:34
+    |
+315 |     fn test_flat_response(&self, eq_bands: &[BiquadFilterNode]) -> TestSuite {
+    |                                  ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_eq_bands`
+
+warning: unused variable: `analysis`
+   --> src\testing\property_tests.rs:233:9
+    |
+233 |     let analysis = analyzer.analyze(&samples, SAMPLE_RATE);
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_analysis`
+
+warning: unused variable: `keyboard_accessible`
+   --> src\testing\ui_tests.rs:473:13
+    |
+473 |         let keyboard_accessible = accessibility_manager.handle_keyboard_input(&ui);
+    |             ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_keyboard_accessible`
+
+warning: variable does not need to be mutable
+   --> src\testing\ui_tests.rs:469:13
+    |
+469 |         let mut ui = mock_ctx.create_test_ui();
+    |             ----^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `colors`
+   --> src\testing\ui_tests.rs:687:63
+    |
+687 |             .test_component_responsiveness("MainLayout", |ui, colors, screen_size| {
+    |                                                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_colors`
+
+warning: unused variable: `screen_size`
+   --> src\testing\ui_tests.rs:687:71
+    |
+687 |             .test_component_responsiveness("MainLayout", |ui, colors, screen_size| {
+    |                                                                       ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_screen_size`
+
+warning: unused variable: `colors`
+   --> src\testing\ui_tests.rs:691:58
+    |
+691 |             .test_hidpi_scaling("HiDPI Components", |ui, colors, scale_factor| {
+    |                                                          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_colors`
+
+warning: unused variable: `base_color`
+   --> src\testing\visual_regression.rs:228:13
+    |
+228 |         let base_color = Color32::from_rgb(r, g, b);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_base_color`
+
+warning: unused variable: `pixels`
+   --> src\testing\visual_regression.rs:280:13
+    |
+280 |         let pixels: Vec<Color32> = rgba.pixels()
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_pixels`
+
+warning: unused variable: `painter`
+   --> src\ui\components.rs:480:13
+    |
+480 |         let painter = ui.painter();
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_painter`
+
+warning: unused variable: `dt`
+   --> src\ui\components.rs:518:13
+    |
+518 |         let dt = ui.ctx().input(|i| i.stable_dt);
+    |             ^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+518 |         let _dt = ui.ctx().input(|i| i.stable_dt);
+    |             +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+518 -         let dt = ui.ctx().input(|i| i.stable_dt);
+518 +         let security::input_validator::InputValidator::validate_playback_rate::MAX_RATE = ui.ctx().input(|i| i.stable_dt);
+    |
+
+warning: unused variable: `id`
+   --> src\ui\layout.rs:221:14
+    |
+221 |         for (id, panel) in self.state.panels.iter_mut() {
+    |              ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+warning: unused variable: `ui`
+   --> src\ui\layout.rs:414:34
+    |
+414 |                 .show(ui.ctx(), |ui| {
+    |                                  ^^ help: if this is intentional, prefix it with an underscore: `_ui`
+
+warning: unused variable: `ui`
+   --> src\ui\layout.rs:535:40
+    |
+535 |     fn handle_drag_and_drop(&mut self, ui: &mut Ui) {
+    |                                        ^^ help: if this is intentional, prefix it with an underscore: `_ui`
+
+warning: unused variable: `angle`
+   --> src\ui\controls.rs:367:21
+    |
+367 |                 let angle = delta.y.atan2(delta.x);
+    |                     ^^^^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+367 |                 let _angle = delta.y.atan2(delta.x);
+    |                     +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+367 -                 let angle = delta.y.atan2(delta.x);
+367 +                 let security::input_validator::InputValidator::validate_playback_rate::MAX_RATE = delta.y.atan2(delta.x);
+    |
+
+warning: unused variable: `last_pos`
+   --> src\ui\controls.rs:370:29
+    |
+370 |                 if let Some(last_pos) = ui.ctx().input(|i| i.pointer.hover_pos()) {
+    |                             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_last_pos`
+
+warning: unused variable: `rect`
+   --> src\ui\controls.rs:408:29
+    |
+408 |     fn draw(&self, ui: &Ui, rect: Rect, center: Pos2, colors: &ThemeColors) {
+    |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_rect`
+
+warning: unused variable: `mesh`
+   --> src\ui\utils.rs:189:13
+    |
+189 |         let mesh = egui::Mesh::with_texture(egui::TextureId::default());
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_mesh`
+
+warning: unused variable: `glow_color`
+   --> src\ui\utils.rs:218:13
+    |
+218 |         let glow_color = ColorUtils::with_alpha(color, intensity * 0.5);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_glow_color`
+
+warning: unused variable: `ui`
+   --> src\ui\accessibility.rs:376:30
+    |
+376 |     pub fn update(&mut self, ui: &Ui) {
+    |                              ^^ help: if this is intentional, prefix it with an underscore: `_ui`
+
+warning: unused variable: `ui`
+   --> src\ui\accessibility.rs:446:30
+    |
+446 |     pub fn update(&mut self, ui: &Ui, dt: f32) {
+    |                              ^^ help: if this is intentional, prefix it with an underscore: `_ui`
+
+warning: unused variable: `control_type`
+   --> src\ui\accessibility.rs:453:48
+    |
+453 |     pub fn register_control(&mut self, id: Id, control_type: FocusableControlType, rect: Rect) {
+    |                                                ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_control_type`
+
+warning: unused variable: `rect`
+   --> src\ui\accessibility.rs:453:84
+    |
+453 |     pub fn register_control(&mut self, id: Id, control_type: FocusableControlType, rect: Rect) {
+    |                                                                                    ^^^^ help: if this is intentional, prefix it with an underscore: `_rect`
+
+warning: unused variable: `dt`
+   --> src\ui\accessibility.rs:564:30
+    |
+564 |     pub fn update(&mut self, dt: f32) {
+    |                              ^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+564 |     pub fn update(&mut self, _dt: f32) {
+    |                              +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+564 -     pub fn update(&mut self, dt: f32) {
+564 +     pub fn update(&mut self, security::input_validator::InputValidator::validate_playback_rate::MAX_RATE: f32) {
+    |
+
+warning: unused variable: `rect`
+   --> src\ui\enhanced_controls.rs:659:29
+    |
+659 |     fn draw(&self, ui: &Ui, rect: Rect, center: Pos2, colors: &ThemeColors) {
+    |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_rect`
+
+warning: unused variable: `colors`
+   --> src\ui\enhanced_button.rs:221:49
+    |
+221 |     fn show_confirmation_dialog(&self, ui: &Ui, colors: &ThemeColors) {
+    |                                                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_colors`
+
+warning: unused variable: `loading_factor`
+   --> src\ui\enhanced_button.rs:248:13
+    |
+248 |         let loading_factor = self.loading_animation.value();
+    |             ^^^^^^^^^^^^^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+248 |         let _loading_factor = self.loading_animation.value();
+    |             +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+248 -         let loading_factor = self.loading_animation.value();
+248 +         let security::input_validator::InputValidator::validate_playback_rate::MAX_RATE = self.loading_animation.value();
+    |
+
+warning: unused variable: `now`
+   --> src\ui\error_handling.rs:108:13
+    |
+108 |         let now = Instant::now();
+    |             ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+
+warning: unused variable: `path`
+   --> src\audio_optimizations.rs:229:30
+    |
+229 |     fn load_from_disk(&self, path: &std::path::Path) -> Result<Vec<f32>, String> {
+    |                              ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+
+warning: variable does not need to be mutable
+   --> src\audio_optimizations.rs:274:13
+    |
+274 |         let mut planner = rustfft::FftPlanner::new();
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `properties`
+  --> src\metadata.rs:78:13
+   |
+78 |         let properties = tagged_file.file_type();
+   |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
+
+warning: unused variable: `sample_rate`
+   --> src\ai\audio_analyzer.rs:193:48
+    |
+193 |     fn calculate_mfcc(&self, spectrum: &[f32], sample_rate: u32) -> Result<Vec<f32>> {
+    |                                                ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `sample_rate`
+   --> src\ai\audio_analyzer.rs:349:55
+    |
+349 |     fn calculate_beat_strength(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
+    |                                                       ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `window_size`
+   --> src\ai\audio_analyzer.rs:361:13
+    |
+361 |         let window_size = 2048;
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_window_size`
+
+warning: unused variable: `buffer`
+   --> src\ai\audio_analyzer.rs:379:43
+    |
+379 |     fn calculate_rhythm_regularity(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
+    |                                           ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `sample_rate`
+   --> src\ai\audio_analyzer.rs:379:59
+    |
+379 |     fn calculate_rhythm_regularity(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
+    |                                                           ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `features`
+   --> src\ai\eq_optimizer.rs:190:9
+    |
+190 |         features: &AudioFeatures,
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_features`
+
+warning: unused variable: `delta`
+   --> src\ai\eq_optimizer.rs:340:17
+    |
+340 |             let delta = adj.gain - orig.gain;
+    |                 ^^^^^
+    |
+help: if this is intentional, prefix it with an underscore
+    |
+340 |             let _delta = adj.gain - orig.gain;
+    |                 +
+help: you might have meant to pattern match on the similarly named constant `MAX_RATE`
+    |
+340 -             let delta = adj.gain - orig.gain;
+340 +             let security::input_validator::InputValidator::validate_playback_rate::MAX_RATE = adj.gain - orig.gain;
+    |
+
+warning: unused variable: `features`
+   --> src\ai\eq_optimizer.rs:337:91
+    |
+337 |     pub fn learn_from_adjustment(&mut self, original: &EQSettings, adjusted: &EQSettings, features: &AudioFeatures) {
+    |                                                                                           ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_features`
+
+warning: unused variable: `features`
+   --> src\ai\eq_optimizer.rs:376:37
+    |
+376 |     fn identify_problems(&mut self, features: &AudioFeatures) -> Result<()> {
+    |                                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_features`
+
+warning: unused variable: `features`
+   --> src\ai\noise_reduction.rs:475:45
+    |
+475 |     fn calculate(&mut self, buffer: &[f32], features: &AudioFeatures) -> Result<f32> {
+    |                                             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_features`
+
+warning: unused variable: `features`
+  --> src\ai\preset_recommender.rs:14:33
+   |
+14 |     pub fn recommend(&mut self, features: &AudioFeatures) -> Result<Vec<AudioPreset>> {
+   |                                 ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_features`
+
+warning: unused variable: `features`
+  --> src\ai\anomaly_detector.rs:13:30
+   |
+13 |     pub fn detect(&mut self, features: &AudioFeatures) -> Result<Option<AudioAnomaly>> {
+   |                              ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_features`
+
+warning: unused variable: `buffer`
+   --> src\ai\feature_extractor.rs:116:73
+    |
+116 |     fn extract_energy_features(&mut self, features: &mut AudioFeatures, buffer: &[f32], sample_rate: u32) -> Result<()> {
+    |                                                                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `buffer`
+   --> src\ai\feature_extractor.rs:171:75
+    |
+171 |     fn extract_harmonic_features(&mut self, features: &mut AudioFeatures, buffer: &[f32], sample_rate: u32) -> Result<()> {
+    |                                                                           ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `buffer`
+   --> src\ai\feature_extractor.rs:197:71
+    |
+197 |     fn extract_mfcc_features(&mut self, features: &mut AudioFeatures, buffer: &[f32], sample_rate: u32) -> Result<()> {
+    |                                                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `buffer`
+   --> src\ai\feature_extractor.rs:311:30
+    |
+311 |     fn estimate_tempo(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
+    |                              ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `sample_rate`
+   --> src\ai\feature_extractor.rs:311:46
+    |
+311 |     fn estimate_tempo(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
+    |                                              ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `buffer`
+   --> src\ai\feature_extractor.rs:316:39
+    |
+316 |     fn calculate_beat_strength(&self, buffer: &[f32]) -> Result<f32> {
+    |                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `buffer`
+   --> src\ai\feature_extractor.rs:321:39
+    |
+321 |     fn calculate_onset_density(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
+    |                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `sample_rate`
+   --> src\ai\feature_extractor.rs:321:55
+    |
+321 |     fn calculate_onset_density(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
+    |                                                       ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `spectrum`
+   --> src\ai\feature_extractor.rs:342:42
+    |
+342 |     fn calculate_pitch_confidence(&self, spectrum: &[f32], peaks: &[usize]) -> f32 {
+    |                                          ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_spectrum`
+
+warning: unused variable: `sample_rate`
+   --> src\ai\feature_extractor.rs:404:48
+    |
+404 |     fn calculate_mfcc(&self, spectrum: &[f32], sample_rate: u32) -> Result<Vec<f32>> {
+    |                                                ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sample_rate`
+
+warning: unused variable: `path`
+   --> src\ai\ml_models.rs:147:13
+    |
+147 |     fn load(path: &Path) -> Result<Self> {
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+
+warning: unused variable: `update`
+   --> src\ai\ml_models.rs:196:26
+    |
+196 |     fn update(&mut self, update: &ModelUpdate) -> Result<()> {
+    |                          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_update`
+
+warning: field `theme_colors` is never read
+   --> src\testing\visual_regression.rs:191:5
+    |
+188 | pub struct MockScreenshotGenerator {
+    |            ----------------------- field in this struct
+...
+191 |     theme_colors: ThemeColors,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `audio_context` is never read
+   --> src\testing\audio_feature_tests.rs:425:5
+    |
+422 | pub struct SignalGeneratorTester {
+    |            --------------------- field in this struct
+...
+425 |     audio_context: AudioContext,
+    |     ^^^^^^^^^^^^^
+
+warning: fields `panel_id`, `start_pos`, `current_pos`, and `original_dock` are never read
+   --> src\ui\layout.rs:102:5
+    |
+101 | struct DragState {
+    |        --------- fields in this struct
+102 |     panel_id: String,
+    |     ^^^^^^^^
+103 |     start_pos: Pos2,
+    |     ^^^^^^^^^
+104 |     current_pos: Pos2,
+    |     ^^^^^^^^^^^
+105 |     original_dock: DockSide,
+    |     ^^^^^^^^^^^^^
+    |
+    = note: `DragState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `chunk_size` and `decode_ahead` are never read
+   --> src\audio_performance.rs:248:5
+    |
+247 | pub struct StreamingDecoder {
+    |            ---------------- fields in this struct
+248 |     chunk_size: usize,
+    |     ^^^^^^^^^^
+249 |     decode_ahead: usize,
+    |     ^^^^^^^^^^^^
+
+warning: fields `audio_analyzer`, `format_optimizer`, `playlist_generator`, `audio_classifier`, `adaptive_ui`, and `voice_commander` are never read
+  --> src\ai\mod.rs:26:5
+   |
+25 | pub struct AIEngine {
+   |            -------- fields in this struct
+26 |     audio_analyzer: audio_analyzer::AudioAnalyzer,
+   |     ^^^^^^^^^^^^^^
+...
+30 |     format_optimizer: format_optimizer::FormatOptimizer,
+   |     ^^^^^^^^^^^^^^^^
+31 |     playlist_generator: playlist_generator::PlaylistGenerator,
+   |     ^^^^^^^^^^^^^^^^^^
+32 |     audio_classifier: audio_classifier::AudioClassifier,
+   |     ^^^^^^^^^^^^^^^^
+33 |     adaptive_ui: adaptive_ui::AdaptiveUI,
+   |     ^^^^^^^^^^^
+...
+36 |     voice_commander: voice_commands::VoiceCommander,
+   |     ^^^^^^^^^^^^^^^
+
+warning: field `hop_size` is never read
+  --> src\ai\audio_analyzer.rs:14:5
+   |
+11 | pub struct AudioAnalyzer {
+   |            ------------- field in this struct
+...
+14 |     hop_size: usize,
+   |     ^^^^^^^^
+
+warning: field `target_curve` is never read
+  --> src\ai\eq_optimizer.rs:13:5
+   |
+11 | pub struct EQOptimizer {
+   |            ----------- field in this struct
+12 |     genre_profiles: Vec<GenreProfile>,
+13 |     target_curve: TargetCurve,
+   |     ^^^^^^^^^^^^
+
+warning: field `severity` is never read
+   --> src\ai\eq_optimizer.rs:416:5
+    |
+413 | struct FrequencyProblem {
+    |        ---------------- field in this struct
+...
+416 |     severity: f32,
+    |     ^^^^^^^^
+    |
+    = note: `FrequencyProblem` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: variant `Sibilance` is never constructed
+   --> src\ai\eq_optimizer.rs:426:5
+    |
+421 | enum ProblemType {
+    |      ----------- variant in this enum
+...
+426 |     Sibilance,
+    |     ^^^^^^^^^
+    |
+    = note: `ProblemType` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `curve_type` and `points` are never read
+   --> src\ai\eq_optimizer.rs:439:5
+    |
+438 | struct TargetCurve {
+    |        ----------- fields in this struct
+439 |     curve_type: CurveType,
+    |     ^^^^^^^^^^
+440 |     points: Vec<(f32, f32)>, // (frequency, target_level)
+    |     ^^^^^^
+    |
+    = note: `TargetCurve` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: variants `HarmanTarget`, `VShape`, and `Custom` are never constructed
+   --> src\ai\eq_optimizer.rs:461:5
+    |
+459 | enum CurveType {
+    |      --------- variants in this enum
+460 |     Flat,
+461 |     HarmanTarget,
+    |     ^^^^^^^^^^^^
+462 |     VShape,
+    |     ^^^^^^
+463 |     Custom,
+    |     ^^^^^^
+    |
+    = note: `CurveType` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `smoothing_factor` is never read
+  --> src\ai\noise_reduction.rs:18:5
+   |
+12 | pub struct NoiseReducer {
+   |            ------------ field in this struct
+...
+18 |     smoothing_factor: f32,
+   |     ^^^^^^^^^^^^^^^^
+
+warning: field `noise_type` is never read
+   --> src\ai\noise_reduction.rs:501:5
+    |
+497 | struct NoiseRegion {
+    |        ----------- field in this struct
+...
+501 |     noise_type: NoiseType,
+    |     ^^^^^^^^^^
+    |
+    = note: `NoiseRegion` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: variants `Impulse` and `Tonal` are never constructed
+   --> src\ai\noise_reduction.rs:508:5
+    |
+505 | enum NoiseType {
+    |      --------- variants in this enum
+...
+508 |     Impulse,
+    |     ^^^^^^^
+509 |     Tonal,
+    |     ^^^^^
+    |
+    = note: `NoiseType` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `gate_threshold` is never read
+  --> src\ai\volume_normalizer.rs:13:5
+   |
+11 | pub struct VolumeNormalizer {
+   |            ---------------- field in this struct
+12 |     target_lufs: f32,
+13 |     gate_threshold: f32,
+   |     ^^^^^^^^^^^^^^
+
+warning: field `expander` is never read
+   --> src\ai\volume_normalizer.rs:364:5
+    |
+362 | struct DynamicsProcessor {
+    |        ----------------- field in this struct
+363 |     compressor: Compressor,
+364 |     expander: Expander,
+    |     ^^^^^^^^
+
+warning: fields `threshold` and `ratio` are never read
+   --> src\ai\volume_normalizer.rs:485:5
+    |
+484 | struct Expander {
+    |        -------- fields in this struct
+485 |     threshold: f32,
+    |     ^^^^^^^^^
+486 |     ratio: f32,
+    |     ^^^^^
+
+warning: fields `sample_rate` and `block_size` are never read
+   --> src\ai\volume_normalizer.rs:538:5
+    |
+537 | struct LoudnessMeter {
+    |        ------------- fields in this struct
+538 |     sample_rate: u32,
+    |     ^^^^^^^^^^^
+539 |     block_size: usize,
+    |     ^^^^^^^^^^
+
+warning: variant `Jazz` is never constructed
+   --> src\ai\volume_normalizer.rs:593:5
+    |
+589 | enum MusicGenre {
+    |      ---------- variant in this enum
+...
+593 |     Jazz,
+    |     ^^^^
+    |
+    = note: `MusicGenre` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `metrics` is never read
+  --> src\ai\format_optimizer.rs:76:5
+   |
+75 | struct QualityAnalyzer {
+   |        --------------- field in this struct
+76 |     metrics: QualityMetrics,
+   |     ^^^^^^^
+
+warning: field `codec_profiles` is never read
+   --> src\ai\format_optimizer.rs:159:5
+    |
+158 | struct CodecSelector {
+    |        ------------- field in this struct
+159 |     codec_profiles: Vec<CodecProfile>,
+    |     ^^^^^^^^^^^^^^
+
+warning: fields `snr`, `thd`, and `frequency_flatness` are never read
+   --> src\ai\format_optimizer.rs:276:5
+    |
+275 | struct QualityMetrics {
+    |        -------------- fields in this struct
+276 |     snr: f32,
+    |     ^^^
+277 |     thd: f32,
+    |     ^^^
+278 |     frequency_flatness: f32,
+    |     ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `QualityMetrics` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `codec`, `min_quality`, and `efficiency` are never read
+   --> src\ai\format_optimizer.rs:283:5
+    |
+282 | struct CodecProfile {
+    |        ------------ fields in this struct
+283 |     codec: AudioCodec,
+    |     ^^^^^
+284 |     min_quality: f32,
+    |     ^^^^^^^^^^^
+285 |     efficiency: f32,
+    |     ^^^^^^^^^^
+
+warning: field `hop_size` is never read
+  --> src\ai\feature_extractor.rs:59:5
+   |
+56 | pub struct FeatureExtractor {
+   |            ---------------- field in this struct
+...
+59 |     hop_size: usize,
+   |     ^^^^^^^^
+
+warning: field `moods` is never read
+   --> src\ai\ml_models.rs:367:5
+    |
+366 | struct MoodClassifierModel {
+    |        ------------------- field in this struct
+367 |     moods: Vec<String>,
+    |     ^^^^^
+
+warning: field `max_size` is never read
+   --> src\ai\ml_models.rs:430:5
+    |
+428 | struct ModelCache {
+    |        ---------- field in this struct
+429 |     cache: RwLock<lru::LruCache<u64, ModelOutput>>,
+430 |     max_size: usize,
+    |     ^^^^^^^^
+
+warning: field `auto_download` is never read
+   --> src\ai\ml_models.rs:458:5
+    |
+456 | struct ModelConfig {
+    |        ----------- field in this struct
+457 |     model_dir: PathBuf,
+458 |     auto_download: bool,
+    |     ^^^^^^^^^^^^^
+    |
+    = note: `ModelConfig` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: `rusty-audio` (lib) generated 125 warnings (run `cargo fix --lib -p rusty-audio` to apply 48 suggestions)
+    Checking rusty-audio v0.1.0 (C:\Users\david\rusty-audio)
+    Building [=======================> ] 412/414: rusty-audio(bin), test_ru...
+error: mismatched closing delimiter: `}`
+    --> src\main.rs:517:22
+     |
+ 377 | impl AudioPlayerApp {
+     |                     - closing delimiter possibly meant for this
+...
+ 517 |         ui.horizontal(|ui| {
+     |                      ^ unclosed delimiter
+...
+1438 | }
+     | ^ mismatched closing delimiter
+
+error: this file contains an unclosed delimiter
+    --> src\main.rs:1496:3
+     |
+ 377 | impl AudioPlayerApp {
+     |                     - unclosed delimiter
+...
+ 592 |                     ui.horizontal_centered(|ui| {
+     |                                                 - this delimiter might not be properly closed...
+...
+ 615 |                 });
+     |                 - ...as it matches this but it has different indentation
+...
+1496 | }
+     |  ^
+error: could not compile `rusty-audio` (bin "rusty-audio") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+    Building [=======================> ] 413/414: test_runner(bin)            
+error[E0432]: unresolved import `clap`
+  --> src\bin\test_runner.rs:17:5
+   |
+17 | use clap::{Arg, Command as ClapCommand, ArgMatches};
+   |     ^^^^ use of unresolved module or unlinked crate `clap`
+   |
+   = help: if you wanted to use a crate named `clap`, use `cargo add clap` to add it to your `Cargo.toml`
+
+warning: unused imports: `AudioFeatureTestRunner`, `UiTestRunner`, `run_all_tests`, `run_quick_audio_feature_tests`, `run_quick_tests`, `run_quick_ui_tests`, `run_quick_visual_tests`, `run_realtime_tests`, and `run_visual_regression_tests`
+  --> src\bin\test_runner.rs:7:16
+   |
+ 7 |     ui_tests::{UiTestRunner, run_quick_ui_tests},
+   |                ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+ 8 |     visual_regression::{run_visual_regression_tests, run_quick_visual_tests},
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^
+ 9 |     audio_feature_tests::{AudioFeatureTestRunner, run_quick_audio_feature_tests},
+   |                           ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 |     run_all_tests, run_quick_tests, run_realtime_tests,
+   |     ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `std::collections::HashMap`
+  --> src\bin\test_runner.rs:14:5
+   |
+14 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::env`
+  --> src\bin\test_runner.rs:15:5
+   |
+15 | use std::env;
+   |     ^^^^^^^^
+
+warning: unused import: `PathBuf`
+  --> src\bin\test_runner.rs:16:23
+   |
+16 | use std::path::{Path, PathBuf};
+   |                       ^^^^^^^
+
+warning: unused import: `chrono`
+   --> src\bin\test_runner.rs:464:9
+    |
+464 |     use chrono;
+    |         ^^^^^^
+
+For more information about this error, try `rustc --explain E0432`.
+warning: `rusty-audio` (bin "test_runner") generated 5 warnings
+error: could not compile `rusty-audio` (bin "test_runner") due to 1 previous error; 5 warnings emitted

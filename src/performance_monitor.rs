@@ -227,7 +227,8 @@ impl PerformanceMonitor {
 
         // Keep only last 100 alerts
         if alerts.len() > 100 {
-            alerts.drain(0..alerts.len() - 100);
+            let len = alerts.len();
+            alerts.drain(0..len - 100);
         }
     }
 

@@ -13,7 +13,6 @@ use web_audio_api::node::{
 };
 
 mod ui;
-mod ui_extensions;
 mod audio_performance;
 pub mod testing;
 
@@ -101,7 +100,7 @@ struct AudioPlayerApp {
     spectrum: Vec<f32>,
     eq_bands: Vec<BiquadFilterNode>,
     analyser: AnalyserNode,
-    spectrum_processor: audio_performance::SpectrumProcessor,
+    spectrum_processor: audio_performance::OptimizedSpectrumProcessor,
 
     // Responsive and animation state
     last_frame_time: Instant,
@@ -205,7 +204,7 @@ impl Default for AudioPlayerApp {
             spectrum: vec![0.0; 1024],
             eq_bands,
             analyser,
-            spectrum_processor: audio_performance::SpectrumProcessor::new(2048),
+            spectrum_processor: audio_performance::OptimizedSpectrumProcessor::new(2048),
 
             // Responsive and animation state
             last_frame_time: Instant::now(),
@@ -314,7 +313,7 @@ impl eframe::App for AudioPlayerApp {
         self.accessibility_manager.show_help_overlay(
             &egui::Ui::new(
                 ctx.clone(),
-                egui::LayerId::top(),
+                egui::LayerId::background(),
                 egui::Id::new("help_overlay"),
                 egui::Rect::EVERYTHING,
                 egui::Rect::EVERYTHING,
@@ -326,7 +325,7 @@ impl eframe::App for AudioPlayerApp {
         let recovery_actions = self.error_manager.show_errors(
             &mut egui::Ui::new(
                 ctx.clone(),
-                egui::LayerId::top(),
+                egui::LayerId::background(),
                 egui::Id::new("error_display"),
                 egui::Rect::EVERYTHING,
                 egui::Rect::EVERYTHING,
@@ -403,14 +402,20 @@ impl AudioPlayerApp {
     }
 
     fn draw_desktop_layout(&mut self, ctx: &egui::Context, colors: &ThemeColors) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.heading("🎵 Rusty Audio");
+        // Configure for landscape HiDPI layout
+        let available_space = ctx.screen_rect().size();
+        let is_landscape = available_space.x > available_space.y;
+
+        // Top panel with optimized height for landscape
+        egui::TopBottomPanel::top("header").exact_height(60.0).show(ctx, |ui| {
+            ui.horizontal_centered(|ui| {
+                ui.heading(egui::RichText::new("🎵 Rusty Audio - Car Stereo Style").size(18.0));
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // Theme selector
+                    // Theme selector with better HiDPI sizing
                     egui::ComboBox::from_label("")
                         .selected_text(self.theme_manager.current_theme().display_name())
+                        .width(120.0)
                         .show_ui(ui, |ui| {
                             for theme in Theme::all() {
                                 ui.selectable_value(
@@ -421,32 +426,65 @@ impl AudioPlayerApp {
                             }
                         });
 
-                    if ui.button("?").clicked() {
+                    if ui.add_sized([40.0, 30.0], egui::Button::new("?")).clicked() {
                         self.show_keyboard_shortcuts = !self.show_keyboard_shortcuts;
                     }
                 });
             });
+        });
 
-            ui.separator();
+        // Tab panel - horizontal layout for landscape optimization
+        egui::TopBottomPanel::top("tabs").exact_height(50.0).show(ctx, |ui| {
+            ui.horizontal_centered(|ui| {
+                let tab_button_size = [120.0, 35.0];
 
-            // Tab selection
-            ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.active_tab, Tab::Playback, "🎵 Playback");
-                ui.selectable_value(&mut self.active_tab, Tab::Effects, "🎛️ Effects");
-                ui.selectable_value(&mut self.active_tab, Tab::Eq, "📊 EQ");
-                ui.selectable_value(&mut self.active_tab, Tab::Generator, "🎛️ Generator");
-                ui.selectable_value(&mut self.active_tab, Tab::Settings, "⚙️ Settings");
+                if ui.add_sized(tab_button_size,
+                    egui::SelectableLabel::new(self.active_tab == Tab::Playback, "🎵 Playback")).clicked() {
+                    self.active_tab = Tab::Playback;
+                }
+                ui.separator();
+
+                if ui.add_sized(tab_button_size,
+                    egui::SelectableLabel::new(self.active_tab == Tab::Effects, "🎛️ Effects")).clicked() {
+                    self.active_tab = Tab::Effects;
+                }
+                ui.separator();
+
+                if ui.add_sized(tab_button_size,
+                    egui::SelectableLabel::new(self.active_tab == Tab::Eq, "📊 EQ")).clicked() {
+                    self.active_tab = Tab::Eq;
+                }
+                ui.separator();
+
+                if ui.add_sized(tab_button_size,
+                    egui::SelectableLabel::new(self.active_tab == Tab::Generator, "🎛️ Generator")).clicked() {
+                    self.active_tab = Tab::Generator;
+                }
+                ui.separator();
+
+                if ui.add_sized(tab_button_size,
+                    egui::SelectableLabel::new(self.active_tab == Tab::Settings, "⚙️ Settings")).clicked() {
+                    self.active_tab = Tab::Settings;
+                }
             });
+        });
 
-            ui.separator();
+        // Main content area - optimized for landscape
+        egui::CentralPanel::default().show(ctx, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .max_width(available_space.x)
+                .show(ui, |ui| {
+                    ui.set_width(available_space.x - 20.0); // Account for margins
 
-            match self.active_tab {
-                Tab::Playback => self.draw_playback_panel(ui, colors),
-                Tab::Effects => self.draw_effects_panel(ui, colors),
-                Tab::Eq => self.draw_eq_panel(ui, colors),
-                Tab::Generator => self.draw_generator_panel(ui, colors),
-                Tab::Settings => self.draw_settings_panel_main(ui, colors),
-            }
+                    match self.active_tab {
+                        Tab::Playback => self.draw_playback_panel(ui, colors),
+                        Tab::Effects => self.draw_effects_panel(ui, colors),
+                        Tab::Eq => self.draw_eq_panel(ui, colors),
+                        Tab::Generator => self.draw_generator_panel(ui, colors),
+                        Tab::Settings => self.draw_settings_panel_main(ui, colors),
+                    }
+                });
         });
     }
 
@@ -474,96 +512,106 @@ impl AudioPlayerApp {
     }
 
     fn draw_playback_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
-        ui.vertical_centered(|ui| {
-            ui.add_space(10.0);
+        // Landscape-optimized layout - side-by-side content
+        ui.horizontal(|ui| {
+            // Left side: Album art and metadata (1/3 of width)
+            ui.allocate_ui(egui::Vec2::new(ui.available_width() * 0.35, ui.available_height()), |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(10.0);
 
-            // Album art with enhanced display
-            let album_art_response = self.album_art_display.show(ui, colors);
+                    // Album art with enhanced display - smaller for landscape
+                    let album_art_response = self.album_art_display.show(ui, colors);
 
-            ui.add_space(10.0);
+                    ui.add_space(10.0);
 
-            // Metadata display
-            self.metadata_display.show(ui, colors);
-
-            ui.add_space(15.0);
-
-            // Enhanced progress bar
-            let progress_response = self.progress_bar.show(ui, colors);
-            if progress_response.changed() {
-                let position_seconds = self.progress_bar.progress * self.total_duration.as_secs_f32();
-                self.seek_to_position_main(position_seconds);
-            }
-
-            ui.add_space(15.0);
-
-            // Control buttons with enhanced styling
-            ui.horizontal_centered(|ui| {
-                let mut open_button = EnhancedButton::new("📁 Open")
-                    .style(ButtonStyle {
-                        glow: true,
-                        ..Default::default()
-                    });
-                if open_button.show(ui, colors).clicked() {
-                    self.open_file_dialog();
-                }
-
-                ui.add_space(10.0);
-
-                let play_pause_text = if self.playback_state == PlaybackState::Playing { "⏸️ Pause" } else { "▶️ Play" };
-                let mut play_pause_button = EnhancedButton::new(play_pause_text)
-                    .style(ButtonStyle {
-                        gradient: true,
-                        glow: true,
-                        ..Default::default()
-                    });
-                if play_pause_button.show(ui, colors).clicked() {
-                    self.play_pause_main();
-                }
-
-                ui.add_space(10.0);
-
-                let mut stop_button = EnhancedButton::new("⏹️ Stop");
-                if stop_button.show(ui, colors).clicked() {
-                    self.stop_playback_main();
-                }
-
-                ui.add_space(10.0);
-
-                let loop_text = if self.is_looping { "🔁 Loop: On" } else { "🔁 Loop: Off" };
-                let mut loop_button = EnhancedButton::new(loop_text)
-                    .style(ButtonStyle {
-                        gradient: self.is_looping,
-                        ..Default::default()
-                    });
-                if loop_button.show(ui, colors).clicked() {
-                    self.toggle_loop_main();
-                }
+                    // Metadata display
+                    self.metadata_display.show(ui, colors);
+                });
             });
 
-            ui.add_space(20.0);
+            ui.separator();
 
-            // Volume control with accessible slider
-            ui.horizontal_centered(|ui| {
-                ui.label("🔊 Volume:");
-                ui.add_space(10.0);
+            // Right side: Controls and progress (2/3 of width)
+            ui.allocate_ui(egui::Vec2::new(ui.available_width(), ui.available_height()), |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(20.0);
 
-                ui.vertical(|ui| {
-                    let volume_response = self.accessible_volume_slider.show(ui, colors, &mut self.accessibility_manager);
-                    if volume_response.changed() {
-                        self.volume = self.accessible_volume_slider.value();
-                        self.gain_node.gain().set_value(self.volume);
-
-                        // Check volume safety
-                        if !self.accessibility_manager.is_volume_safe(self.volume) {
-                            self.accessibility_manager.announce(
-                                "Warning: Volume level may be harmful to hearing".to_string(),
-                                ui::accessibility::AnnouncementPriority::High,
-                            );
+                    // Enhanced progress bar - wider for landscape
+                    ui.allocate_ui(egui::Vec2::new(ui.available_width() * 0.9, 40.0), |ui| {
+                        let progress_response = self.progress_bar.show(ui, colors);
+                        if progress_response.changed() {
+                            let position_seconds = self.progress_bar.progress * self.total_duration.as_secs_f32();
+                            self.seek_to_position_main(position_seconds);
                         }
-                    }
+                    });
 
-                    // Show volume safety indicator
-                    self.volume_safety_indicator.show(ui, colors);
+                    ui.add_space(20.0);
+
+                    // Control buttons with enhanced styling - larger for landscape
+                    ui.horizontal_centered(|ui| {
+                        let button_size = egui::Vec2::new(80.0, 40.0);
+
+                        let mut open_button = EnhancedButton::new("📁 Open")
+                            .style(ButtonStyle {
+                                glow: true,
+                                ..Default::default()
+                            });
+                        if ui.add_sized(button_size,
+                            egui::Button::new("📁 Open")).clicked() {
+                            self.open_file_dialog();
+                        }
+
+                        ui.add_space(10.0);
+
+                        let play_pause_text = if self.playback_state == PlaybackState::Playing { "⏸️ Pause" } else { "▶️ Play" };
+                        if ui.add_sized(button_size,
+                            egui::Button::new(play_pause_text)).clicked() {
+                            self.play_pause_main();
+                        }
+
+                        ui.add_space(10.0);
+
+                        if ui.add_sized(button_size,
+                            egui::Button::new("⏹️ Stop")).clicked() {
+                            self.stop_playback_main();
+                        }
+
+                        ui.add_space(10.0);
+
+                        let loop_text = if self.is_looping { "🔁 Loop: On" } else { "🔁 Loop: Off" };
+                        if ui.add_sized(button_size,
+                            egui::Button::new(loop_text)).clicked() {
+                            self.is_looping = !self.is_looping;
+                        }
+                    });
+
+                    ui.add_space(20.0);
+
+                    // Volume control with accessible slider - horizontal for landscape
+                    ui.horizontal_centered(|ui| {
+                        ui.label(egui::RichText::new("🔊 Volume:").size(14.0));
+                        ui.add_space(10.0);
+
+                        // Wider volume slider for landscape layout
+                        ui.allocate_ui(egui::Vec2::new(300.0, 30.0), |ui| {
+                            let volume_response = self.accessible_volume_slider.show(ui, colors, &mut self.accessibility_manager);
+                            if volume_response.changed() {
+                                self.volume = self.accessible_volume_slider.value();
+                                self.gain_node.gain().set_value(self.volume);
+
+                                // Check volume safety
+                                if !self.accessibility_manager.is_volume_safe(self.volume) {
+                                    self.accessibility_manager.announce(
+                                        "Warning: Volume level may be harmful to hearing".to_string(),
+                                        ui::accessibility::AnnouncementPriority::High,
+                                    );
+                                }
+                            }
+                        });
+
+                        ui.add_space(10.0);
+                        ui.label(format!("{:.0}%", self.volume * 100.0));
+                    });
                 });
             });
 
@@ -624,6 +672,233 @@ impl AudioPlayerApp {
                     self.volume = self.volume_slider.value();
                     self.gain_node.gain().set_value(self.volume);
                 }
+            });
+        });
+    }
+
+    fn draw_effects_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
+        ui.vertical(|ui| {
+            ui.heading(RichText::new("🎛️ Audio Effects & Spectrum").color(colors.text));
+            ui.add_space(10.0);
+
+            // Enhanced spectrum visualizer
+            ui.group(|ui| {
+                ui.label(RichText::new("Spectrum Analyzer").color(colors.text));
+                ui.add_space(5.0);
+                let spectrum_rect = ui.available_rect_before_wrap();
+                self.spectrum_visualizer.draw(ui, spectrum_rect, colors);
+            });
+
+            ui.add_space(15.0);
+
+            // Spectrum mode selection
+            ui.horizontal(|ui| {
+                ui.label("Mode:");
+                let current_mode = self.spectrum_visualizer.config().mode.clone();
+                egui::ComboBox::from_label("")
+                    .selected_text(format!("{:?}", current_mode))
+                    .show_ui(ui, |ui| {
+                        let mut new_mode = current_mode.clone();
+                        ui.selectable_value(&mut new_mode, SpectrumMode::Bars, "Bars");
+                        ui.selectable_value(&mut new_mode, SpectrumMode::Line, "Line");
+                        ui.selectable_value(&mut new_mode, SpectrumMode::Filled, "Filled");
+                        ui.selectable_value(&mut new_mode, SpectrumMode::Circular, "Circular");
+                        if new_mode != current_mode {
+                            self.spectrum_visualizer.config_mut().mode = new_mode;
+                        }
+                    });
+            });
+
+            ui.add_space(15.0);
+
+            // Audio effects controls placeholder
+            ui.group(|ui| {
+                ui.label(RichText::new("Audio Effects").color(colors.text));
+                ui.add_space(5.0);
+                ui.label("Additional audio effects will be implemented here");
+
+                // Placeholder for future effects
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut false, "Reverb");
+                    ui.checkbox(&mut false, "Chorus");
+                    ui.checkbox(&mut false, "Delay");
+                });
+            });
+        });
+    }
+
+    fn draw_eq_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.heading(RichText::new("📊 Equalizer").color(colors.text));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if EnhancedButton::new("Reset All")
+                        .style(ButtonStyle::default())
+                        .show(ui, colors)
+                        .clicked()
+                    {
+                        for (band, knob) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()) {
+                            band.gain().set_value(0.0);
+                            knob.set_value(0.0);
+                        }
+                        self.accessibility_manager.announce(
+                            "Equalizer reset to flat response".to_string(),
+                            ui::accessibility::AnnouncementPriority::Medium,
+                        );
+                    }
+                });
+            });
+
+            ui.add_space(15.0);
+
+            // EQ bands with accessible knobs
+            ui.horizontal(|ui| {
+                let eq_bands_len = self.eq_bands.len();
+                for (i, (band, knob)) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()).enumerate() {
+                    ui.vertical(|ui| {
+                        // Frequency label
+                        let freq = 60.0 * 2.0_f32.powi(i as i32);
+                        let freq_label = if freq < 1000.0 {
+                            format!("{:.0} Hz", freq)
+                        } else {
+                            format!("{:.1}k Hz", freq / 1000.0)
+                        };
+                        ui.label(RichText::new(&freq_label).color(colors.text).size(12.0));
+
+                        // Accessible EQ knob
+                        let knob_response = knob.show(ui, colors, &mut self.accessibility_manager);
+                        if knob_response.changed() {
+                            let gain_value = knob.value();
+                            band.gain().set_value(gain_value);
+
+                            // Announce EQ changes for accessibility
+                            self.accessibility_manager.announce(
+                                format!("{} set to {:.1} dB", freq_label, gain_value),
+                                ui::accessibility::AnnouncementPriority::Low,
+                            );
+                        }
+
+                        // Gain value display
+                        ui.label(RichText::new(format!("{:.1}dB", knob.value())).color(colors.text_secondary).size(10.0));
+                    });
+
+                    if i < eq_bands_len - 1 {
+                        ui.add_space(5.0);
+                    }
+                }
+            });
+
+            ui.add_space(20.0);
+
+            // Master gain control
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("Master Gain:").color(colors.text));
+                ui.add_space(10.0);
+
+                let mut master_gain = self.gain_node.gain().value();
+                if ui.add(egui::Slider::new(&mut master_gain, 0.0..=2.0)
+                    .text("dB")
+                    .clamp_to_range(true))
+                    .changed()
+                {
+                    self.gain_node.gain().set_value(master_gain);
+                    self.accessibility_manager.announce(
+                        format!("Master gain set to {:.1}", master_gain),
+                        ui::accessibility::AnnouncementPriority::Low,
+                    );
+                }
+            });
+        });
+    }
+
+    fn draw_mobile_effects_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
+        ui.vertical_centered(|ui| {
+            ui.label(RichText::new("🎛️ Effects").size(18.0).color(colors.text));
+            ui.add_space(10.0);
+
+            // Compact spectrum visualizer
+            let spectrum_rect = ui.available_rect_before_wrap();
+            self.spectrum_visualizer.draw(ui, spectrum_rect, colors);
+
+            ui.add_space(10.0);
+
+            // Compact mode selection
+            ui.horizontal_centered(|ui| {
+                let current_mode = self.spectrum_visualizer.config().mode.clone();
+                egui::ComboBox::from_label("Mode")
+                    .selected_text(format!("{:?}", current_mode))
+                    .show_ui(ui, |ui| {
+                        let mut new_mode = current_mode.clone();
+                        ui.selectable_value(&mut new_mode, SpectrumMode::Bars, "Bars");
+                        ui.selectable_value(&mut new_mode, SpectrumMode::Line, "Line");
+                        ui.selectable_value(&mut new_mode, SpectrumMode::Filled, "Filled");
+                        ui.selectable_value(&mut new_mode, SpectrumMode::Circular, "Circular");
+                        if new_mode != current_mode {
+                            self.spectrum_visualizer.config_mut().mode = new_mode;
+                        }
+                    });
+            });
+        });
+    }
+
+    fn draw_mobile_eq_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
+        ui.vertical_centered(|ui| {
+            ui.horizontal_centered(|ui| {
+                ui.label(RichText::new("📊 EQ").size(18.0).color(colors.text));
+                ui.add_space(10.0);
+                if ui.button("Reset").clicked() {
+                    for (band, knob) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()) {
+                        band.gain().set_value(0.0);
+                        knob.set_value(0.0);
+                    }
+                }
+            });
+
+            ui.add_space(10.0);
+
+            // Mobile EQ layout - 2 rows of 4 bands each
+            ui.vertical(|ui| {
+                // First row (0-3)
+                ui.horizontal_centered(|ui| {
+                    for (i, (band, knob)) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()).enumerate().take(4) {
+                        ui.vertical(|ui| {
+                            let freq = 60.0 * 2.0_f32.powi(i as i32);
+                            let freq_label = if freq < 1000.0 {
+                                format!("{:.0}", freq)
+                            } else {
+                                format!("{:.1}k", freq / 1000.0)
+                            };
+                            ui.label(RichText::new(freq_label).size(10.0));
+
+                            let knob_response = knob.show(ui, colors, &mut self.accessibility_manager);
+                            if knob_response.changed() {
+                                band.gain().set_value(knob.value());
+                            }
+                        });
+                    }
+                });
+
+                ui.add_space(5.0);
+
+                // Second row (4-7)
+                ui.horizontal_centered(|ui| {
+                    for (i, (band, knob)) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()).enumerate().skip(4) {
+                        ui.vertical(|ui| {
+                            let freq = 60.0 * 2.0_f32.powi(i as i32);
+                            let freq_label = if freq < 1000.0 {
+                                format!("{:.0}", freq)
+                            } else {
+                                format!("{:.1}k", freq / 1000.0)
+                            };
+                            ui.label(RichText::new(freq_label).size(10.0));
+
+                            let knob_response = knob.show(ui, colors, &mut self.accessibility_manager);
+                            if knob_response.changed() {
+                                band.gain().set_value(knob.value());
+                            }
+                        });
+                    }
+                });
             });
         });
     }
@@ -795,7 +1070,7 @@ impl AudioPlayerApp {
                 self.play_pause_main();
             }
             if i.key_pressed(egui::Key::S) {
-                self.stop();
+                self.stop_playback_main();
             }
             if i.key_pressed(egui::Key::L) {
                 self.is_looping = !self.is_looping;
@@ -1090,18 +1365,141 @@ impl AudioPlayerApp {
         });
     }
 
+    fn draw_keyboard_shortcuts_overlay(&mut self, ctx: &egui::Context, colors: &ThemeColors) {
+        let mut show_shortcuts = self.show_keyboard_shortcuts;
+        let mut close_requested = false;
+        
+        egui::Window::new("🎹 Keyboard Shortcuts")
+            .open(&mut show_shortcuts)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    ui.label(RichText::new("Playback Controls").size(16.0).color(colors.text).strong());
+                    ui.separator();
+                    ui.add_space(5.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Space").color(colors.accent).strong());
+                        ui.label("Play/Pause");
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("S").color(colors.accent).strong());
+                        ui.label("Stop");
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("L").color(colors.accent).strong());
+                        ui.label("Toggle Loop");
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("Ctrl+O").color(colors.accent).strong());
+                        ui.label("Open File");
+                    });
+
+                    ui.add_space(10.0);
+                    ui.label(RichText::new("Volume & Seeking").size(16.0).color(colors.text).strong());
+                    ui.separator();
+                    ui.add_space(5.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("↑/↓").color(colors.accent).strong());
+                        ui.label("Volume Up/Down");
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("←/→").color(colors.accent).strong());
+                        ui.label("Seek Backward/Forward (5s)");
+                    });
+
+                    ui.add_space(10.0);
+                    ui.label(RichText::new("Interface").size(16.0).color(colors.text).strong());
+                    ui.separator();
+                    ui.add_space(5.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("F1").color(colors.accent).strong());
+                        ui.label("Show/Hide This Help");
+                    });
+
+                    ui.add_space(15.0);
+
+                    if EnhancedButton::new("Close")
+                        .style(ButtonStyle {
+                            gradient: true,
+                            ..Default::default()
+                        })
+                        .show(ui, colors)
+                        .clicked()
+                    {
+                        close_requested = true;
+                    }
+                });
+            });
+        
+        if close_requested || !show_shortcuts {
+            self.show_keyboard_shortcuts = false;
+        }
+    }
 }
 
 fn main() -> Result<(), eframe::Error> {
+    // Configure for Windows landscape HiDPI displays
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size(Vec2::new(450.0, 600.0))
-            .with_resizable(true),
+            .with_inner_size(Vec2::new(1200.0, 800.0))  // Landscape orientation
+            .with_min_inner_size(Vec2::new(800.0, 600.0))  // Minimum size
+            .with_resizable(true)
+            .with_maximize_button(true)
+            .with_minimize_button(true)
+            .with_close_button(true)
+            .with_drag_and_drop(true)
+            .with_transparent(false)
+            .with_decorations(true),
+        multisampling: 4,  // Anti-aliasing for crisp HiDPI rendering
+        depth_buffer: 8,   // Better rendering quality
+        stencil_buffer: 0,
+        hardware_acceleration: eframe::HardwareAcceleration::Required,
+        centered: true,
         ..Default::default()
     };
+
     eframe::run_native(
-        "Rusty Audio",
+        "Rusty Audio - Car Stereo Style Player",
         options,
-        Box::new(|_cc| Box::new(AudioPlayerApp::default())),
+        Box::new(|cc| {
+            // Configure for HiDPI scaling
+            cc.egui_ctx.set_pixels_per_point(1.25);  // Optimal for HiDPI displays
+            cc.egui_ctx.set_zoom_factor(1.0);
+
+            // Enable better text rendering for HiDPI
+            let mut fonts = egui::FontDefinitions::default();
+
+            // Use default system fonts for now - custom font loading can be added later if needed
+            // This ensures compatibility without requiring external font files
+
+            cc.egui_ctx.set_fonts(fonts);
+
+            // Configure visual options for HiDPI
+            let mut visuals = egui::Visuals::default();
+            visuals.window_rounding = egui::Rounding::same(8.0);
+            visuals.button_frame = true;
+            visuals.collapsing_header_frame = true;
+            visuals.indent_has_left_vline = true;
+            visuals.striped = true;
+            visuals.slider_trailing_fill = true;
+
+            // Optimize for landscape layout
+            visuals.menu_rounding = egui::Rounding::same(6.0);
+            visuals.panel_fill = Color32::from_gray(24);
+            visuals.window_fill = Color32::from_gray(32);
+
+            cc.egui_ctx.set_visuals(visuals);
+
+            Box::new(AudioPlayerApp::default())
+        }),
     )
 }

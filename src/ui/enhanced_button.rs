@@ -110,11 +110,12 @@ impl AccessibleButton {
         accessibility: &mut AccessibilityManager,
     ) -> Response {
         // Calculate button size
-        let text_size = ui.painter().layout_no_wrap(
-            &if self.loading { "Loading...".to_string() } else { self.text.clone() },
+        let text = if self.loading { "Loading..." } else { &self.text };
+        let text_size = ui.fonts(|f| f.layout_no_wrap(
+            text.to_string(),
             egui::FontId::default(),
             Color32::WHITE,
-        ).size();
+        )).size();
 
         let icon_size = if self.icon.is_some() { Vec2::new(16.0, 16.0) } else { Vec2::ZERO };
         let spacing = if self.icon.is_some() { 8.0 } else { 0.0 };

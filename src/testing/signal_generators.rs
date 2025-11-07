@@ -5,7 +5,6 @@
 
 use std::f32::consts::PI;
 use rand::{Rng, SeedableRng, rngs::StdRng};
-use super::SAMPLE_RATE;
 
 /// Type alias for audio samples
 pub type Samples = Vec<f32>;

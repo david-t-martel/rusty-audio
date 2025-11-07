@@ -1,11 +1,20 @@
-// Comprehensive Test Runner for Rusty Audio Testing Framework
-// Executes all test suites and provides detailed reporting
+// Comprehensive Test Runner for Rusty Audio
+//
+// This binary provides a unified interface for running all types of tests
+// including unit tests, UI tests, visual regression tests, and performance benchmarks.
 
+use rusty_audio::testing::{
+    ui_tests::{UiTestRunner, run_quick_ui_tests},
+    visual_regression::{run_visual_regression_tests, run_quick_visual_tests},
+    audio_feature_tests::{AudioFeatureTestRunner, run_quick_audio_feature_tests},
+    run_all_tests, run_quick_tests, run_realtime_tests,
+};
 use std::time::{Duration, Instant};
 use std::process::{Command, Stdio};
 use std::collections::HashMap;
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use clap::{Arg, Command as ClapCommand, ArgMatches};
 
 #[derive(Debug, Clone)]
 struct TestSuite {

@@ -5,10 +5,9 @@
 
 use proptest::prelude::*;
 use quickcheck::{quickcheck, TestResult};
-use super::{TestSuite, TestResult as AudioTestResult, SAMPLE_RATE, TOLERANCE};
+use super::{TestSuite, SAMPLE_RATE, TOLERANCE};
 use super::signal_generators::*;
 use super::spectrum_analysis::FftAnalyzer;
-use std::f32::consts::PI;
 
 /// Property: Signal generation should preserve mathematical properties
 pub fn prop_sine_wave_properties() -> TestSuite {

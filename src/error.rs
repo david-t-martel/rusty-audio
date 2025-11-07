@@ -132,7 +132,7 @@ pub trait ErrorContext<T> {
 
 impl<T, E> ErrorContext<T> for std::result::Result<T, E>
 where
-    E: Into<AudioPlayerError>,
+    E: Into<AudioPlayerError> + std::fmt::Debug,
 {
     fn with_context(self, context: &str) -> Result<T> {
         self.map_err(|e| {

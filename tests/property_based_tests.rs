@@ -2,6 +2,7 @@
 // Using QuickCheck and Proptest for comprehensive testing
 
 use proptest::prelude::*;
+use proptest::strategy::{Just, BoxedStrategy};
 use quickcheck::{QuickCheck, TestResult, Arbitrary, Gen};
 use quickcheck_macros::quickcheck;
 use std::f32::consts::PI;
@@ -29,15 +30,18 @@ enum SignalType {
 }
 
 impl Arbitrary for SignalType {
-    fn arbitrary(g: &mut Gen) -> Self {
-        match u8::arbitrary(g) % 6 {
-            0 => SignalType::Sine,
-            1 => SignalType::Square,
-            2 => SignalType::Triangle,
-            3 => SignalType::Sawtooth,
-            4 => SignalType::WhiteNoise,
-            _ => SignalType::PinkNoise,
-        }
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        prop_oneof![
+            Just(SignalType::Sine),
+            Just(SignalType::Square),
+            Just(SignalType::Triangle),
+            Just(SignalType::Sawtooth),
+            Just(SignalType::WhiteNoise),
+            Just(SignalType::PinkNoise),
+        ].boxed()
     }
 }
 
@@ -53,15 +57,27 @@ struct SignalParams {
 }
 
 impl Arbitrary for SignalParams {
-    fn arbitrary(g: &mut Gen) -> Self {
-        Self {
-            signal_type: SignalType::arbitrary(g),
-            frequency: (MIN_FREQUENCY + (MAX_FREQUENCY - MIN_FREQUENCY) * f32::arbitrary(g).abs()).min(MAX_FREQUENCY),
-            amplitude: (MIN_AMPLITUDE + (MAX_AMPLITUDE - MIN_AMPLITUDE) * f32::arbitrary(g).abs()).min(MAX_AMPLITUDE),
-            phase: f32::arbitrary(g) % (2.0 * PI),
-            duration: (MIN_DURATION + (MAX_DURATION - MIN_DURATION) * f32::arbitrary(g).abs()).min(MAX_DURATION),
-            sample_rate: if bool::arbitrary(g) { 44100.0 } else { 48000.0 },
-        }
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        (
+            any::<SignalType>(),
+            MIN_FREQUENCY..MAX_FREQUENCY,
+            MIN_AMPLITUDE..MAX_AMPLITUDE,
+            0.0f32..(2.0 * PI),
+            MIN_DURATION..MAX_DURATION,
+            prop_oneof![Just(44100.0f32), Just(48000.0f32)]
+        ).prop_map(|(signal_type, frequency, amplitude, phase, duration, sample_rate)| {
+            SignalParams {
+                signal_type,
+                frequency,
+                amplitude,
+                phase,
+                duration,
+                sample_rate,
+            }
+        }).boxed()
     }
 }
 

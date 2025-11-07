@@ -8,6 +8,9 @@ pub mod spectrum_analysis;
 pub mod equalizer_tests;
 pub mod integration_tests;
 pub mod property_tests;
+pub mod ui_tests;
+pub mod visual_regression;
+pub mod audio_feature_tests;
 
 use web_audio_api::context::{AudioContext, BaseAudioContext};
 use signal_generators::SignalGenerator;

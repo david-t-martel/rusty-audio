@@ -4,11 +4,10 @@
 // verifying that all components work together correctly.
 
 use web_audio_api::context::{AudioContext, BaseAudioContext};
-use web_audio_api::node::{AudioNode, AudioScheduledSourceNode};
+use web_audio_api::node::AudioNode;
 use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
 use super::signal_generators::*;
 use super::spectrum_analysis::FftAnalyzer;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Complete audio pipeline test configuration

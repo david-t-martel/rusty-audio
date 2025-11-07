@@ -164,8 +164,9 @@ impl ThreadSafeAudioState {
 
     /// Set last error
     pub fn set_error(&self, error: Option<String>) {
+        let has_error = error.is_some();
         *self.last_error.write() = error;
-        if error.is_some() {
+        if has_error {
             self.set_state(PlaybackState::Error);
         }
     }

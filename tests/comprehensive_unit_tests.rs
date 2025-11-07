@@ -1,7 +1,7 @@
 // Comprehensive Unit Tests for Audio Processing Functions
 // Mathematical verification with high precision testing
 
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 use rustfft::{FftPlanner, num_complex::Complex32};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use approx::{assert_relative_eq, assert_abs_diff_eq};
@@ -291,11 +291,11 @@ mod tests {
             // Square wave
             (vec![1.0, -1.0, 1.0, -1.0], 1.0),
             // Sine wave (approximate)
-            ((0..1000).map(|i| (i as f64 * 2.0 * PI / 1000.0).sin()).collect::<Vec<_>>(), 1.0 / 2.0f64.sqrt()),
+            ((0..1000).map(|i| (i as f64 * 2.0 * PI / 1000.0).sin()).collect::<Vec<_>>(), 1.0 / (2.0f64).sqrt()),
             // Zero signal
             (vec![0.0; 100], 0.0),
             // 3-4-5 triangle
-            (vec![3.0, 4.0], (25.0 / 2.0).sqrt()),
+            (vec![3.0, 4.0], (25.0f64 / 2.0).sqrt()),
         ];
 
         for (samples, expected_rms) in test_cases {
