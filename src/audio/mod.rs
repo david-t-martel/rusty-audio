@@ -24,6 +24,6 @@ pub use manager::AudioDeviceManager;
 pub use hybrid::{HybridAudioBackend, HybridMode, HybridRingBuffer, FallbackPolicy, BackendHealth};
 pub use web_bridge::{WebAudioBridge, WebAudioBridgeConfig};
 pub use recorder::{
-    AudioRecorder, RecordingBuffer, RecordingConfig, RecordingFormat, RecordingState,
+    AudioRecorder, RecordingConfig, RecordingFormat, RecordingState,
     MonitoringMode,
 };
