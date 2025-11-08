@@ -199,12 +199,12 @@ impl MockEguiContext {
     }
 
     pub fn create_test_ui(&self) -> egui::Ui {
+        let ui_builder = egui::UiBuilder::new()
+            .max_rect(Rect::from_min_size(Pos2::ZERO, self.screen_size));
         egui::Ui::new(
             self.ctx.clone(),
-            egui::LayerId::background(),
             egui::Id::new("test_ui"),
-            Rect::from_min_size(Pos2::ZERO, self.screen_size),
-            Rect::from_min_size(Pos2::ZERO, self.screen_size),
+            ui_builder,
         )
     }
 }

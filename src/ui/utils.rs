@@ -166,7 +166,7 @@ impl DrawUtils {
         rounding: f32,
         stroke: Stroke,
     ) {
-        ui.painter().rect_stroke(rect, rounding, stroke);
+        ui.painter().rect_stroke(rect, rounding, stroke, egui::epaint::StrokeKind::Outside);
     }
 
     pub fn draw_rounded_rect_filled(

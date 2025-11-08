@@ -267,6 +267,7 @@ impl AccessibleSlider {
             track_rect,
             self.style.track_rounding,
             Stroke::new(1.0, ColorUtils::darken(track_bg_color, 0.2)),
+            egui::epaint::StrokeKind::Outside,
         );
 
         // Draw filled track (progress)
@@ -348,7 +349,7 @@ impl AccessibleSlider {
 
             let text_rect = Rect::from_center_size(text_pos, text_size + Vec2::splat(8.0));
             painter.rect_filled(text_rect, 4.0, ColorUtils::with_alpha(colors.surface, 0.9));
-            painter.rect_stroke(text_rect, 4.0, Stroke::new(1.0, colors.text_secondary));
+            painter.rect_stroke(text_rect, 4.0, Stroke::new(1.0, colors.text_secondary), egui::epaint::StrokeKind::Outside);
 
             painter.text(
                 text_pos,
@@ -439,7 +440,7 @@ impl AccessibleSlider {
 
             painter.line_segment(
                 [tick_start, tick_end],
-                Stroke::new(1.0, colors.text_secondary),
+                (1.0, colors.text_secondary),
             );
 
             // Draw tick value labels for major ticks
@@ -737,7 +738,7 @@ impl AccessibleKnob {
 
             let text_rect = Rect::from_center_size(text_pos, text_size + Vec2::splat(6.0));
             painter.rect_filled(text_rect, 3.0, ColorUtils::with_alpha(colors.surface, 0.9));
-            painter.rect_stroke(text_rect, 3.0, Stroke::new(1.0, colors.text_secondary));
+            painter.rect_stroke(text_rect, 3.0, Stroke::new(1.0, colors.text_secondary), egui::epaint::StrokeKind::Outside);
 
             painter.text(
                 text_pos,

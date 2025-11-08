@@ -174,9 +174,9 @@ impl ThemeManager {
         
         if styling.window_shadow {
             style.visuals.window_shadow = egui::epaint::Shadow {
-                offset: Vec2::new(4.0, 4.0),
-                blur: 8.0,
-                spread: 0.0,
+                offset: [4, 4],
+                blur: 8,
+                spread: 0,
                 color: Color32::from_black_alpha(64),
             };
         }
@@ -240,16 +240,16 @@ impl ThemeManager {
         
         // Subtle shadows for depth
         visuals.window_shadow = egui::epaint::Shadow {
-            offset: Vec2::new(0.0, 4.0),
-            blur: 16.0,
-            spread: 0.0,
+            offset: [0, 4],
+            blur: 16,
+            spread: 0,
             color: Color32::from_black_alpha(100),
         };
         
         visuals.popup_shadow = egui::epaint::Shadow {
-            offset: Vec2::new(0.0, 2.0),
-            blur: 8.0,
-            spread: 0.0,
+            offset: [0, 2],
+            blur: 8,
+            spread: 0,
             color: Color32::from_black_alpha(80),
         };
         
