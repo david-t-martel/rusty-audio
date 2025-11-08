@@ -139,26 +139,10 @@ impl ThemeManager {
 
     pub fn get_visuals(&self) -> Visuals {
         match &self.current_theme {
-            Theme::Mocha => {
-                let mut visuals = Visuals::dark();
-                visuals.override_text_color = Some(catppuccin_egui::MOCHA.text);
-                visuals
-            },
-            Theme::Macchiato => {
-                let mut visuals = Visuals::dark();
-                visuals.override_text_color = Some(catppuccin_egui::MACCHIATO.text);
-                visuals
-            },
-            Theme::Frappe => {
-                let mut visuals = Visuals::dark();
-                visuals.override_text_color = Some(catppuccin_egui::FRAPPE.text);
-                visuals
-            },
-            Theme::Latte => {
-                let mut visuals = Visuals::light();
-                visuals.override_text_color = Some(catppuccin_egui::LATTE.text);
-                visuals
-            },
+            // Catppuccin themes temporarily disabled until egui 0.33 support
+            // TODO: Re-enable when catppuccin-egui supports egui 0.33
+            Theme::Mocha | Theme::Macchiato | Theme::Frappe => Visuals::dark(),
+            Theme::Latte => Visuals::light(),
             Theme::Light => Visuals::light(),
             Theme::Dark => Visuals::dark(),
             Theme::StudioDark => self.create_studio_dark_visuals(),
@@ -171,9 +155,8 @@ impl ThemeManager {
         let styling = self.get_styling();
 
         style.visuals.button_frame = true;
-        style.visuals.widgets.inactive.rounding = Rounding::same(styling.button_rounding);
-        style.visuals.widgets.hovered.rounding = Rounding::same(styling.button_rounding);
-        style.visuals.widgets.active.rounding = Rounding::same(styling.button_rounding);
+        // Widget rounding is now set directly in visuals, not per-widget in egui 0.33
+        // These are now controlled via style.visuals methods
 
         style.spacing.item_spacing = Vec2::splat(styling.item_spacing);
         style.spacing.indent = styling.indent;
@@ -190,9 +173,12 @@ impl ThemeManager {
         style.animation_time = 0.12;  // 120ms for smooth transitions
         
         if styling.window_shadow {
-            style.visuals.window_shadow.color = Color32::from_black_alpha(64);
-            style.visuals.window_shadow.offset = Vec2::new(4.0, 4.0);
-            style.visuals.window_shadow.blur = 8.0;
+            style.visuals.window_shadow = egui::epaint::Shadow {
+                offset: Vec2::new(4.0, 4.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(64),
+            };
         }
 
         style
@@ -229,28 +215,23 @@ impl ThemeManager {
         // Widget styling with professional look
         visuals.widgets.noninteractive.bg_fill = colors.surface;
         visuals.widgets.noninteractive.fg_stroke.color = colors.text_secondary;
-        visuals.widgets.noninteractive.rounding = Rounding::same(4.0);
         
         visuals.widgets.inactive.bg_fill = Color32::from_rgb(45, 45, 50);
         visuals.widgets.inactive.fg_stroke.color = colors.text_secondary;
         visuals.widgets.inactive.weak_bg_fill = Color32::from_rgb(40, 40, 45);
-        visuals.widgets.inactive.rounding = Rounding::same(6.0);
         
         visuals.widgets.hovered.bg_fill = Color32::from_rgb(55, 55, 62);
         visuals.widgets.hovered.fg_stroke.color = colors.text;
         visuals.widgets.hovered.weak_bg_fill = Color32::from_rgb(50, 50, 58);
-        visuals.widgets.hovered.rounding = Rounding::same(6.0);
         visuals.widgets.hovered.expansion = 1.0;  // Subtle expansion on hover
         
         visuals.widgets.active.bg_fill = colors.primary;
         visuals.widgets.active.fg_stroke.color = colors.text;
         visuals.widgets.active.weak_bg_fill = colors.primary.linear_multiply(0.8);
-        visuals.widgets.active.rounding = Rounding::same(6.0);
         
         visuals.widgets.open.bg_fill = colors.surface;
         visuals.widgets.open.fg_stroke.color = colors.text;
         visuals.widgets.open.weak_bg_fill = colors.surface;
-        visuals.widgets.open.rounding = Rounding::same(6.0);
         
         // Professional selection and highlighting
         visuals.selection.bg_fill = colors.primary.linear_multiply(0.7);
@@ -258,19 +239,24 @@ impl ThemeManager {
         visuals.hyperlink_color = colors.accent;
         
         // Subtle shadows for depth
-        visuals.window_shadow.color = Color32::from_black_alpha(100);
-        visuals.window_shadow.offset = Vec2::new(0.0, 4.0);
-        visuals.window_shadow.blur = 16.0;
+        visuals.window_shadow = egui::epaint::Shadow {
+            offset: Vec2::new(0.0, 4.0),
+            blur: 16.0,
+            spread: 0.0,
+            color: Color32::from_black_alpha(100),
+        };
         
-        visuals.popup_shadow.color = Color32::from_black_alpha(80);
-        visuals.popup_shadow.offset = Vec2::new(0.0, 2.0);
-        visuals.popup_shadow.blur = 8.0;
+        visuals.popup_shadow = egui::epaint::Shadow {
+            offset: Vec2::new(0.0, 2.0),
+            blur: 8.0,
+            spread: 0.0,
+            color: Color32::from_black_alpha(80),
+        };
         
         // Override text color for consistent readability
         visuals.override_text_color = Some(colors.text);
         
-        // Window styling
-        visuals.window_rounding = Rounding::same(8.0);
+        // Window stroke styling
         visuals.window_stroke.color = Color32::from_rgb(50, 50, 55);
         visuals.window_stroke.width = 1.0;
         
