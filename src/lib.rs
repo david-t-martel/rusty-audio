@@ -63,3 +63,5 @@ pub mod metadata;
 pub mod error;
 // AI-enhanced audio processing modules
 pub mod ai;
+// Native audio backend (Phase 3)
+pub mod audio;

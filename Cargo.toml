@@ -44,6 +44,14 @@ ndarray = "0.15"
 # rubato = { version = "0.15", optional = true }
 # realfft = { version = "3.3", optional = true }
 
+# Phase 3: Native audio backend dependencies
+cpal = { version = "0.15", features = [] }           # Cross-platform audio I/O
+rodio = { version = "0.17", default-features = false, features = ["wav", "vorbis", "flac", "mp3"] }
+symphonia = { version = "0.5", features = ["all", "opt-simd"] }  # Professional audio decoding
+rubato = "0.15"                                      # Sample rate conversion
+midir = "0.9"                                        # Cross-platform MIDI I/O
+wmidi = "4.0"                                        # MIDI message parsing
+
 # Additional utilities for AI
 statrs = "0.16"
 
