@@ -290,25 +290,25 @@ impl eframe::App for AudioPlayerApp {
         self.layout_manager.update_animations(dt);
 
         // Update accessibility system
+        let ui_builder = egui::UiBuilder::new()
+            .max_rect(egui::Rect::EVERYTHING);
         self.accessibility_manager.update(
             &egui::Ui::new(
                 ctx.clone(),
-                egui::LayerId::background(),
                 egui::Id::new("accessibility_ui"),
-                egui::Rect::EVERYTHING,
-                egui::Rect::EVERYTHING,
+                ui_builder,
             ),
             dt
         );
 
         // Handle accessibility actions
+        let ui_builder = egui::UiBuilder::new()
+            .max_rect(egui::Rect::EVERYTHING);
         let accessibility_action = self.accessibility_manager.handle_keyboard_input(
             &egui::Ui::new(
                 ctx.clone(),
-                egui::LayerId::background(),
                 egui::Id::new("accessibility_input"),
-                egui::Rect::EVERYTHING,
-                egui::Rect::EVERYTHING,
+                ui_builder,
             )
         );
 
@@ -367,25 +367,25 @@ impl eframe::App for AudioPlayerApp {
         }
 
         // Show accessibility help overlay
+        let ui_builder = egui::UiBuilder::new()
+            .max_rect(egui::Rect::EVERYTHING);
         self.accessibility_manager.show_help_overlay(
             &egui::Ui::new(
                 ctx.clone(),
-                egui::LayerId::background(),
                 egui::Id::new("help_overlay"),
-                egui::Rect::EVERYTHING,
-                egui::Rect::EVERYTHING,
+                ui_builder,
             ),
             &colors
         );
 
         // Show error dialogs and handle recovery actions
+        let ui_builder = egui::UiBuilder::new()
+            .max_rect(egui::Rect::EVERYTHING);
         let recovery_actions = self.error_manager.show_errors(
             &mut egui::Ui::new(
                 ctx.clone(),
-                egui::LayerId::background(),
                 egui::Id::new("error_display"),
-                egui::Rect::EVERYTHING,
-                egui::Rect::EVERYTHING,
+                ui_builder,
             ),
             &colors,
             &mut self.accessibility_manager
@@ -999,7 +999,7 @@ impl AudioPlayerApp {
                 points,
                 closed: false,
                 fill: Color32::TRANSPARENT,
-                stroke: egui::Stroke::new(1.0, color),
+                stroke: egui::epaint::PathStroke::new(1.0, color),
             }));
         }
     }
@@ -1891,7 +1891,7 @@ fn main() -> Result<(), eframe::Error> {
 
             // Configure visual options for HiDPI
             let mut visuals = egui::Visuals::default();
-            visuals.window_rounding = egui::Rounding::same(8.0);
+            // Note: window_rounding and menu_rounding are now controlled via Style in egui 0.33
             visuals.button_frame = true;
             visuals.collapsing_header_frame = true;
             visuals.indent_has_left_vline = true;
@@ -1899,13 +1899,12 @@ fn main() -> Result<(), eframe::Error> {
             visuals.slider_trailing_fill = true;
 
             // Optimize for landscape layout
-            visuals.menu_rounding = egui::Rounding::same(6.0);
             visuals.panel_fill = Color32::from_gray(24);
             visuals.window_fill = Color32::from_gray(32);
 
             cc.egui_ctx.set_visuals(visuals);
 
-            Box::new(AudioPlayerApp::default())
+            Ok(Box::new(AudioPlayerApp::default()))
         }),
     )
 }
