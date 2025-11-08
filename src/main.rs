@@ -18,9 +18,8 @@ use rusty_audio::audio::{
     WebAudioBridge, WebAudioBridgeConfig, FallbackPolicy, BackendHealth,
 };
 
-mod ui;
-mod audio_performance;
-pub mod testing;
+// Use library modules instead of declaring them locally
+use rusty_audio::{ui, audio_performance, testing};
 mod panel_implementation;
 
 use ui::{
