@@ -445,8 +445,8 @@ impl LayoutManager {
             egui::Frame::none()
                 .fill(ui.visuals().panel_fill)
                 .stroke(Stroke::new(1.0, ui.visuals().widgets.noninteractive.bg_stroke.color))
-                .rounding(ui.visuals().widgets.noninteractive.rounding)
-                .inner_margin(egui::Margin::same(4.0))
+                .rounding(ui.visuals().widgets.noninteractive.rounding())
+                .inner_margin(egui::Margin::same(4))
                 .show(ui, |ui| {
                     // Panel header
                     ui.horizontal(|ui| {

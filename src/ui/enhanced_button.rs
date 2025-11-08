@@ -111,11 +111,11 @@ impl AccessibleButton {
     ) -> Response {
         // Calculate button size
         let text = if self.loading { "Loading..." } else { &self.text };
-        let text_size = ui.fonts(|f| f.layout_no_wrap(
+        let text_size = ui.painter().layout_no_wrap(
             text.to_string(),
             egui::FontId::default(),
             Color32::WHITE,
-        )).size();
+        ).size();
 
         let icon_size = if self.icon.is_some() { Vec2::new(16.0, 16.0) } else { Vec2::ZERO };
         let spacing = if self.icon.is_some() { 8.0 } else { 0.0 };
@@ -324,7 +324,7 @@ impl AccessibleButton {
                 hover_factor,
             )
         };
-        painter.rect_stroke(scaled_rect, self.style.rounding, egui::Stroke::new(border_width, border_color));
+        painter.rect_stroke(scaled_rect, self.style.rounding, egui::Stroke::new(border_width, border_color), egui::epaint::StrokeKind::Outside);
 
         // Draw focus ring
         if focus_factor > 0.0 {
@@ -333,6 +333,7 @@ impl AccessibleButton {
                 focus_rect,
                 self.style.rounding + 2.0,
                 egui::Stroke::new(2.0 * focus_factor, colors.accent),
+                egui::epaint::StrokeKind::Outside,
             );
         }
 
@@ -451,7 +452,7 @@ impl ProgressIndicator {
 
         // Draw background
         painter.rect_filled(rect, 4.0, colors.surface);
-        painter.rect_stroke(rect, 4.0, egui::Stroke::new(1.0, colors.text_secondary));
+        painter.rect_stroke(rect, 4.0, egui::Stroke::new(1.0, colors.text_secondary), egui::epaint::StrokeKind::Outside);
 
         // Draw progress bar
         let progress_value = if self.indeterminate {
