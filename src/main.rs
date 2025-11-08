@@ -36,6 +36,7 @@ use ui::{
     enhanced_button::{AccessibleButton, ProgressIndicator, VolumeSafetyIndicator},
     error_handling::{ErrorManager, RecoveryActionType},
     dock_layout::{DockLayoutManager, PanelContent, PanelId},
+    recording_panel::RecordingPanel,
 };
 use testing::signal_generators::*;
 
@@ -45,6 +46,7 @@ enum Tab {
     Effects,
     Eq,
     Generator,
+    Recording,
     Settings,
 }
 
@@ -126,6 +128,9 @@ struct AudioPlayerApp {
     audio_mode_switching: bool, // Animation state for mode changes
     last_latency_check: Instant,
     audio_status_message: Option<(String, Instant)>, // (message, timestamp)
+    
+    // Phase 3.2: Recording
+    recording_panel: RecordingPanel,
 }
 
 impl Default for AudioPlayerApp {
@@ -257,6 +262,9 @@ impl Default for AudioPlayerApp {
             audio_mode_switching: false,
             last_latency_check: Instant::now(),
             audio_status_message: None,
+            
+            // Phase 3.2: Recording
+            recording_panel: RecordingPanel::new(),
         }
     }
 }
@@ -521,6 +529,12 @@ impl AudioPlayerApp {
                 ui.separator();
 
                 if ui.add_sized(tab_button_size,
+                    egui::SelectableLabel::new(self.active_tab == Tab::Recording, "🎙️ Recording")).clicked() {
+                    self.active_tab = Tab::Recording;
+                }
+                ui.separator();
+
+                if ui.add_sized(tab_button_size,
                     egui::SelectableLabel::new(self.active_tab == Tab::Settings, "⚙️ Settings")).clicked() {
                     self.active_tab = Tab::Settings;
                 }
@@ -540,6 +554,7 @@ impl AudioPlayerApp {
                         Tab::Effects => self.draw_effects_panel(ui, colors),
                         Tab::Eq => self.draw_eq_panel(ui, colors),
                         Tab::Generator => self.draw_generator_panel(ui, colors),
+                        Tab::Recording => self.draw_recording_panel(ui, colors),
                         Tab::Settings => self.draw_settings_panel_main(ui, colors),
                     }
                 });
@@ -554,6 +569,7 @@ impl AudioPlayerApp {
                 ui.selectable_value(&mut self.active_tab, Tab::Effects, "🎛️");
                 ui.selectable_value(&mut self.active_tab, Tab::Eq, "📊");
                 ui.selectable_value(&mut self.active_tab, Tab::Generator, "🎛️");
+                ui.selectable_value(&mut self.active_tab, Tab::Recording, "🎙️");
                 ui.selectable_value(&mut self.active_tab, Tab::Settings, "⚙️");
             });
         });
@@ -564,6 +580,7 @@ impl AudioPlayerApp {
                 Tab::Effects => self.draw_mobile_effects_panel(ui, colors),
                 Tab::Eq => self.draw_mobile_eq_panel(ui, colors),
                 Tab::Generator => self.draw_mobile_generator_panel(ui, colors),
+                Tab::Recording => self.draw_recording_panel(ui, colors),
                 Tab::Settings => self.draw_settings_panel_main(ui, colors),
             }
         });
@@ -1039,6 +1056,14 @@ impl AudioPlayerApp {
             // Simplified signal generator for mobile
             self.signal_generator_panel.show(ui, colors);
         });
+    }
+    
+    fn draw_recording_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
+        // Update level meters if recording
+        self.recording_panel.update_levels();
+        
+        // Draw the recording panel
+        self.recording_panel.draw(ui, colors);
     }
 
     fn draw_legacy_settings_tab(&mut self, ui: &mut egui::Ui) {
