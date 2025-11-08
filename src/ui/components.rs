@@ -88,9 +88,9 @@ impl AlbumArtDisplay {
         // Draw border
         let border_color = ColorUtils::with_alpha(colors.text_secondary, 0.3);
         if self.rounded_corners {
-            painter.rect_stroke(rect, 8.0, Stroke::new(1.0, border_color));
+            painter.rect_stroke(rect, 8.0, Stroke::new(1.0, border_color), egui::epaint::StrokeKind::Outside);
         } else {
-            painter.rect_stroke(rect, 0.0, Stroke::new(1.0, border_color));
+            painter.rect_stroke(rect, 0.0, Stroke::new(1.0, border_color), egui::epaint::StrokeKind::Outside);
         }
     }
 
