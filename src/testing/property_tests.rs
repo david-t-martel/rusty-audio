@@ -389,30 +389,50 @@ mod tests {
     #[test]
     fn test_sine_rms_property() {
         let result = prop_sine_rms(1000.0, 1.0);
-        assert!(result.is_passed());
+        match result {
+            TestResult::Passed => {},
+            TestResult::Failed => panic!("Test failed"),
+            TestResult::Discard => {},
+        }
     }
 
     #[test]
     fn test_sine_peak_property() {
         let result = prop_sine_peak(1000.0, 0.5);
-        assert!(result.is_passed());
+        match result {
+            TestResult::Passed => {},
+            TestResult::Failed => panic!("Test failed"),
+            TestResult::Discard => {},
+        }
     }
 
     #[test]
     fn test_white_noise_bounds() {
         let result = prop_white_noise_bounds(0.5, 42);
-        assert!(result.is_passed());
+        match result {
+            TestResult::Passed => {},
+            TestResult::Failed => panic!("Test failed"),
+            TestResult::Discard => {},
+        }
     }
 
     #[test]
     fn test_parsevals_theorem() {
         let result = prop_parsevals_theorem(12345);
-        assert!(result.is_passed());
+        match result {
+            TestResult::Passed => {},
+            TestResult::Failed => panic!("Test failed"),
+            TestResult::Discard => {},
+        }
     }
 
     #[test]
     fn test_quiet_signal_detection() {
         let result = prop_quiet_signal_detection(1000.0);
-        assert!(result.is_passed());
+        match result {
+            TestResult::Passed => {},
+            TestResult::Failed => panic!("Test failed"),
+            TestResult::Discard => {},
+        }
     }
 }

@@ -10,6 +10,7 @@ pub mod accessibility;
 pub mod enhanced_controls;
 pub mod enhanced_button;
 pub mod error_handling;
+pub mod recording_panel;
 
 pub use components::*;
 pub use layout::*;
@@ -22,3 +23,4 @@ pub use accessibility::*;
 pub use enhanced_controls::{AccessibleSlider, AccessibleKnob};
 pub use enhanced_button::*;
 pub use error_handling::*;
+pub use recording_panel::RecordingPanel;

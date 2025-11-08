@@ -256,16 +256,21 @@ mod tests {
 
     #[test]
     fn test_filename_sanitization() {
-        let dangerous_names = vec![
+        let test_cases: Vec<(&str, &str)> = vec![
             ("../../etc/passwd", "______etc_passwd"),
             ("file<script>.mp3", "file_script_.mp3"),
             ("file|pipe.wav", "file_pipe.wav"),
-            ("very*long*name*" + &"x".repeat(300), &format!("very_long_name_{}", "x".repeat(238))),
         ];
 
-        for (input, expected) in dangerous_names {
+        for (input, expected) in test_cases {
             let sanitized = FileValidator::sanitize_filename(input);
             assert_eq!(sanitized, expected, "Failed to sanitize: {}", input);
         }
+        
+        // Test very long filename separately
+        let long_input = format!("very*long*name*{}", "x".repeat(300));
+        let expected_long = format!("very_long_name_{}", "x".repeat(238));
+        let sanitized = FileValidator::sanitize_filename(&long_input);
+        assert_eq!(sanitized, expected_long, "Failed to sanitize long filename");
     }
 }
