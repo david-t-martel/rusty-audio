@@ -11,16 +11,16 @@ description = "A car-stereo-style audio player built with Rust and egui."
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-eframe = "0.27.2"
-egui = "0.27.2"
-egui_dock = "0.12"
+eframe = "0.33.0"
+egui = "0.33.0"
+egui_dock = "0.18"
 serde = { version = "1.0", features = ["derive"] }
 rfd = "0.14.1"
 web-audio-api = { version = "1.2.0", features = ["default"] }
 parking_lot = "0.12.3"
 lofty = "0.22.4"
 image = "0.25.8"
-catppuccin-egui = { version = "5.6.0", features = ["egui27"], default-features = false }
+# catppuccin-egui = { version = "5.6.0", default-features = false }  # TODO: Re-enable when egui 0.33 support is added
 anyhow = "1.0"
 thiserror = "1.0"
 tracing = "0.1"
