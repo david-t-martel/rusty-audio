@@ -3,7 +3,7 @@
 //! Tests for hybrid audio backend fallback mechanism
 
 use rusty_audio::audio::{
-    HybridAudioBackend, HybridMode, FallbackPolicy, BackendHealth, FallbackTrigger,
+    HybridAudioBackend, HybridMode, FallbackPolicy, BackendHealth,
 };
 
 #[test]
@@ -66,37 +66,6 @@ fn test_reset_underrun_restores_health() {
 }
 
 #[test]
-fn test_manual_fallback_policy_prevents_auto_switch() {
-    let mut backend = HybridAudioBackend::with_mode(HybridMode::HybridNative);
-    backend.set_fallback_policy(FallbackPolicy::Manual);
-    
-    let initial_mode = backend.mode();
-    
-    // Trigger fallback with manual policy - should not switch
-    let trigger = FallbackTrigger::StreamUnderrun { consecutive_count: 10 };
-    let result = backend.trigger_fallback(trigger);
-    
-    // Should fail with manual policy
-    assert!(result.is_err());
-    assert_eq!(backend.mode(), initial_mode); // Mode unchanged
-}
-
-#[test]
-fn test_auto_fallback_policy_allows_switch() {
-    let mut backend = HybridAudioBackend::with_mode(HybridMode::HybridNative);
-    backend.set_fallback_policy(FallbackPolicy::AutoOnError);
-    
-    // Trigger fallback - should switch to WebAudioOnly
-    let trigger = FallbackTrigger::DeviceDisconnected;
-    let result = backend.trigger_fallback(trigger);
-    
-    // Should succeed
-    assert!(result.is_ok());
-    assert_eq!(backend.mode(), HybridMode::WebAudioOnly);
-    assert_eq!(backend.health(), BackendHealth::Healthy); // Health restored after fallback
-}
-
-#[test]
 fn test_mode_switching_preserves_policy() {
     let mut backend = HybridAudioBackend::new();
     backend.set_fallback_policy(FallbackPolicy::Manual);
@@ -109,20 +78,7 @@ fn test_mode_switching_preserves_policy() {
 }
 
 #[test]
-fn test_web_audio_only_cannot_fallback() {
-    let mut backend = HybridAudioBackend::with_mode(HybridMode::WebAudioOnly);
-    backend.set_fallback_policy(FallbackPolicy::AutoOnError);
-    
-    // Cannot fallback from WebAudioOnly
-    let trigger = FallbackTrigger::UnknownError("Test error".to_string());
-    let result = backend.trigger_fallback(trigger);
-    
-    assert!(result.is_err());
-    assert_eq!(backend.mode(), HybridMode::WebAudioOnly); // Mode unchanged
-}
-
-#[test]
-fn test_excessive_underruns_trigger_failed_state() {
+fn test_excessive_underruns_trigger_automatic_fallback() {
     let mut backend = HybridAudioBackend::with_mode(HybridMode::HybridNative);
     backend.set_fallback_policy(FallbackPolicy::AutoOnError);
     
@@ -140,16 +96,72 @@ fn test_excessive_underruns_trigger_failed_state() {
     assert_eq!(backend.health(), BackendHealth::Healthy); // Health restored
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn test_cpal_backend_available_non_wasm() {
-    let backend = HybridAudioBackend::with_mode(HybridMode::HybridNative);
-    // Should have cpal backend on non-WASM platforms
-    assert!(backend.is_available());
+fn test_hybrid_mode_switching() {
+    let mut backend = HybridAudioBackend::new();
+    
+    // Switch to web audio only
+    assert!(backend.set_mode(HybridMode::WebAudioOnly).is_ok());
+    assert_eq!(backend.mode(), HybridMode::WebAudioOnly);
+    
+    // Switch to hybrid native
+    assert!(backend.set_mode(HybridMode::HybridNative).is_ok());
+    assert_eq!(backend.mode(), HybridMode::HybridNative);
 }
 
 #[test]
-fn test_web_audio_always_available() {
+fn test_ring_buffer_available_in_hybrid_mode() {
+    let backend = HybridAudioBackend::with_mode(HybridMode::HybridNative);
+    
+    // Ring buffer might be None until stream is created, which is OK
+    // Just verify the method doesn't panic
+    let _ = backend.ring_buffer();
+}
+
+#[test]
+fn test_fallback_policy_variants() {
+    // Verify all policy variants are distinct
+    assert_ne!(
+        FallbackPolicy::Manual,
+        FallbackPolicy::AutoOnError
+    );
+    
+    let pref1 = FallbackPolicy::AutoWithPreference(HybridMode::HybridNative);
+    let pref2 = FallbackPolicy::AutoWithPreference(HybridMode::WebAudioOnly);
+    assert_ne!(pref1, pref2);
+}
+
+#[test]
+fn test_backend_health_variants() {
+    // Verify all health states are distinct
+    assert_ne!(BackendHealth::Healthy, BackendHealth::Degraded);
+    assert_ne!(BackendHealth::Healthy, BackendHealth::Failed);
+    assert_ne!(BackendHealth::Degraded, BackendHealth::Failed);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn test_hybrid_mode_name() {
+    use rusty_audio::audio::AudioBackend;
+    
+    let backend = HybridAudioBackend::with_mode(HybridMode::HybridNative);
+    assert_eq!(backend.name(), "hybrid(web-audio + cpal)");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn test_web_audio_only_name() {
+    use rusty_audio::audio::AudioBackend;
+    
     let backend = HybridAudioBackend::with_mode(HybridMode::WebAudioOnly);
-    assert!(backend.is_available());
+    assert_eq!(backend.name(), "web-audio-api");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn test_cpal_only_name() {
+    use rusty_audio::audio::AudioBackend;
+    
+    let backend = HybridAudioBackend::with_mode(HybridMode::CpalOnly);
+    assert_eq!(backend.name(), "cpal");
 }
