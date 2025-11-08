@@ -26,6 +26,54 @@ impl CpalBackend {
         }
     }
     
+    /// Create output stream with custom ring buffer callback
+    pub fn create_output_stream_with_callback<F>(
+        &mut self,
+        device_id: &str,
+        config: AudioConfig,
+        callback: F,
+    ) -> Result<Box<dyn AudioStream>>
+    where
+        F: FnMut(&mut [f32]) + Send + 'static,
+    {
+        let device = self
+            .host
+            .output_devices()
+            .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e)))?
+            .find(|d| d.name().ok().as_deref() == Some(device_id))
+            .ok_or_else(|| AudioBackendError::DeviceNotFound(device_id.to_string()))?;
+        
+        let stream_config = cpal::StreamConfig {
+            channels: config.channels,
+            sample_rate: cpal::SampleRate(config.sample_rate),
+            buffer_size: cpal::BufferSize::Fixed(config.buffer_size as u32),
+        };
+        
+        // Wrap callback in Arc<Mutex> for thread-safe access
+        let callback = Arc::new(parking_lot::Mutex::new(callback));
+        let callback_clone = callback.clone();
+        
+        let stream = device
+            .build_output_stream(
+                &stream_config,
+                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    let mut cb = callback_clone.lock();
+                    cb(data);
+                },
+                move |err| {
+                    eprintln!("Stream error: {}", err);
+                },
+                None,
+            )
+            .map_err(|e| AudioBackendError::StreamError(format!("Failed to build output stream: {}", e)))?;
+        
+        Ok(Box::new(CpalOutputStream {
+            stream,
+            config,
+            status: StreamStatus::Stopped,
+        }))
+    }
+    
     /// Convert cpal sample format to our SampleFormat
     fn convert_sample_format(format: cpal::SampleFormat) -> SampleFormat {
         match format {

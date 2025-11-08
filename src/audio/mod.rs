@@ -11,6 +11,7 @@ pub mod backend;
 pub mod device;
 pub mod manager;
 pub mod hybrid;
+pub mod web_bridge;
 
 // Re-export commonly used types
 pub use backend::{
@@ -20,3 +21,4 @@ pub use backend::{
 pub use device::CpalBackend;
 pub use manager::AudioDeviceManager;
 pub use hybrid::{HybridAudioBackend, HybridMode, HybridRingBuffer};
+pub use web_bridge::{WebAudioBridge, WebAudioBridgeConfig};

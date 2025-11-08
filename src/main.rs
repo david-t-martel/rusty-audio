@@ -15,6 +15,7 @@ use web_audio_api::node::{
 // Import hybrid audio backend
 use rusty_audio::audio::{
     HybridAudioBackend, HybridMode, AudioDeviceManager, AudioConfig, StreamDirection,
+    WebAudioBridge, WebAudioBridgeConfig,
 };
 
 mod ui;
@@ -121,6 +122,7 @@ struct AudioPlayerApp {
     // Phase 3.1: Hybrid audio backend
     audio_backend: Option<HybridAudioBackend>,
     device_manager: Option<AudioDeviceManager>,
+    web_audio_bridge: Option<WebAudioBridge>,
     audio_mode_switching: bool, // Animation state for mode changes
     last_latency_check: Instant,
     audio_status_message: Option<(String, Instant)>, // (message, timestamp)
@@ -251,6 +253,7 @@ impl Default for AudioPlayerApp {
                     None
                 }
             },
+            web_audio_bridge: None, // Will be created when switching to HybridNative mode
             audio_mode_switching: false,
             last_latency_check: Instant::now(),
             audio_status_message: None,
@@ -1378,11 +1381,36 @@ impl AudioPlayerApp {
             self.playback_pos = Duration::ZERO;
         }
     }
-
-
-
-
-
+    
+    /// Setup hybrid audio mode with ring buffer bridge
+    fn setup_hybrid_mode(&mut self) {
+        // Only setup if backend is available and in HybridNative mode
+        if let Some(backend) = &self.audio_backend {
+            if backend.mode() == HybridMode::HybridNative {
+                // Get ring buffer from backend
+                if let Some(ring_buffer) = backend.ring_buffer() {
+                    // Create bridge
+                    let config = WebAudioBridgeConfig {
+                        buffer_size: 4096,
+                        input_channels: 2,
+                        output_channels: 2,
+                    };
+                    
+                    let bridge = WebAudioBridge::new(ring_buffer, config);
+                    
+                    // Connect the bridge to the audio graph
+                    // The analyser is the last node before destination
+                    bridge.connect_to_graph(&self.audio_context, &self.analyser);
+                    
+                    self.web_audio_bridge = Some(bridge);
+                    
+                    println!("✅ Hybrid audio bridge connected");
+                } else {
+                    eprintln!("⚠️ Ring buffer not available from backend");
+                }
+            }
+        }
+    }
 
     fn draw_settings_panel_main(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
         ui.vertical(|ui| {
@@ -1408,6 +1436,8 @@ impl AudioPlayerApp {
             ui.add_space(15.0);
 
             // Audio Backend Settings (Phase 3.1 Enhanced UI)
+            let mut should_setup_hybrid = false;
+            
             ui.group(|ui| {
                 ui.label(RichText::new("🔊 Audio Backend").strong());
                 ui.add_space(5.0);
@@ -1433,6 +1463,8 @@ impl AudioPlayerApp {
                                 self.audio_status_message = Some((format!("Failed to switch mode: {}", e), Instant::now()));
                             } else {
                                 self.audio_status_message = Some(("Switched to Hybrid Native mode".to_string(), Instant::now()));
+                                // Mark for setup after releasing borrow
+                                should_setup_hybrid = true;
                             }
                         }
                     });
@@ -1455,6 +1487,11 @@ impl AudioPlayerApp {
                     ui.label("Using web-audio-api fallback mode");
                 }
             });
+            
+            // Setup hybrid mode if requested (after releasing borrow)
+            if should_setup_hybrid {
+                self.setup_hybrid_mode();
+            }
 
             ui.add_space(15.0);
 

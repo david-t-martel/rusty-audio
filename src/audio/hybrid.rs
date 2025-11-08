@@ -362,11 +362,15 @@ impl AudioBackend for HybridAudioBackend {
                 if let Some(backend) = &mut self.cpal_backend {
                     let ring_buffer = self.ring_buffer.as_ref().unwrap().clone();
                     
-                    // Create the cpal stream
-                    let mut stream = backend.create_output_stream(device_id, config.clone())?;
-                    
-                    // TODO: Modify stream to read from ring buffer
-                    // This requires extending the stream creation to accept a callback
+                    // Create stream with callback that reads from ring buffer
+                    let stream = backend.create_output_stream_with_callback(
+                        device_id,
+                        config.clone(),
+                        move |output: &mut [f32]| {
+                            // Read from ring buffer into output
+                            ring_buffer.read(output);
+                        }
+                    )?;
                     
                     Ok(stream)
                 } else {
