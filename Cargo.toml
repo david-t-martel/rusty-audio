@@ -72,7 +72,7 @@ serial_test = "3.0"
 tokio-test = "0.4"
 tokio = { version = "1.0", features = ["full"] }
 clap = { version = "4.0", features = ["derive"] }
-# egui_kittest requires egui 0.33+, so we use manual testing for egui 0.27
+egui_kittest = "0.33.1"  # UI testing framework for egui 0.33
 
 [profile.release]
 opt-level = 3
