@@ -33,6 +33,9 @@ pub struct SpectrumVisualizerConfig {
     pub num_bars: usize,
     pub db_range: (f32, f32), // (min_db, max_db)
     pub update_rate: f32, // Hz
+    pub show_labels: bool,
+    pub show_db_scale: bool,
+    pub show_frequency_labels: bool,
 }
 
 impl Default for SpectrumVisualizerConfig {
@@ -51,6 +54,9 @@ impl Default for SpectrumVisualizerConfig {
             num_bars: 64,
             db_range: (-100.0, 0.0),
             update_rate: 60.0,
+            show_labels: true,
+            show_db_scale: true,
+            show_frequency_labels: true,
         }
     }
 }
@@ -138,12 +144,39 @@ impl SpectrumVisualizer {
 
     pub fn draw(&mut self, ui: &mut Ui, rect: Rect, colors: &ThemeColors) -> Response {
         let response = ui.allocate_rect(rect, Sense::hover());
+        
+        // Reserve space for labels if enabled
+        let (spectrum_rect, label_rect) = if self.config.show_labels {
+            let spectrum_height = rect.height() - 25.0;
+            let spectrum_rect = Rect::from_min_size(
+                rect.min,
+                Vec2::new(rect.width(), spectrum_height)
+            );
+            let label_rect = Rect::from_min_size(
+                Pos2::new(rect.min.x, rect.min.y + spectrum_height),
+                Vec2::new(rect.width(), 25.0)
+            );
+            (spectrum_rect, Some(label_rect))
+        } else {
+            (rect, None)
+        };
 
         match self.config.mode {
-            SpectrumMode::Bars => self.draw_bars(ui, rect, colors),
-            SpectrumMode::Line => self.draw_line(ui, rect, colors),
-            SpectrumMode::Filled => self.draw_filled(ui, rect, colors),
-            SpectrumMode::Circular => self.draw_circular(ui, rect, colors),
+            SpectrumMode::Bars => self.draw_bars(ui, spectrum_rect, colors),
+            SpectrumMode::Line => self.draw_line(ui, spectrum_rect, colors),
+            SpectrumMode::Filled => self.draw_filled(ui, spectrum_rect, colors),
+            SpectrumMode::Circular => self.draw_circular(ui, spectrum_rect, colors),
+        }
+        
+        // Draw labels and scales
+        if let Some(label_rect) = label_rect {
+            if self.config.show_frequency_labels {
+                self.draw_frequency_labels(ui, label_rect, colors);
+            }
+        }
+        
+        if self.config.show_db_scale {
+            self.draw_db_scale(ui, spectrum_rect, colors);
         }
 
         response
@@ -456,6 +489,88 @@ impl SpectrumVisualizer {
         }
 
         bins
+    }
+    
+    fn draw_frequency_labels(&self, ui: &Ui, rect: Rect, colors: &ThemeColors) {
+        let painter = ui.painter();
+        let font_id = egui::FontId::proportional(9.0);
+        
+        // Draw frequency labels at key positions (20Hz, 100Hz, 1kHz, 10kHz, 20kHz)
+        let frequencies = [20.0, 100.0, 1000.0, 10000.0, 20000.0];
+        let sample_rate = 44100.0; // Assume standard sample rate
+        
+        for &freq in &frequencies {
+            // Map frequency to position (logarithmic)
+            let nyquist = sample_rate / 2.0_f32;
+            let freq_ratio = freq / nyquist;
+            let normalized = if freq_ratio > 0.0 {
+                freq_ratio.ln() / nyquist.ln()
+            } else {
+                0.0
+            };
+            let x = rect.min.x + (normalized + 1.0) * rect.width() * 0.5;  // Adjust for log scale
+            
+            if x >= rect.min.x && x <= rect.max.x {
+                // Draw tick mark
+                let tick_start = Pos2::new(x, rect.min.y);
+                let tick_end = Pos2::new(x, rect.min.y + 4.0);
+                painter.line_segment(
+                    [tick_start, tick_end],
+                    Stroke::new(1.0, colors.text_secondary)
+                );
+                
+                // Draw label
+                let label = if freq >= 1000.0 {
+                    format!("{:.0}k", freq / 1000.0)
+                } else {
+                    format!("{:.0}", freq)
+                };
+                
+                let text_pos = Pos2::new(x, rect.min.y + 6.0);
+                painter.text(
+                    text_pos,
+                    egui::Align2::CENTER_TOP,
+                    label,
+                    font_id.clone(),
+                    colors.text_secondary,
+                );
+            }
+        }
+    }
+    
+    fn draw_db_scale(&self, ui: &Ui, rect: Rect, colors: &ThemeColors) {
+        let painter = ui.painter();
+        let font_id = egui::FontId::proportional(9.0);
+        
+        // Draw dB scale on the left side
+        let db_marks = [-60.0, -40.0, -20.0, -10.0, -3.0, 0.0];
+        
+        for &db in &db_marks {
+            // Map dB to y position
+            let normalized = ((db - self.config.db_range.0) / (self.config.db_range.1 - self.config.db_range.0))
+                .clamp(0.0, 1.0);
+            let y = rect.max.y - normalized * rect.height();
+            
+            // Draw horizontal grid line
+            let line_start = Pos2::new(rect.min.x, y);
+            let line_end = Pos2::new(rect.max.x, y);
+            let alpha = if db == 0.0 { 0.3 } else { 0.1 };
+            painter.line_segment(
+                [line_start, line_end],
+                Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, alpha))
+            );
+            
+            // Draw dB label on the left
+            let label = format!("{:.0}", db);
+            let text_pos = Pos2::new(rect.min.x + 3.0, y);
+            painter.text(
+                text_pos,
+                egui::Align2::LEFT_CENTER,
+                label,
+                font_id.clone(),
+                colors.text_secondary,
+            );
+        }
     }
 }
 

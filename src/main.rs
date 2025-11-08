@@ -15,6 +15,7 @@ use web_audio_api::node::{
 mod ui;
 mod audio_performance;
 pub mod testing;
+mod panel_implementation;
 
 use ui::{
     theme::{Theme, ThemeManager, ThemeColors},
@@ -28,6 +29,7 @@ use ui::{
     enhanced_controls::{AccessibleSlider, AccessibleKnob},
     enhanced_button::{AccessibleButton, ProgressIndicator, VolumeSafetyIndicator},
     error_handling::{ErrorManager, RecoveryActionType},
+    dock_layout::{DockLayoutManager, PanelContent, PanelId},
 };
 use testing::signal_generators::*;
 
@@ -106,6 +108,10 @@ struct AudioPlayerApp {
     last_frame_time: Instant,
     screen_size: ScreenSize,
     show_keyboard_shortcuts: bool,
+
+    // Dock layout system (Phase 2.1)
+    dock_layout_manager: DockLayoutManager,
+    enable_dock_layout: bool,
 }
 
 impl Default for AudioPlayerApp {
@@ -171,7 +177,7 @@ impl Default for AudioPlayerApp {
             signal_generator_panel: SignalGeneratorPanel::new(),
 
             // Enhanced UI components
-            theme_manager: ThemeManager::new(Theme::Mocha),
+            theme_manager: ThemeManager::new(Theme::StudioDark),
             layout_manager: LayoutManager::new(),
             spectrum_visualizer: SpectrumVisualizer::new(SpectrumVisualizerConfig::default()),
             album_art_display: AlbumArtDisplay::new(Vec2::new(200.0, 200.0)),
@@ -210,6 +216,10 @@ impl Default for AudioPlayerApp {
             last_frame_time: Instant::now(),
             screen_size: ScreenSize::Desktop,
             show_keyboard_shortcuts: false,
+
+            // Dock layout system
+            dock_layout_manager: DockLayoutManager::new(),
+            enable_dock_layout: false, // Start with traditional layout, can be toggled
         }
     }
 }
@@ -302,8 +312,10 @@ impl eframe::App for AudioPlayerApp {
         // Update signal generator
         self.signal_generator_panel.update(dt);
 
-        // Main UI layout using the new layout system
-        if self.screen_size == ScreenSize::Mobile {
+        // Main UI layout - choose between dock layout and traditional layout
+        if self.enable_dock_layout && self.screen_size != ScreenSize::Mobile {
+            self.draw_dock_layout(ctx, &colors);
+        } else if self.screen_size == ScreenSize::Mobile {
             self.draw_mobile_layout(ctx, &colors);
         } else {
             self.draw_desktop_layout(ctx, &colors);
@@ -425,6 +437,15 @@ impl AudioPlayerApp {
                                 );
                             }
                         });
+
+                    // Layout toggle button
+                    let layout_text = if self.enable_dock_layout { "📑" } else { "📑" };
+                    if ui.add_sized([40.0, 30.0], egui::Button::new(layout_text))
+                        .on_hover_text("Toggle Dock Layout")
+                        .clicked()
+                    {
+                        self.enable_dock_layout = !self.enable_dock_layout;
+                    }
 
                     if ui.add_sized([40.0, 30.0], egui::Button::new("?")).clicked() {
                         self.show_keyboard_shortcuts = !self.show_keyboard_shortcuts;
@@ -1363,6 +1384,45 @@ impl AudioPlayerApp {
                 ui.label("Built with Rust and egui");
             });
         });
+    }
+
+    fn draw_dock_layout(&mut self, ctx: &egui::Context, colors: &ThemeColors) {
+        // Show dock layout with menu bar for workspace switching
+        egui::TopBottomPanel::top("dock_menu").show(ctx, |ui| {
+            egui::menu::bar(ui, |ui| {
+                egui::menu::menu_button(ui, "View", |ui| {
+                    if ui.button("📋 Default Workspace").clicked() {
+                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Default);
+                        ui.close_menu();
+                    }
+                    if ui.button("📊 Analyzer Workspace").clicked() {
+                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Analyzer);
+                        ui.close_menu();
+                    }
+                    if ui.button("🎛️ Generator Workspace").clicked() {
+                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Generator);
+                        ui.close_menu();
+                    }
+                    if ui.button("🎚️ Mixing Workspace").clicked() {
+                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Mixing);
+                        ui.close_menu();
+                    }
+                    if ui.button("⏯️ Playback Workspace").clicked() {
+                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Playback);
+                        ui.close_menu();
+                    }
+                });
+                
+                ui.separator();
+                ui.label(format!("Workspace: {:?}", self.dock_layout_manager.active_workspace()));
+            });
+        });
+        
+        // Render the dock layout by temporarily taking ownership
+        // This is safe because we're not using dock_layout_manager again in this function
+        let mut dock_manager = std::mem::replace(&mut self.dock_layout_manager, DockLayoutManager::new());
+        dock_manager.show(ctx, self);
+        self.dock_layout_manager = dock_manager;
     }
 
     fn draw_keyboard_shortcuts_overlay(&mut self, ctx: &egui::Context, colors: &ThemeColors) {

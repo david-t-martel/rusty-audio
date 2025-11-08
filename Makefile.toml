@@ -1,0 +1,137 @@
+[config]
+default_to_workspace = false
+skip_core_tasks = false
+skip_git_env_info = false
+skip_rust_env_info = false
+
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+RUST_BACKTRACE = "1"
+# Optimize compilation
+CARGO_INCREMENTAL = "1"
+CARGO_PROFILE_DEV_DEBUG = "1"
+CARGO_PROFILE_RELEASE_LTO = "thin"
+CARGO_PROFILE_RELEASE_CODEGEN_UNITS = "16"
+
+[tasks.default]
+alias = "help"
+
+[tasks.help]
+script = '''
+echo "Rusty Audio Build Tasks:"
+echo ""
+echo "Development:"
+echo "  cargo make build        - Build debug binary"
+echo "  cargo make run          - Build and run debug binary"
+echo "  cargo make check        - Fast compilation check"
+echo "  cargo make test         - Run all tests"
+echo "  cargo make clippy       - Run clippy lints"
+echo ""
+echo "Release:"
+echo "  cargo make release      - Build optimized release binary"
+echo "  cargo make bench        - Run benchmarks"
+echo ""
+echo "Cleaning:"
+echo "  cargo make clean        - Remove build artifacts"
+echo "  cargo make clean-all    - Deep clean including caches"
+echo ""
+echo "Fix & Format:"
+echo "  cargo make fix          - Auto-fix compilation issues"
+echo "  cargo make fmt          - Format code"
+echo ""
+echo "Phase 2 Tasks:"
+echo "  cargo make check-phase2 - Verify Phase 2 compilation"
+echo "  cargo make test-ui      - Test UI components"
+'''
+
+[tasks.build]
+command = "cargo"
+args = ["build", "--bin", "rusty-audio"]
+
+[tasks.build-lib]
+command = "cargo"
+args = ["build", "--lib"]
+
+[tasks.check]
+command = "cargo"
+args = ["check", "--all-targets"]
+
+[tasks.check-phase2]
+dependencies = ["check"]
+script = '''
+echo "Phase 2 verification complete!"
+cargo check --lib
+cargo check --bin rusty-audio
+'''
+
+[tasks.run]
+command = "cargo"
+args = ["run", "--bin", "rusty-audio"]
+
+[tasks.release]
+command = "cargo"
+args = ["build", "--release", "--bin", "rusty-audio"]
+
+[tasks.test]
+command = "cargo"
+args = ["test", "--lib"]
+
+[tasks.test-ui]
+command = "cargo"
+args = ["test", "--lib", "--", "ui"]
+
+[tasks.clippy]
+command = "cargo"
+args = ["clippy", "--all-targets", "--", "-D", "warnings"]
+
+[tasks.fix]
+command = "cargo"
+args = ["fix", "--allow-dirty", "--allow-staged"]
+
+[tasks.fmt]
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+
+[tasks.clean-all]
+script = '''
+cargo clean
+echo "Removing target directory..."
+if (Test-Path target) { Remove-Item -Recurse -Force target }
+echo "Clean complete!"
+'''
+
+[tasks.bench]
+command = "cargo"
+args = ["bench", "--no-fail-fast"]
+
+[tasks.doc]
+command = "cargo"
+args = ["doc", "--no-deps", "--open"]
+
+[tasks.watch]
+install_crate = "cargo-watch"
+command = "cargo"
+args = ["watch", "-x", "check", "-x", "test"]
+
+# Phase 2 specific tasks
+[tasks.verify-spectrum]
+script = '''
+echo "Verifying spectrum analyzer enhancements..."
+cargo check --lib --features spectrum
+'''
+
+[tasks.verify-dock]
+script = '''
+echo "Verifying dock layout system..."
+cargo check --lib
+echo "Dock layout OK!"
+'''
+
+[tasks.quick]
+description = "Quick check without full build"
+command = "cargo"
+args = ["check", "--lib"]

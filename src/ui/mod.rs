@@ -1,5 +1,6 @@
 pub mod components;
 pub mod layout;
+pub mod dock_layout;
 pub mod spectrum;
 pub mod controls;
 pub mod theme;
