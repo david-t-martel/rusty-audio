@@ -12,6 +12,11 @@ use web_audio_api::node::{
     AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType, AnalyserNode,
 };
 
+// Import hybrid audio backend
+use rusty_audio::audio::{
+    HybridAudioBackend, HybridMode, AudioDeviceManager, AudioConfig, StreamDirection,
+};
+
 mod ui;
 mod audio_performance;
 pub mod testing;
@@ -112,6 +117,13 @@ struct AudioPlayerApp {
     // Dock layout system (Phase 2.1)
     dock_layout_manager: DockLayoutManager,
     enable_dock_layout: bool,
+    
+    // Phase 3.1: Hybrid audio backend
+    audio_backend: Option<HybridAudioBackend>,
+    device_manager: Option<AudioDeviceManager>,
+    audio_mode_switching: bool, // Animation state for mode changes
+    last_latency_check: Instant,
+    audio_status_message: Option<(String, Instant)>, // (message, timestamp)
 }
 
 impl Default for AudioPlayerApp {
@@ -220,6 +232,28 @@ impl Default for AudioPlayerApp {
             // Dock layout system
             dock_layout_manager: DockLayoutManager::new(),
             enable_dock_layout: false, // Start with traditional layout, can be toggled
+            
+            // Phase 3.1: Hybrid audio backend (initialize gracefully)
+            audio_backend: {
+                let mut backend = HybridAudioBackend::new();
+                match backend.initialize() {
+                    Ok(_) => Some(backend),
+                    Err(e) => {
+                        eprintln!("Warning: Failed to initialize hybrid audio backend: {}", e);
+                        None
+                    }
+                }
+            },
+            device_manager: match AudioDeviceManager::new() {
+                Ok(dm) => Some(dm),
+                Err(e) => {
+                    eprintln!("Warning: Failed to initialize device manager: {}", e);
+                    None
+                }
+            },
+            audio_mode_switching: false,
+            last_latency_check: Instant::now(),
+            audio_status_message: None,
         }
     }
 }
@@ -1355,9 +1389,11 @@ impl AudioPlayerApp {
             ui.heading("Settings");
             ui.add_space(10.0);
 
+            // Theme Settings
             ui.group(|ui| {
-                ui.label("Theme");
-                egui::ComboBox::from_label("Select a theme")
+                ui.label(RichText::new("🎨 Theme").strong());
+                ui.add_space(5.0);
+                egui::ComboBox::from_label("")
                     .selected_text(self.theme_manager.current_theme().display_name())
                     .show_ui(ui, |ui| {
                         for theme in Theme::all() {
@@ -1371,17 +1407,190 @@ impl AudioPlayerApp {
 
             ui.add_space(15.0);
 
+            // Audio Backend Settings (Phase 3.1 Enhanced UI)
             ui.group(|ui| {
-                ui.label("Audio Settings");
-                ui.label("Audio device selection is not supported with the web-audio-api backend.");
+                ui.label(RichText::new("🔊 Audio Backend").strong());
+                ui.add_space(5.0);
+                
+                if let Some(backend) = &mut self.audio_backend {
+                    let current_mode = backend.mode();
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Mode:");
+                        if ui.radio(current_mode == HybridMode::WebAudioOnly, "🌐 Web Audio API").clicked() {
+                            if let Err(e) = backend.set_mode(HybridMode::WebAudioOnly) {
+                                self.audio_status_message = Some((format!("Failed to switch mode: {}", e), Instant::now()));
+                            } else {
+                                self.audio_status_message = Some(("Switched to Web Audio API mode".to_string(), Instant::now()));
+                            }
+                        }
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("");
+                        if ui.radio(current_mode == HybridMode::HybridNative, "🎵 Hybrid (Native + Web)").clicked() {
+                            if let Err(e) = backend.set_mode(HybridMode::HybridNative) {
+                                self.audio_status_message = Some((format!("Failed to switch mode: {}", e), Instant::now()));
+                            } else {
+                                self.audio_status_message = Some(("Switched to Hybrid Native mode".to_string(), Instant::now()));
+                            }
+                        }
+                    });
+                    
+                    // Show mode-specific info
+                    ui.add_space(5.0);
+                    match current_mode {
+                        HybridMode::WebAudioOnly => {
+                            ui.label(RichText::new("ℹ️ Browser-compatible mode, ~50-100ms latency").size(11.0).color(colors.text_secondary));
+                        }
+                        HybridMode::HybridNative => {
+                            ui.label(RichText::new("✨ Native hardware + Web effects, ~5-15ms latency").size(11.0).color(Color32::from_rgb(100, 200, 100)));
+                        }
+                        HybridMode::CpalOnly => {
+                            ui.label(RichText::new("⚡ Maximum performance, <5ms latency").size(11.0).color(Color32::from_rgb(100, 255, 100)));
+                        }
+                    }
+                } else {
+                    ui.label(RichText::new("⚠️ Audio backend not initialized").color(Color32::from_rgb(255, 200, 100)));
+                    ui.label("Using web-audio-api fallback mode");
+                }
             });
 
             ui.add_space(15.0);
 
+            // Device Selection (Phase 3.1 Enhanced UI)
+            if let Some(backend) = &self.audio_backend {
+                if backend.mode() != HybridMode::WebAudioOnly {
+                    ui.group(|ui| {
+                        ui.label(RichText::new("🎧 Audio Device").strong());
+                        ui.add_space(5.0);
+                        
+                        if let Some(device_manager) = &self.device_manager {
+                            // Output device selection
+                            ui.label("Output Device:");
+                            
+                            let selected_device = device_manager.selected_output_device();
+                            let selected_name = selected_device.as_ref()
+                                .map(|d| d.name.clone())
+                                .unwrap_or_else(|| "No device selected".to_string());
+                            
+                            egui::ComboBox::from_label("")
+                                .selected_text(&selected_name)
+                                .show_ui(ui, |ui| {
+                                    if let Ok(devices) = device_manager.enumerate_output_devices() {
+                                        for device in devices {
+                                            let icon = if device.is_default { "🔊" } else { "🔉" };
+                                            let label = format!("{} {}", icon, device.name);
+                                            
+                                            if ui.selectable_label(
+                                                selected_device.as_ref().map(|d| d.id == device.id).unwrap_or(false),
+                                                label
+                                            ).clicked() {
+                                                if let Err(e) = device_manager.select_output_device(&device.id) {
+                                                    self.audio_status_message = Some((format!("Failed to select device: {}", e), Instant::now()));
+                                                } else {
+                                                    self.audio_status_message = Some((format!("Selected device: {}", device.name), Instant::now()));
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        ui.label("⚠️ Failed to enumerate devices");
+                                    }
+                                });
+                            
+                            // Device info display
+                            if let Some(device) = &selected_device {
+                                ui.add_space(10.0);
+                                ui.group(|ui| {
+                                    ui.label(RichText::new("Device Info:").size(12.0).strong());
+                                    ui.separator();
+                                    
+                                    ui.horizontal(|ui| {
+                                        ui.label("Sample Rate:");
+                                        ui.label(format!("{} - {} Hz", device.min_sample_rate, device.max_sample_rate));
+                                    });
+                                    
+                                    ui.horizontal(|ui| {
+                                        ui.label("Channels:");
+                                        ui.label(format!("{}", device.max_output_channels));
+                                    });
+                                });
+                            }
+                            
+                            // Latency indicator with color coding
+                            ui.add_space(10.0);
+                            if let Some(latency_ms) = device_manager.stream_latency_ms() {
+                                let latency_color = if latency_ms < 10.0 {
+                                    Color32::from_rgb(100, 255, 100) // Green: excellent
+                                } else if latency_ms < 20.0 {
+                                    Color32::from_rgb(200, 255, 100) // Yellow-green: good
+                                } else if latency_ms < 50.0 {
+                                    Color32::from_rgb(255, 200, 100) // Orange: acceptable
+                                } else {
+                                    Color32::from_rgb(255, 100, 100) // Red: high
+                                };
+                                
+                                ui.horizontal(|ui| {
+                                    ui.label("Latency:");
+                                    ui.label(RichText::new(format!("{:.1} ms", latency_ms))
+                                        .color(latency_color)
+                                        .strong());
+                                    
+                                    // Status indicator
+                                    if latency_ms < 10.0 {
+                                        ui.label("✅ Excellent");
+                                    } else if latency_ms < 20.0 {
+                                        ui.label("✨ Good");
+                                    } else if latency_ms < 50.0 {
+                                        ui.label("⚠️ Acceptable");
+                                    } else {
+                                        ui.label("❌ High");
+                                    }
+                                });
+                            }
+                        } else {
+                            ui.label("⚠️ Device manager not initialized");
+                        }
+                    });
+                    
+                    ui.add_space(15.0);
+                }
+            }
+            
+            // Show status messages (fade out after 3 seconds)
+            if let Some((message, timestamp)) = &self.audio_status_message {
+                let elapsed = Instant::now().duration_since(*timestamp).as_secs_f32();
+                if elapsed < 3.0 {
+                    let alpha = (1.0 - (elapsed / 3.0)).clamp(0.0, 1.0);
+                    let mut color = Color32::from_rgb(100, 200, 255);
+                    color[3] = (alpha * 255.0) as u8;
+                    
+                    ui.add_space(5.0);
+                    ui.label(RichText::new(message).color(color).size(12.0));
+                } else {
+                    self.audio_status_message = None;
+                }
+            }
+
+            ui.add_space(15.0);
+
+            // About section
             ui.group(|ui| {
-                ui.label("About");
+                ui.label(RichText::new("ℹ️ About").strong());
+                ui.add_space(5.0);
                 ui.label("Rusty Audio Player v0.1.0");
                 ui.label("Built with Rust and egui");
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("🎵 Web Audio Graph:");
+                    ui.label(RichText::new("Enabled").color(Color32::from_rgb(100, 255, 100)));
+                });
+                if self.audio_backend.is_some() {
+                    ui.horizontal(|ui| {
+                        ui.label("🔊 Native Audio:");
+                        ui.label(RichText::new("Enabled").color(Color32::from_rgb(100, 255, 100)));
+                    });
+                }
             });
         });
     }

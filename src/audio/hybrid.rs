@@ -189,6 +189,27 @@ impl HybridAudioBackend {
     pub fn ring_buffer(&self) -> Option<Arc<AudioRingBuffer>> {
         self.ring_buffer.clone()
     }
+    
+    /// Initialize the hybrid backend (public method for all platforms)
+    pub fn initialize(&mut self) -> Result<()> {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            match self.mode {
+                HybridMode::WebAudioOnly => Ok(()),
+                HybridMode::HybridNative | HybridMode::CpalOnly => {
+                    if let Some(backend) = &mut self.cpal_backend {
+                        backend.initialize()
+                    } else {
+                        Err(AudioBackendError::BackendNotAvailable(
+                            "CPAL backend not initialized".to_string()
+                        ))
+                    }
+                }
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        Ok(())
+    }
 }
 
 impl Default for HybridAudioBackend {
