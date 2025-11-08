@@ -51,6 +51,7 @@ symphonia = { version = "0.5", features = ["all", "opt-simd"] }  # Professional 
 rubato = "0.15"                                      # Sample rate conversion
 midir = "0.9"                                        # Cross-platform MIDI I/O
 wmidi = "4.0"                                        # MIDI message parsing
+hound = "3.5"                                         # WAV file I/O for recording
 
 # Additional utilities for AI
 statrs = "0.16"
