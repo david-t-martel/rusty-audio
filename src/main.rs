@@ -15,7 +15,7 @@ use web_audio_api::node::{
 // Import hybrid audio backend
 use rusty_audio::audio::{
     HybridAudioBackend, HybridMode, AudioDeviceManager, AudioConfig, StreamDirection,
-    WebAudioBridge, WebAudioBridgeConfig,
+    WebAudioBridge, WebAudioBridgeConfig, FallbackPolicy, BackendHealth,
 };
 
 mod ui;
@@ -1491,6 +1491,81 @@ impl AudioPlayerApp {
             // Setup hybrid mode if requested (after releasing borrow)
             if should_setup_hybrid {
                 self.setup_hybrid_mode();
+            }
+
+            ui.add_space(15.0);
+            
+            // Fallback Policy Settings (Phase 3.1.6)
+            if let Some(backend) = &mut self.audio_backend {
+                ui.group(|ui| {
+                    ui.label(RichText::new("🔄 Audio Fallback Policy").strong());
+                    ui.add_space(5.0);
+                    
+                    let current_policy = backend.fallback_policy();
+                    let health = backend.health();
+                    
+                    // Show health status with color coding
+                    let (health_text, health_color) = match health {
+                        BackendHealth::Healthy => ("✅ Healthy", Color32::from_rgb(100, 255, 100)),
+                        BackendHealth::Degraded => ("⚠️ Degraded", Color32::from_rgb(255, 200, 100)),
+                        BackendHealth::Failed => ("❌ Failed", Color32::from_rgb(255, 100, 100)),
+                    };
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Status:");
+                        ui.label(RichText::new(health_text).color(health_color));
+                    });
+                    
+                    ui.add_space(5.0);
+                    
+                    // Fallback policy dropdown
+                    let policy_text = match current_policy {
+                        FallbackPolicy::Manual => "Manual",
+                        FallbackPolicy::AutoOnError => "Auto on Error",
+                        FallbackPolicy::AutoWithPreference(_) => "Auto with Preference",
+                    };
+                    
+                    egui::ComboBox::from_label("Policy:")
+                        .selected_text(policy_text)
+                        .show_ui(ui, |ui| {
+                            if ui.selectable_label(
+                                matches!(current_policy, FallbackPolicy::Manual),
+                                "🛠️ Manual"
+                            ).on_hover_text("You control mode switching. No automatic fallback.").clicked() {
+                                backend.set_fallback_policy(FallbackPolicy::Manual);
+                                self.audio_status_message = Some(("Fallback policy: Manual".to_string(), Instant::now()));
+                            }
+                            
+                            if ui.selectable_label(
+                                matches!(current_policy, FallbackPolicy::AutoOnError),
+                                "🔄 Auto on Error"
+                            ).on_hover_text("Automatically switch to web audio if native audio fails.").clicked() {
+                                backend.set_fallback_policy(FallbackPolicy::AutoOnError);
+                                self.audio_status_message = Some(("Fallback policy: Auto on Error".to_string(), Instant::now()));
+                            }
+                            
+                            if ui.selectable_label(
+                                matches!(current_policy, FallbackPolicy::AutoWithPreference(_)),
+                                "⚙️ Auto with Preference"
+                            ).on_hover_text("Try preferred mode, fallback if unavailable.").clicked() {
+                                let preferred_mode = backend.mode();
+                                backend.set_fallback_policy(FallbackPolicy::AutoWithPreference(preferred_mode));
+                                self.audio_status_message = Some(("Fallback policy: Auto with Preference".to_string(), Instant::now()));
+                            }
+                        });
+                    
+                    // Show policy description
+                    ui.add_space(5.0);
+                    let description = match current_policy {
+                        FallbackPolicy::Manual => "You have full control. System will not automatically switch audio backends.",
+                        FallbackPolicy::AutoOnError => "System will automatically fallback to Web Audio API if native audio encounters errors (device disconnect, excessive underruns).",
+                        FallbackPolicy::AutoWithPreference(mode) => {
+                            &format!("System will try {:?} first, automatically falling back to Web Audio API if unavailable.", mode)
+                        }
+                    };
+                    
+                    ui.label(RichText::new(description).size(11.0).color(colors.text_secondary).italics());
+                });
             }
 
             ui.add_space(15.0);

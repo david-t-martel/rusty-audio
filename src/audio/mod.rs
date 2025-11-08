@@ -20,5 +20,5 @@ pub use backend::{
 };
 pub use device::CpalBackend;
 pub use manager::AudioDeviceManager;
-pub use hybrid::{HybridAudioBackend, HybridMode, HybridRingBuffer};
+pub use hybrid::{HybridAudioBackend, HybridMode, HybridRingBuffer, FallbackPolicy, BackendHealth};
 pub use web_bridge::{WebAudioBridge, WebAudioBridgeConfig};

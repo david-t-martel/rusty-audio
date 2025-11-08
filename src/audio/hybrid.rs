@@ -104,9 +104,47 @@ pub enum HybridMode {
     CpalOnly,
 }
 
+/// Fallback policy for automatic backend switching
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FallbackPolicy {
+    /// User controls mode manually (no automatic fallback)
+    Manual,
+    /// Automatically switch mode on errors (e.g., device disconnect)
+    AutoOnError,
+    /// Try preferred mode first, fallback to alternative if unavailable
+    AutoWithPreference(HybridMode),
+}
+
+impl Default for FallbackPolicy {
+    fn default() -> Self {
+        FallbackPolicy::AutoOnError
+    }
+}
+
+/// Audio backend health status
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackendHealth {
+    Healthy,
+    Degraded,
+    Failed,
+}
+
+/// Error types that can trigger fallback
+#[derive(Debug, Clone)]
+pub enum FallbackTrigger {
+    DeviceDisconnected,
+    StreamUnderrun { consecutive_count: u32 },
+    BufferHealthCritical { fill_level: f32 },
+    InitializationFailed,
+    UnknownError(String),
+}
+
 /// Hybrid audio backend that combines web-audio-api routing with native audio
 pub struct HybridAudioBackend {
     mode: HybridMode,
+    fallback_policy: FallbackPolicy,
+    health: BackendHealth,
+    underrun_count: u32,
     
     #[cfg(not(target_arch = "wasm32"))]
     cpal_backend: Option<CpalBackend>,
@@ -139,6 +177,9 @@ impl HybridAudioBackend {
         
         Self {
             mode,
+            fallback_policy: FallbackPolicy::default(),
+            health: BackendHealth::Healthy,
+            underrun_count: 0,
             #[cfg(not(target_arch = "wasm32"))]
             cpal_backend,
             ring_buffer: None,
@@ -188,6 +229,82 @@ impl HybridAudioBackend {
     /// Get the ring buffer for connecting web-audio-api
     pub fn ring_buffer(&self) -> Option<Arc<AudioRingBuffer>> {
         self.ring_buffer.clone()
+    }
+    
+    /// Get the current fallback policy
+    pub fn fallback_policy(&self) -> FallbackPolicy {
+        self.fallback_policy
+    }
+    
+    /// Set the fallback policy
+    pub fn set_fallback_policy(&mut self, policy: FallbackPolicy) {
+        self.fallback_policy = policy;
+    }
+    
+    /// Get the current backend health status
+    pub fn health(&self) -> BackendHealth {
+        self.health
+    }
+    
+    /// Report a buffer underrun (called from audio callback)
+    pub fn report_underrun(&mut self) {
+        self.underrun_count += 1;
+        
+        // Degrade health after 3 consecutive underruns
+        if self.underrun_count >= 3 {
+            self.health = BackendHealth::Degraded;
+            
+            // Trigger fallback after 10 consecutive underruns
+            if self.underrun_count >= 10 {
+                self.health = BackendHealth::Failed;
+                let trigger = FallbackTrigger::StreamUnderrun { 
+                    consecutive_count: self.underrun_count 
+                };
+                let _ = self.trigger_fallback(trigger);
+            }
+        }
+    }
+    
+    /// Reset underrun counter (called when audio is healthy)
+    pub fn reset_underrun_count(&mut self) {
+        if self.underrun_count > 0 {
+            self.underrun_count = 0;
+            self.health = BackendHealth::Healthy;
+        }
+    }
+    
+    /// Trigger automatic fallback based on error condition
+    pub fn trigger_fallback(&mut self, trigger: FallbackTrigger) -> Result<()> {
+        // Only trigger fallback if policy allows it
+        match self.fallback_policy {
+            FallbackPolicy::Manual => {
+                // Manual mode: just log the error but don't switch
+                let msg = format!("Fallback triggered but policy is Manual: {:?}", trigger);
+                return Err(AudioBackendError::Other(anyhow::anyhow!(msg)));
+            }
+            FallbackPolicy::AutoOnError | FallbackPolicy::AutoWithPreference(_) => {
+                // Automatic fallback enabled
+            }
+        }
+        
+        // Determine fallback mode
+        let fallback_mode = match self.mode {
+            HybridMode::WebAudioOnly => {
+                // Can't fallback from web-audio-only
+                return Err(AudioBackendError::Other(
+                    anyhow::anyhow!("Cannot fallback from WebAudioOnly mode")
+                ));
+            }
+            HybridMode::HybridNative => HybridMode::WebAudioOnly,
+            HybridMode::CpalOnly => HybridMode::WebAudioOnly,
+        };
+        
+        // Attempt to switch to fallback mode
+        self.set_mode(fallback_mode)?;
+        self.health = BackendHealth::Healthy;
+        self.underrun_count = 0;
+        
+        Ok(())
     }
     
     /// Initialize the hybrid backend (public method for all platforms)
