@@ -665,11 +665,11 @@ impl SignalGeneratorPanel {
         let zero_y = rect.center().y;
         painter.line_segment(
             [Pos2::new(rect.min.x, zero_y), Pos2::new(rect.max.x, zero_y)],
-            Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.3)),
+            (1.0, ColorUtils::with_alpha(colors.text_secondary, 0.3)),
         );
 
         // Draw border
-        painter.rect_stroke(rect, 4.0, Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.2)));
+        painter.rect_stroke(rect, 4.0, Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.2)), egui::epaint::StrokeKind::Outside);
     }
 
     fn draw_spectrum(&self, ui: &Ui, rect: Rect, colors: &ThemeColors) {
@@ -707,7 +707,7 @@ impl SignalGeneratorPanel {
         }
 
         // Draw border
-        painter.rect_stroke(rect, 4.0, Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.2)));
+        painter.rect_stroke(rect, 4.0, Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.2)), egui::epaint::StrokeKind::Outside);
     }
 
     fn update_preview(&mut self) {

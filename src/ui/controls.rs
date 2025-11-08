@@ -663,7 +663,7 @@ impl EnhancedButton {
             colors.accent,
             hover_factor,
         );
-        painter.rect_stroke(scaled_rect, self.style.rounding, Stroke::new(1.0, border_color));
+        painter.rect_stroke(scaled_rect, self.style.rounding, Stroke::new(1.0, border_color), egui::epaint::StrokeKind::Outside);
 
         // Draw content
         let content_rect = scaled_rect.shrink2(self.style.padding);

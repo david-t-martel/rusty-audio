@@ -136,6 +136,7 @@ impl AccessibilityManager {
             outline_rect,
             4.0,
             egui::Stroke::new(2.0, focus_color),
+            egui::epaint::StrokeKind::Outside,
         );
 
         // Additional inner outline for high contrast
@@ -144,6 +145,7 @@ impl AccessibilityManager {
                 rect.expand(1.0),
                 2.0,
                 egui::Stroke::new(1.0, Color32::BLACK),
+                egui::epaint::StrokeKind::Outside,
             );
         }
     }
