@@ -207,12 +207,197 @@ impl RecordingBuffer {
     }
 }
 
+/// Lock-free recording buffer for real-time audio with atomic level metering
+///
+/// This structure provides lock-free audio recording with real-time level metering
+/// using atomic operations for thread safety. It combines the LockFreeRingBuffer
+/// for audio data with atomic f32 storage for levels.
+pub struct LockFreeRecordingBuffer {
+    /// Lock-free ring buffer for audio samples
+    ring_buffer: crate::audio_performance::LockFreeRingBuffer,
+    /// Number of channels
+    channels: usize,
+    /// Sample rate
+    sample_rate: u32,
+    /// Total samples written (atomic for thread-safe access)
+    total_samples: std::sync::atomic::AtomicUsize,
+    /// Peak levels per channel (atomic for lock-free updates)
+    peak_levels: Vec<std::sync::atomic::AtomicU32>,  // Store as u32 bits
+    /// RMS levels per channel (atomic for lock-free updates)
+    rms_levels: Vec<std::sync::atomic::AtomicU32>,   // Store as u32 bits
+}
+
+impl LockFreeRecordingBuffer {
+    pub fn new(capacity: usize, channels: usize, sample_rate: u32) -> Self {
+        Self {
+            ring_buffer: crate::audio_performance::LockFreeRingBuffer::new(capacity * channels),
+            channels,
+            sample_rate,
+            total_samples: std::sync::atomic::AtomicUsize::new(0),
+            peak_levels: (0..channels).map(|_| std::sync::atomic::AtomicU32::new(0)).collect(),
+            rms_levels: (0..channels).map(|_| std::sync::atomic::AtomicU32::new(0)).collect(),
+        }
+    }
+
+    /// Write interleaved audio samples (lock-free)
+    #[inline(always)]
+    pub fn write(&self, data: &[f32]) -> usize {
+        let written = self.ring_buffer.write(data);
+        self.total_samples.fetch_add(written, std::sync::atomic::Ordering::Relaxed);
+
+        // Update levels (lock-free atomic operations)
+        self.update_levels_lockfree(data);
+
+        written
+    }
+
+    /// Update peak and RMS levels using lock-free atomic operations
+    #[inline(always)]
+    fn update_levels_lockfree(&self, data: &[f32]) {
+        if data.is_empty() {
+            return;
+        }
+
+        // Process samples per channel
+        for (i, &sample) in data.iter().enumerate() {
+            let ch = i % self.channels;
+            let abs_sample = sample.abs();
+
+            // Update peak (atomic compare-exchange loop)
+            let mut current_peak = self.peak_levels[ch].load(std::sync::atomic::Ordering::Relaxed);
+            loop {
+                let current_f32 = f32::from_bits(current_peak);
+                if abs_sample <= current_f32 {
+                    break;
+                }
+                match self.peak_levels[ch].compare_exchange_weak(
+                    current_peak,
+                    abs_sample.to_bits(),
+                    std::sync::atomic::Ordering::Relaxed,
+                    std::sync::atomic::Ordering::Relaxed,
+                ) {
+                    Ok(_) => break,
+                    Err(x) => current_peak = x,
+                }
+            }
+
+            // Accumulate RMS (simplified - just track max for now, full RMS needs more state)
+            let sample_sq = sample * sample;
+            let mut current_rms = self.rms_levels[ch].load(std::sync::atomic::Ordering::Relaxed);
+            loop {
+                let current_f32 = f32::from_bits(current_rms);
+                let new_rms = (current_f32 * 0.99 + sample_sq * 0.01).sqrt(); // Simple exponential average
+                match self.rms_levels[ch].compare_exchange_weak(
+                    current_rms,
+                    new_rms.to_bits(),
+                    std::sync::atomic::Ordering::Relaxed,
+                    std::sync::atomic::Ordering::Relaxed,
+                ) {
+                    Ok(_) => break,
+                    Err(x) => current_rms = x,
+                }
+            }
+        }
+    }
+
+    /// Get peak level for channel (lock-free read)
+    #[inline(always)]
+    pub fn peak_level(&self, channel: usize) -> f32 {
+        let bits = self.peak_levels.get(channel)
+            .map(|a| a.load(std::sync::atomic::Ordering::Relaxed))
+            .unwrap_or(0);
+        f32::from_bits(bits)
+    }
+
+    /// Get RMS level for channel (lock-free read)
+    #[inline(always)]
+    pub fn rms_level(&self, channel: usize) -> f32 {
+        let bits = self.rms_levels.get(channel)
+            .map(|a| a.load(std::sync::atomic::Ordering::Relaxed))
+            .unwrap_or(0);
+        f32::from_bits(bits)
+    }
+
+    /// Get recording duration
+    pub fn duration(&self) -> Duration {
+        let total = self.total_samples.load(std::sync::atomic::Ordering::Relaxed);
+        let total_frames = total / self.channels;
+        let secs = total_frames as f64 / self.sample_rate as f64;
+        Duration::from_secs_f64(secs)
+    }
+
+    /// Get current buffer position
+    pub fn position(&self) -> usize {
+        self.total_samples.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Clear the buffer (note: not fully atomic, use only when recording is stopped)
+    pub fn clear(&self) {
+        self.total_samples.store(0, std::sync::atomic::Ordering::Relaxed);
+        for level in &self.peak_levels {
+            level.store(0, std::sync::atomic::Ordering::Relaxed);
+        }
+        for level in &self.rms_levels {
+            level.store(0, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
+    /// Decay levels over time (call periodically from UI thread)
+    pub fn decay_levels(&self, decay_factor: f32) {
+        for level in &self.peak_levels {
+            let mut current = level.load(std::sync::atomic::Ordering::Relaxed);
+            loop {
+                let current_f32 = f32::from_bits(current);
+                let new_val = current_f32 * decay_factor;
+                match level.compare_exchange_weak(
+                    current,
+                    new_val.to_bits(),
+                    std::sync::atomic::Ordering::Relaxed,
+                    std::sync::atomic::Ordering::Relaxed,
+                ) {
+                    Ok(_) => break,
+                    Err(x) => current = x,
+                }
+            }
+        }
+        for level in &self.rms_levels {
+            let mut current = level.load(std::sync::atomic::Ordering::Relaxed);
+            loop {
+                let current_f32 = f32::from_bits(current);
+                let new_val = current_f32 * decay_factor;
+                match level.compare_exchange_weak(
+                    current,
+                    new_val.to_bits(),
+                    std::sync::atomic::Ordering::Relaxed,
+                    std::sync::atomic::Ordering::Relaxed,
+                ) {
+                    Ok(_) => break,
+                    Err(x) => current = x,
+                }
+            }
+        }
+    }
+
+    /// Get all recorded samples (reads from ring buffer - not lock-free, use when stopped)
+    pub fn get_samples(&self, output: &mut Vec<f32>) -> usize {
+        let total = self.total_samples.load(std::sync::atomic::Ordering::Relaxed);
+        let capacity = self.ring_buffer.capacity();
+
+        // Determine how many samples to read (min of total written and buffer capacity)
+        let samples_to_read = total.min(capacity);
+        output.resize(samples_to_read, 0.0);
+
+        // Read from ring buffer
+        self.ring_buffer.read(output)
+    }
+}
+
 /// Audio recorder with state management and level metering
 pub struct AudioRecorder {
     /// Recording configuration
     config: RecordingConfig,
-    /// Audio buffer
-    buffer: Arc<Mutex<RecordingBuffer>>,
+    /// Lock-free audio buffer for real-time recording
+    buffer: Arc<LockFreeRecordingBuffer>,
     /// Current recording state
     state: Arc<Mutex<RecordingState>>,
     /// Recording start time
@@ -234,12 +419,12 @@ pub struct AudioRecorder {
 impl AudioRecorder {
     /// Create a new audio recorder with specified configuration
     pub fn new(config: RecordingConfig) -> Self {
-        let buffer = Arc::new(Mutex::new(RecordingBuffer::new(
+        let buffer = Arc::new(LockFreeRecordingBuffer::new(
             config.buffer_size,
             config.channels as usize,
             config.sample_rate,
-        )));
-        
+        ));
+
         Self {
             config,
             state: Arc::new(Mutex::new(RecordingState::Idle)),
@@ -313,7 +498,7 @@ impl AudioRecorder {
             }
             RecordingState::Stopped => {
                 // Clear buffer and start fresh
-                self.buffer.lock().unwrap().clear();
+                self.buffer.clear();
                 *state = RecordingState::Recording;
                 self.start_time = Some(Instant::now());
                 self.pause_duration = Duration::ZERO;
@@ -426,17 +611,17 @@ impl AudioRecorder {
     /// Write audio samples to the buffer (called from audio thread)
     pub fn write_samples(&mut self, samples: &[f32]) {
         let state = self.state.lock().unwrap();
-        
-        // Only write if actively recording
+
+        // Only write if actively recording (lock-free write)
         if *state == RecordingState::Recording {
-            self.buffer.lock().unwrap().write(samples);
+            self.buffer.write(samples);
         }
     }
 
     /// Export recording to WAV file
     pub fn save_to_wav(&self, path: &std::path::Path) -> Result<()> {
-        let buffer = self.buffer.lock().unwrap();
-        let samples = buffer.get_samples();
+        let mut samples = Vec::new();
+        self.buffer.get_samples(&mut samples);
         
         let spec = hound::WavSpec {
             channels: self.config.channels,

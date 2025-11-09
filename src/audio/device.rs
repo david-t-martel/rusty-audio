@@ -53,10 +53,29 @@ impl CpalBackend {
         let callback = Arc::new(parking_lot::Mutex::new(callback));
         let callback_clone = callback.clone();
         
+        // Enable real-time thread priority for audio callback
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let priority_set = Arc::new(AtomicBool::new(false));
+        let priority_set_clone = priority_set.clone();
+
         let stream = device
             .build_output_stream(
                 &stream_config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    // Set real-time priority on first callback (runs in audio thread)
+                    if !priority_set_clone.load(Ordering::Relaxed) {
+                        #[cfg(feature = "audio-optimizations")]
+                        {
+                            use crate::audio_optimizations::AudioThreadPriority;
+                            if let Ok(()) = AudioThreadPriority::set_realtime() {
+                                // Pin to last CPU core for best isolation
+                                let core_count = num_cpus::get();
+                                AudioThreadPriority::pin_to_core(core_count.saturating_sub(1)).ok();
+                            }
+                        }
+                        priority_set_clone.store(true, Ordering::Relaxed);
+                    }
+
                     let mut cb = callback_clone.lock();
                     cb(data);
                 },
@@ -333,11 +352,30 @@ impl AudioBackend for CpalBackend {
             buffer_size: cpal::BufferSize::Fixed(config.buffer_size as u32),
         };
         
+        // Enable real-time thread priority for audio callback
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let priority_set = Arc::new(AtomicBool::new(false));
+        let priority_set_clone = priority_set.clone();
+
         // For now, create a silent stream - we'll implement actual playback later
         let stream = device
             .build_output_stream(
                 &stream_config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    // Set real-time priority on first callback (runs in audio thread)
+                    if !priority_set_clone.load(Ordering::Relaxed) {
+                        #[cfg(feature = "audio-optimizations")]
+                        {
+                            use crate::audio_optimizations::AudioThreadPriority;
+                            if let Ok(()) = AudioThreadPriority::set_realtime() {
+                                // Pin to last CPU core for best isolation
+                                let core_count = num_cpus::get();
+                                AudioThreadPriority::pin_to_core(core_count.saturating_sub(1)).ok();
+                            }
+                        }
+                        priority_set_clone.store(true, Ordering::Relaxed);
+                    }
+
                     // Fill with silence for now
                     for sample in data.iter_mut() {
                         *sample = 0.0;
