@@ -65,3 +65,5 @@ pub mod error;
 pub mod ai;
 // Native audio backend (Phase 3)
 pub mod audio;
+// Async audio loading (Phase 1.4)
+pub mod async_audio_loader;

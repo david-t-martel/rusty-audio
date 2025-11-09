@@ -30,9 +30,11 @@ rustc-wrapper = "sccache"
 # Optimize for Windows (primary target platform)
 [target.x86_64-pc-windows-msvc]
 rustflags = [
-    "-C", "target-cpu=native",       # Optimize for current CPU
+    "-C", "target-cpu=x86-64-v3",     # Target modern CPUs (AVX2, BMI2, etc.)
     # "-D", "warnings",                 # TEMPORARILY DISABLED FOR TESTING Phase 4.1
     "-C", "link-arg=/STACK:8388608",  # Increase stack size for audio processing
+    "-C", "llvm-args=-polly",          # Enable LLVM Polly optimizer
+    "-C", "llvm-args=-polly-vectorizer=stripmine",
 ]
 
 [target.x86_64-pc-windows-gnu]

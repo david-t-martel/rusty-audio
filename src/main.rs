@@ -19,8 +19,11 @@ use rusty_audio::audio::{
 };
 
 // Use library modules instead of declaring them locally
-use rusty_audio::{ui, audio_performance, testing};
+use rusty_audio::{ui, audio_performance, testing, async_audio_loader};
 mod panel_implementation;
+
+// Import async components
+use async_audio_loader::{AsyncAudioLoader, AsyncLoadConfig};
 
 use ui::{
     theme::{Theme, ThemeManager, ThemeColors},
@@ -130,6 +133,11 @@ struct AudioPlayerApp {
     
     // Phase 3.2: Recording
     recording_panel: RecordingPanel,
+
+    // Phase 1.4: Async file loading
+    async_loader: AsyncAudioLoader,
+    tokio_runtime: Arc<tokio::runtime::Runtime>,
+    load_progress: Option<f32>,
 }
 
 impl Default for AudioPlayerApp {
@@ -264,6 +272,18 @@ impl Default for AudioPlayerApp {
             
             // Phase 3.2: Recording
             recording_panel: RecordingPanel::new(),
+
+            // Phase 1.4: Async file loading
+            async_loader: AsyncAudioLoader::new(AsyncLoadConfig::default()),
+            tokio_runtime: Arc::new(
+                tokio::runtime::Builder::new_multi_thread()
+                    .worker_threads(4)
+                    .thread_name("rusty-audio-async")
+                    .enable_all()
+                    .build()
+                    .expect("Failed to create tokio runtime")
+            ),
+            load_progress: None,
         }
     }
 }
@@ -1197,8 +1217,9 @@ impl AudioPlayerApp {
 
             // Clear previous errors
             self.error = None;
+            self.load_progress = Some(0.0);
 
-            // Load metadata
+            // Load metadata synchronously (quick operation)
             if let Ok(tagged_file) = lofty::read_from_path(path) {
                 if let Some(tag) = tagged_file.primary_tag() {
                     self.metadata = Some(TrackMetadata {
@@ -1212,11 +1233,19 @@ impl AudioPlayerApp {
                 self.album_art = None;
             }
 
-            // Load and decode audio
+            // Use async file loading to prevent UI freezing
+            // For now, keep synchronous loading as fallback
+            // TODO Phase 1.4: Fully integrate async_audio_loader with web-audio-api
+
+            // Load and decode audio (synchronous for now - async integration requires web-audio-api changes)
             match std::fs::File::open(path) {
                 Ok(file) => {
+                    self.load_progress = Some(0.5); // Reading file
+
                     match self.audio_context.decode_audio_data_sync(file) {
                         Ok(buffer) => {
+                            self.load_progress = Some(0.9); // Decoding complete
+
                             self.total_duration = Duration::from_secs_f64(buffer.duration());
 
                             let mut source_node = self.audio_context.create_buffer_source();
@@ -1236,6 +1265,8 @@ impl AudioPlayerApp {
                             self.playback_state = PlaybackState::Playing;
                             self.playback_pos = Duration::ZERO;
 
+                            self.load_progress = None; // Loading complete
+
                             // Announce successful load
                             self.accessibility_manager.announce(
                                 format!("Audio file loaded: {}", filename),
@@ -1243,6 +1274,7 @@ impl AudioPlayerApp {
                             );
                         },
                         Err(decode_error) => {
+                            self.load_progress = None;
                             self.error_manager.add_audio_decode_error(
                                 filename,
                                 Some("audio") // Could be enhanced to detect actual format
@@ -1252,6 +1284,7 @@ impl AudioPlayerApp {
                     }
                 },
                 Err(io_error) => {
+                    self.load_progress = None;
                     if io_error.kind() == std::io::ErrorKind::PermissionDenied {
                         self.error_manager.add_permission_error("access", path.to_str().unwrap_or(filename));
                     } else {

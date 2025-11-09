@@ -39,6 +39,10 @@ lru = "0.12"
 rayon = "1.10"
 sys-info = "0.9"
 
+# Async runtime for non-blocking file I/O
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+
 # ML and AI libraries (optional - enable as needed)
 # candle-core = { version = "0.4", optional = true }
 # candle-nn = { version = "0.4", optional = true }
@@ -46,7 +50,10 @@ sys-info = "0.9"
 # smartcore = { version = "0.3", optional = true }
 ndarray = "0.15"
 # rubato = { version = "0.15", optional = true }
-# realfft = { version = "3.3", optional = true }
+
+# Performance optimizations
+realfft = "3.3"        # Faster FFT for spectrum analysis
+memmap2 = "0.9"        # Memory-mapped file I/O
 
 # Phase 3: Native audio backend dependencies
 cpal = { version = "0.15", features = [] }           # Cross-platform audio I/O
@@ -80,13 +87,23 @@ egui_kittest = "0.33.1"  # UI testing framework for egui 0.33
 
 [profile.release]
 opt-level = 3
-lto = true
-codegen-units = 1
-panic = "abort"
-strip = true
+lto = "fat"              # Fat LTO for maximum optimization
+codegen-units = 1        # Single codegen unit for best optimization
+panic = "abort"          # Smaller binary, faster panic
+strip = true             # Strip debug symbols
+overflow-checks = false  # Disable overflow checks in release
 
 [profile.bench]
 inherits = "release"
+
+# Profile-Guided Optimization (PGO) profiles
+[profile.pgo-instrument]
+inherits = "release"
+# Enable instrumentation for PGO data collection
+
+[profile.pgo-use]
+inherits = "release"
+# Use PGO data for optimized build
 
 [[bench]]
 name = "audio_benchmarks"
@@ -94,6 +111,10 @@ harness = false
 
 [[bench]]
 name = "performance_benchmarks"
+harness = false
+
+[[bench]]
+name = "simd_benchmarks"
 harness = false
 
 [[example]]
