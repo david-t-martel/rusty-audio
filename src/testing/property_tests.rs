@@ -2,8 +2,12 @@
 //
 // This module uses QuickCheck and Proptest to verify mathematical properties
 // of audio processing functions that should hold for all valid inputs.
+//
+// Only available with the "property-testing" feature
 
+#[cfg(feature = "property-testing")]
 use proptest::prelude::*;
+#[cfg(feature = "property-testing")]
 use quickcheck::{quickcheck, TestResult};
 use super::{TestSuite, SAMPLE_RATE, TOLERANCE};
 use super::signal_generators::*;

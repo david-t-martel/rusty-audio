@@ -486,11 +486,15 @@ pub struct OptimizedBufferPool {
 impl OptimizedBufferPool {
     /// Create a new buffer pool with specified capacity and buffer size
     pub fn new(pool_size: usize, buffer_size: usize) -> Self {
-        let alignment = if cfg!(target_arch = "x86_64") && is_x86_feature_detected!("avx2") {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        let alignment = if is_x86_feature_detected!("avx2") {
             32
         } else {
             16
         };
+        
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        let alignment = 16;
 
         let mut pool = Vec::with_capacity(pool_size);
         for _ in 0..pool_size {
@@ -886,7 +890,8 @@ impl OptimizedSpectrumProcessor {
         }
     }
 
-    /// Process frequency data with smoothing and reduced allocations
+    /// Process frequency data with smoothing and reduced allocations (native only)
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn process_spectrum(&mut self, analyser: &mut web_audio_api::node::AnalyserNode) -> &[f32] {
         // Get byte frequency data
         let mut byte_data = vec![0u8; self.frequency_buffer.len()];
@@ -913,6 +918,7 @@ impl OptimizedSpectrumProcessor {
         &self.spectrum_buffer
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
     unsafe fn process_spectrum_avx2(&mut self, byte_data: &[u8]) {
@@ -974,8 +980,14 @@ pub struct AudioOptimizer {
 impl AudioOptimizer {
     pub fn new() -> Self {
         Self {
+            #[cfg(target_arch = "x86_64")]
             has_avx2: is_x86_feature_detected!("avx2"),
+            #[cfg(not(target_arch = "x86_64"))]
+            has_avx2: false,
+            #[cfg(target_arch = "x86_64")]
             has_sse42: is_x86_feature_detected!("sse4.2"),
+            #[cfg(not(target_arch = "x86_64"))]
+            has_sse42: false,
             num_cores: num_cpus::get(),
         }
     }

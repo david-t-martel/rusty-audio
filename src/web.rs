@@ -97,7 +97,7 @@ impl WebHandle {
                 }),
             )
             .await
-            .map_err(|e| JsValue::from_str(&e))
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
     }
     
     /// Destroy the web runner and clean up resources

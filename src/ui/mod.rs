@@ -10,6 +10,8 @@ pub mod accessibility;
 pub mod enhanced_controls;
 pub mod enhanced_button;
 pub mod error_handling;
+// Recording panel requires native audio module
+#[cfg(not(target_arch = "wasm32"))]
 pub mod recording_panel;
 
 pub use components::*;
@@ -23,4 +25,5 @@ pub use accessibility::*;
 pub use enhanced_controls::{AccessibleSlider, AccessibleKnob};
 pub use enhanced_button::*;
 pub use error_handling::*;
+#[cfg(not(target_arch = "wasm32"))]
 pub use recording_panel::RecordingPanel;

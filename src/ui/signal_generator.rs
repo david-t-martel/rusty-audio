@@ -5,6 +5,7 @@ use super::{
     utils::{AnimationState, ColorUtils},
 };
 use crate::testing::signal_generators::*;
+#[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::{
     context::{AudioContext, BaseAudioContext},
     node::{AudioScheduledSourceNode, AudioBufferSourceNode},
@@ -121,7 +122,8 @@ pub struct SignalGeneratorPanel {
     pub preview_enabled: bool,
     pub spectrum_analysis_enabled: bool,
 
-    // Audio nodes
+    // Audio nodes (native only)
+    #[cfg(not(target_arch = "wasm32"))]
     pub source_node: Option<AudioBufferSourceNode>,
 
     // UI controls
@@ -154,6 +156,7 @@ impl SignalGeneratorPanel {
             generated_samples: Vec::new(),
             preview_enabled: true,
             spectrum_analysis_enabled: false,
+            #[cfg(not(target_arch = "wasm32"))]
             source_node: None,
 
             // Initialize sliders with parameter values
@@ -847,12 +850,16 @@ impl SignalGeneratorPanel {
 
     pub fn stop_playback(&mut self) {
         self.state = GeneratorState::Stopped;
-        if let Some(source) = &mut self.source_node {
-            source.stop();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(source) = &mut self.source_node {
+                source.stop();
+            }
+            self.source_node = None;
         }
-        self.source_node = None;
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn create_audio_buffer(&self, audio_context: &AudioContext) -> Option<web_audio_api::AudioBuffer> {
         if self.generated_samples.is_empty() {
             return None;

@@ -197,7 +197,8 @@ impl PooledSpectrumProcessor {
         }
     }
 
-    /// Process spectrum without allocations using buffer pool
+    /// Process spectrum without allocations using buffer pool (native only)
+    #[cfg(not(target_arch = "wasm32"))]
     #[inline(always)]
     pub fn process_spectrum_pooled(&mut self, analyser: &mut web_audio_api::node::AnalyserNode) -> &[f32] {
         // Acquire temporary buffer from pool instead of allocating
@@ -541,7 +542,8 @@ impl ZeroCopyAudioPipeline {
         }
     }
 
-    /// Process audio through the entire pipeline without allocations
+    /// Process audio through the entire pipeline without allocations (native only)
+    #[cfg(not(target_arch = "wasm32"))]
     #[inline(always)]
     pub fn process_zero_copy(
         &mut self,
@@ -616,6 +618,7 @@ mod tests {
         assert!(output.iter().any(|&x| x != 0.0));
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn test_zero_copy_pipeline() {
         // This test would require mocking web_audio_api::node::AnalyserNode

@@ -7,12 +7,14 @@ name = "rusty-audio"
 version = "0.1.0"
 edition = "2021"
 description = "A car-stereo-style audio player built with Rust and egui."
+autobins = false  # Disable automatic binary discovery
 
 # Library configuration for WASM builds
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 # Binary configuration for native desktop builds
+# Disabled for WASM (autobins = false prevents compilation)
 [[bin]]
 name = "rusty-audio_native"
 path = "src/main.rs"
@@ -48,6 +50,7 @@ large_types_passed_by_value = "warn"    # Warn on large types passed by value
 [features]
 default = ["audio-optimizations"]
 audio-optimizations = []  # Enable real-time audio thread priority and CPU pinning
+property-testing = ["proptest", "quickcheck"]  # Enable property-based testing
 
 [dependencies]
 eframe = { version = "0.33.0", default-features = false, features = ["wgpu"] }
@@ -82,6 +85,14 @@ statrs = "0.16"
 toml = "0.8"
 dirs = "5.0"
 chrono = "0.4"
+
+[dependencies.proptest]
+version = "1.0"
+optional = true
+
+[dependencies.quickcheck]
+version = "1.0"
+optional = true
 
 [dev-dependencies]
 # Testing property-based testing frameworks
@@ -121,6 +132,15 @@ overflow-checks = false  # Disable overflow checks in release
 
 [profile.bench]
 inherits = "release"
+
+# WASM-specific dev profile with optimizations but no LTO
+[profile.wasm-release]
+inherits = "release"
+lto = false              # Disable LTO for WASM cdylib compatibility
+
+# Override LTO for WASM target in release builds
+[target.wasm32-unknown-unknown.profile.release]
+lto = false              # cdylib targets don't support LTO
 
 # Profile-Guided Optimization (PGO) profiles
 [profile.pgo-instrument]

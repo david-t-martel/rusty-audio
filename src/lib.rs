@@ -57,7 +57,8 @@ pub mod audio_optimizations;
 pub mod performance_monitor;
 // Security modules for safe audio processing
 pub mod security;
-// Audio engine and metadata modules
+// Audio engine and metadata modules (native only - uses web_audio_api)
+#[cfg(not(target_arch = "wasm32"))]
 pub mod audio_engine;
 pub mod metadata;
 pub mod error;
@@ -71,8 +72,11 @@ pub mod audio;
 pub mod async_audio_loader;
 // Optimized audio performance modules (Phase 1.3, 3, 4.1, 4.2)
 pub mod audio_performance_optimized;
+// Audio pipeline integration (native only - uses web_audio_api)
+#[cfg(not(target_arch = "wasm32"))]
 pub mod audio_pipeline_integration;
-// Performance integration layer (dual-target support: desktop + WASM)
+// Performance integration layer (native only for now - uses web_audio_api::AnalyserNode)
+#[cfg(not(target_arch = "wasm32"))]
 pub mod audio_performance_integration;
 // WASM web integration (WASM/PWA deployment)
 #[cfg(target_arch = "wasm32")]
