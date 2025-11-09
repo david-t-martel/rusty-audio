@@ -52,7 +52,8 @@
       "Bash(/mnt/c/users/david/rusty-audio/scripts/verify-pwa-setup.sh:*)",
       "Bash(export RUSTC_WRAPPER=\"\")",
       "Bash(./scripts/verify-pwa-setup.sh:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(just:*)"
     ],
     "deny": [],
     "ask": []

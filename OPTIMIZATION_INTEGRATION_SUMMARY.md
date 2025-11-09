@@ -78,7 +78,8 @@ Successfully integrated comprehensive performance optimizations with **dual-targ
 ### 1. Dual-Target Build Configuration ✅
 - **File**: `.cargo/config.toml`
 - **Targets Configured**:
-  - Windows (x86-64-v3 with AVX2, BMI2, FMA)
+  - Windows MSVC (x86-64-v3 with AVX2, BMI2, FMA - primary)
+  - Windows GNU (native CPU, alternative toolchain)
   - Linux/WSL (development support)
   - macOS (Intel + Apple Silicon)
   - WASM (size-optimized with `opt-level=z`, LTO=fat)
@@ -86,6 +87,34 @@ Successfully integrated comprehensive performance optimizations with **dual-targ
   - sccache integration for faster builds
   - Separate profile for WASM (`wasm-release`)
   - Convenient aliases (`wasm`, `wasm-check`)
+
+### 1.5. Build Automation with Justfile ✅
+- **File**: `justfile` (623 lines)
+- **Documentation**: `JUSTFILE_GUIDE.md`
+- **Windows Build Recipes**:
+  - `build-windows` - MSVC release (AVX2 optimized)
+  - `build-windows-debug` - MSVC debug build
+  - `build-windows-gnu` - GNU toolchain alternative
+  - `test-windows` - Windows binary testing
+  - `bench-windows` - SIMD benchmarks
+  - `release-windows` - Complete Windows release
+- **WASM/PWA Recipes**:
+  - `build-wasm-release` - Size-optimized WASM
+  - `pwa-build` - Complete PWA bundle
+  - `pwa-deploy-local/github/cloudflare/netlify` - Multi-target deployment
+  - `pwa-verify` - Setup verification
+  - `release-pwa` - Complete PWA release
+- **Complete Workflows**:
+  - `build-matrix` - Build all targets (Windows MSVC, GNU, WASM dev, WASM release)
+  - `release-dual` - Dual release (Windows + PWA)
+  - `validate-all` - Complete project validation
+  - `profile-desktop` - Desktop profiling suite
+  - `profile-wasm` - WASM size analysis
+- **Quality Gates**:
+  - `quality-full` - All checks (fmt, lint, test, ast-grep)
+  - `pre-commit` - Pre-commit validation
+  - `pre-push` - Pre-push checks
+  - `pre-pr` - Pre-PR comprehensive validation
 
 ### 2. Profiling Infrastructure ✅
 - **Scripts Created**:
@@ -219,14 +248,19 @@ Successfully integrated comprehensive performance optimizations with **dual-targ
 
 ### Desktop Development
 ```bash
-# Build with optimizations (default)
-cargo build --release
+# Build Windows release (RECOMMENDED - uses justfile)
+just build-windows
+
+# Or using cargo directly
+cargo build --release --target x86_64-pc-windows-msvc
 
 # Run benchmarks
-./scripts/bench-desktop.sh all
+just profile-desktop
+# Or: ./scripts/bench-desktop.sh all
 
 # Profile with flamegraph
-cargo flamegraph --bin rusty-audio_native
+just profile-flame
+# Or: cargo flamegraph --bin rusty-audio_native
 
 # Heap profiling
 ./scripts/bench-desktop.sh dhat
@@ -234,17 +268,40 @@ cargo flamegraph --bin rusty-audio_native
 
 ### WASM/PWA Deployment
 ```bash
+# Complete PWA build pipeline (RECOMMENDED - uses justfile)
+just pwa-build
+
+# Or using scripts directly:
 # Check prerequisites
 ./scripts/verify-pwa-setup.sh
 
 # Build WASM
 ./scripts/build-wasm.sh
+# Or: just build-wasm-release
 
 # Deploy locally
-./scripts/deploy-wasm.sh local
+just pwa-deploy-local
+# Or: ./scripts/deploy-wasm.sh local
 
 # Deploy to GitHub Pages
-./scripts/deploy-wasm.sh github
+just pwa-deploy-github
+# Or: ./scripts/deploy-wasm.sh github
+
+# Deploy to Cloudflare/Netlify
+just pwa-deploy-cloudflare
+just pwa-deploy-netlify
+```
+
+### Complete Build Matrix
+```bash
+# Build all targets at once (Windows MSVC, GNU, WASM dev, WASM release)
+just build-matrix
+
+# Build and test all targets
+just build-test-all
+
+# Complete dual release (Windows + PWA)
+just release-dual
 ```
 
 ### Feature Flags
