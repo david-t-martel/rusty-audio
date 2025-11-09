@@ -3,3 +3,4 @@
 //! This module organizes automated UI tests for rusty-audio components.
 
 mod basic_ui_tests;
+mod recording_panel_tests;
