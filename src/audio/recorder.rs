@@ -10,6 +10,8 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use anyhow::{Result, Context};
+use super::backend::{AudioStream, AudioConfig, SampleFormat};
+use super::device::CpalBackend;
 
 /// Recording format for file export
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -223,27 +225,79 @@ pub struct AudioRecorder {
     monitoring_mode: MonitoringMode,
     /// Monitoring gain (0.0 to 1.0)
     monitoring_gain: f32,
+    /// Audio input stream (Option for lazy initialization)
+    input_stream: Option<Box<dyn AudioStream>>,
+    /// CPAL backend for audio I/O
+    cpal_backend: Option<CpalBackend>,
 }
 
 impl AudioRecorder {
-    /// Create a new audio recorder with the given configuration
+    /// Create a new audio recorder with specified configuration
     pub fn new(config: RecordingConfig) -> Self {
         let buffer = Arc::new(Mutex::new(RecordingBuffer::new(
             config.buffer_size,
             config.channels as usize,
             config.sample_rate,
         )));
-
+        
         Self {
             config,
-            buffer,
             state: Arc::new(Mutex::new(RecordingState::Idle)),
+            buffer,
             start_time: None,
-            pause_duration: Duration::ZERO,
             pause_time: None,
+            pause_duration: Duration::ZERO,
             monitoring_mode: MonitoringMode::Off,
             monitoring_gain: 1.0,
+            input_stream: None,
+            cpal_backend: Some(CpalBackend::new()),
         }
+    }
+
+    /// Connect to an audio input device
+    /// Must be called before start() to capture actual audio
+    pub fn connect_input_device(&mut self, device_id: &str) -> Result<()> {
+        // Get backend or error
+        let backend = self.cpal_backend.as_mut()
+            .ok_or_else(|| anyhow::anyhow!("No audio backend available"))?;
+        
+        // Create audio config from recording config
+        let audio_config = AudioConfig {
+            sample_rate: self.config.sample_rate,
+            channels: self.config.channels,
+            sample_format: SampleFormat::F32, // Use f32 for audio data
+            buffer_size: 512, // Use smaller buffer for lower latency
+        };
+        
+        // Create clones for the callback closure
+        let buffer_clone = self.buffer.clone();
+        let state_clone = self.state.clone();
+        
+        // Create callback that writes to buffer when recording
+        let callback = move |data: &[f32]| {
+            let state = state_clone.lock().unwrap();
+            if *state == RecordingState::Recording {
+                drop(state); // Release state lock before acquiring buffer lock
+                buffer_clone.lock().unwrap().write(data);
+            }
+        };
+        
+        // Create input stream with callback
+        let stream = backend.create_input_stream_with_callback(
+            device_id,
+            audio_config,
+            callback,
+        )?;
+        
+        // Store the stream
+        self.input_stream = Some(stream);
+        
+        Ok(())
+    }
+
+    /// Disconnect from audio input device
+    pub fn disconnect_input_device(&mut self) {
+        self.input_stream = None;
     }
 
     /// Start recording
