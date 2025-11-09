@@ -10,11 +10,15 @@ use crate::audio::recorder::{
     AudioRecorder, RecordingConfig,
     RecordingFormat, RecordingState, MonitoringMode,
 };
+use crate::audio::manager::AudioDeviceManager;
+use crate::audio::backend::DeviceInfo;
 
 /// Recording panel state
 pub struct RecordingPanel {
     recorder: Option<AudioRecorder>,
-    selected_input_device: Option<String>,
+    device_manager: Option<AudioDeviceManager>,
+    available_input_devices: Vec<DeviceInfo>,
+    selected_input_device_id: Option<String>,
     monitoring_gain: f32,
     show_save_dialog: bool,
     save_path: String,
@@ -29,9 +33,19 @@ pub struct RecordingPanel {
 
 impl Default for RecordingPanel {
     fn default() -> Self {
+        // Try to create device manager
+        let device_manager = AudioDeviceManager::new().ok();
+        
+        // Enumerate input devices if we have a device manager
+        let available_input_devices = device_manager.as_ref()
+            .and_then(|dm| dm.enumerate_input_devices().ok())
+            .unwrap_or_default();
+        
         Self {
             recorder: None,
-            selected_input_device: None,
+            device_manager,
+            available_input_devices,
+            selected_input_device_id: None,
             monitoring_gain: 1.0,
             show_save_dialog: false,
             save_path: String::new(),
@@ -363,17 +377,51 @@ impl RecordingPanel {
             ui.label(RichText::new("🎤 Input Device").strong());
             ui.add_space(5.0);
             
-            // Device dropdown (placeholder - requires backend integration)
+            // Find selected device name
+            let selected_name = self.selected_input_device_id.as_ref()
+                .and_then(|id| self.available_input_devices.iter()
+                    .find(|d| &d.id == id)
+                    .map(|d| d.name.clone()))
+                .unwrap_or_else(|| "No device selected".to_string());
+            
+            // Device dropdown with real devices
+            let mut newly_selected_device: Option<String> = None;
             egui::ComboBox::from_label("")
-                .selected_text(self.selected_input_device.as_deref().unwrap_or("Default Input"))
+                .selected_text(&selected_name)
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.selected_input_device, Some("Default Input".to_string()), "🎤 Default Input");
-                    ui.selectable_value(&mut self.selected_input_device, Some("Microphone".to_string()), "🎤 Microphone");
-                    ui.selectable_value(&mut self.selected_input_device, Some("Line In".to_string()), "🎵 Line In");
+                    for device in &self.available_input_devices {
+                        let icon = if device.is_default { "🎤" } else { "🎵" };
+                        let label = if device.is_default {
+                            format!("{} {} (Default)", icon, device.name)
+                        } else {
+                            format!("{} {}", icon, device.name)
+                        };
+                        
+                        let mut device_id_option = self.selected_input_device_id.clone();
+                        if ui.selectable_value(&mut device_id_option, Some(device.id.clone()), label).clicked() {
+                            newly_selected_device = Some(device.id.clone());
+                        }
+                    }
                 });
             
+            // Connect to newly selected device after the ComboBox closes
+            if let Some(device_id) = newly_selected_device {
+                self.selected_input_device_id = Some(device_id.clone());
+                self.connect_to_device(&device_id);
+            }
+            
             ui.add_space(5.0);
-            ui.label(RichText::new("ℹ️ Select your audio input device").size(11.0).color(colors.text_secondary));
+            
+            // Status message
+            let status = if self.available_input_devices.is_empty() {
+                RichText::new("⚠️ No input devices found").color(Color32::from_rgb(255, 200, 100))
+            } else if self.selected_input_device_id.is_some() {
+                RichText::new("✓ Device connected and ready").color(Color32::from_rgb(100, 255, 100))
+            } else {
+                RichText::new("ℹ️ Select your audio input device").color(colors.text_secondary)
+            };
+            
+            ui.label(status.size(11.0));
         });
     }
     
@@ -505,5 +553,14 @@ impl RecordingPanel {
     /// Get mutable recorder reference
     pub fn recorder_mut(&mut self) -> Option<&mut AudioRecorder> {
         self.recorder.as_mut()
+    }
+    
+    /// Connect AudioRecorder to an input device
+    fn connect_to_device(&mut self, device_id: &str) {
+        if let Some(recorder) = &mut self.recorder {
+            if let Err(e) = recorder.connect_input_device(device_id) {
+                eprintln!("Failed to connect to input device {}: {}", device_id, e);
+            }
+        }
     }
 }
