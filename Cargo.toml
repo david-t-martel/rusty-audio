@@ -19,6 +19,32 @@ path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lints.rust]
+# Block panic-inducing constructs for production robustness
+# Note: These are warnings by default during development, but should be errors in release
+unsafe_code = "warn"                    # Warn on unsafe code blocks
+
+[lints.clippy]
+# Panic-related lints
+unwrap_used = "warn"                    # Warn on .unwrap() calls
+expect_used = "warn"                    # Warn on .expect() calls
+panic = "warn"                          # Warn on panic! macro usage
+indexing_slicing = "warn"               # Warn on index operations that can panic
+unreachable = "warn"                    # Warn on unreachable!() macro
+todo = "warn"                           # Warn on todo!() macro
+unimplemented = "warn"                  # Warn on unimplemented!() macro
+
+# Additional safety lints
+missing_errors_doc = "warn"             # Warn on missing error documentation
+missing_panics_doc = "warn"             # Warn on undocumented panics
+unwrap_in_result = "warn"               # Warn on unwrap in Result-returning functions
+panic_in_result_fn = "warn"             # Warn on panic in Result-returning functions
+
+# Performance lints
+inefficient_to_string = "warn"          # Warn on inefficient string conversions
+large_enum_variant = "warn"             # Warn on large enum variants
+large_types_passed_by_value = "warn"    # Warn on large types passed by value
+
 [features]
 default = ["audio-optimizations"]
 audio-optimizations = []  # Enable real-time audio thread priority and CPU pinning
@@ -46,7 +72,6 @@ num-complex = "0.4.4"
 approx = "0.5.1"
 lru = "0.12"
 rayon = "1.10"
-sys-info = "0.9"
 
 # Async runtime for non-blocking file I/O
 tokio = { version = "1.0", features = ["full"] }
@@ -141,6 +166,7 @@ hound = "3.5"                                         # WAV file I/O for recordi
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.58", features = ["Win32_System_Threading", "Win32_Foundation"] }
+# sys-info = "0.9"  # DISABLED: Requires Windows SDK headers for cross-compilation
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -150,6 +176,11 @@ libc = "0.2"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
+# Enable getrandom WASM support - specify both versions explicitly
+# getrandom 0.2.x needs "js" feature
+# getrandom 0.3.x needs "wasm_js" feature  
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 web-sys = { version = "0.3", features = [
     "AudioContext",
     "AudioDestinationNode",
@@ -166,4 +197,4 @@ web-sys = { version = "0.3", features = [
     "console",
 ] }
 console_error_panic_hook = "0.1"
-console_log = { version = "1", features = ["max_level_debug"] }
+console_log = "1"

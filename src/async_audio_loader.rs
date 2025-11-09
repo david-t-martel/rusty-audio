@@ -121,9 +121,9 @@ impl AsyncAudioLoader {
     ) -> Result<Arc<AudioLoadResult>, AudioPlayerError> {
         let path = path.as_ref().to_path_buf();
 
-        // Check cache first
+        // Check cache first (need write lock because LRU get() mutates order)
         if self.config.enable_caching {
-            if let Some(cached) = self.cache.read().get(&path).cloned() {
+            if let Some(cached) = self.cache.write().get(&path).cloned() {
                 return Ok(cached);
             }
         }
@@ -383,9 +383,11 @@ impl AsyncAudioLoader {
             async move {
                 let _permit = semaphore.acquire().await.unwrap();
 
+                // Clone completed_count before moving into nested closure
                 let file_progress_callback = progress_callback.map(|callback| {
+                    let completed_count_inner = completed_count.clone();
                     Arc::new(move |file_progress: f32| {
-                        let overall_progress = (completed_count.load(std::sync::atomic::Ordering::Relaxed) as f32
+                        let overall_progress = (completed_count_inner.load(std::sync::atomic::Ordering::Relaxed) as f32
                             + file_progress) / total_files as f32;
                         callback(overall_progress);
                     }) as ProgressCallback

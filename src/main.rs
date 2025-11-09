@@ -4,26 +4,39 @@ use egui::{
 };
 use image::GenericImageView;
 use lofty::{file::TaggedFileExt, tag::Accessor};
+
+// Platform-specific imports
+#[cfg(not(target_arch = "wasm32"))]
 use rfd::FileHandle;
+
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+// Audio context - platform specific
+#[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::context::{AudioContext, BaseAudioContext};
+#[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::node::{
     AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType, AnalyserNode,
 };
 
-// Import hybrid audio backend
+// Import hybrid audio backend (native only for now)
+#[cfg(not(target_arch = "wasm32"))]
 use rusty_audio::audio::{
     HybridAudioBackend, HybridMode, AudioDeviceManager, AudioConfig, StreamDirection,
     WebAudioBridge, WebAudioBridgeConfig, FallbackPolicy, BackendHealth,
 };
 
 // Use library modules instead of declaring them locally
-use rusty_audio::{ui, audio_performance, testing, async_audio_loader};
-mod panel_implementation;
+use rusty_audio::{ui, audio_performance, testing, platform};
 
-// Import async components
+// Async components (native only)
+#[cfg(not(target_arch = "wasm32"))]
+use rusty_audio::async_audio_loader;
+#[cfg(not(target_arch = "wasm32"))]
 use async_audio_loader::{AsyncAudioLoader, AsyncLoadConfig};
+
+mod panel_implementation;
 
 use ui::{
     theme::{Theme, ThemeManager, ThemeColors},
@@ -1884,6 +1897,11 @@ impl AudioPlayerApp {
     }
 }
 
+// ============================================================================
+// Platform-specific entry points
+// ============================================================================
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), eframe::Error> {
     // Configure for Windows landscape HiDPI displays
     let options = NativeOptions {
@@ -1940,3 +1958,10 @@ fn main() -> Result<(), eframe::Error> {
         }),
     )
 }
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = WebHandle)]
+pub use rusty_audio::web::WebHandle;

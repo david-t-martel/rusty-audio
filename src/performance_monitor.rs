@@ -169,32 +169,37 @@ impl PerformanceMonitor {
     pub fn update_system_metrics(&self) {
         let mut metrics = self.metrics.write();
 
-        // Get memory usage
-        if let Ok(mem_info) = sys_info::mem_info() {
-            let used_kb = mem_info.total - mem_info.free;
-            metrics.memory_usage_mb = (used_kb as f32) / 1024.0;
+        // NOTE: System metrics (memory/CPU) disabled due to cross-compilation issues with sys-info
+        // TODO: Re-enable when building natively on Windows or find pure Rust alternative
 
-            // Check for memory pressure
-            let usage_percent = (used_kb as f32 / mem_info.total as f32) * 100.0;
-            if usage_percent > 80.0 {
-                self.add_alert(PerformanceAlert::MemoryPressure {
-                    usage_mb: metrics.memory_usage_mb,
-                    threshold_mb: (mem_info.total as f32 * 0.8) / 1024.0,
-                });
-            }
-        }
+        // Get memory usage (Windows only - DISABLED, sys_info requires Windows SDK)
+        // #[cfg(target_os = "windows")]
+        // if let Ok(mem_info) = sys_info::mem_info() {
+        //     let used_kb = mem_info.total - mem_info.free;
+        //     metrics.memory_usage_mb = (used_kb as f32) / 1024.0;
+        //
+        //     // Check for memory pressure
+        //     let usage_percent = (used_kb as f32 / mem_info.total as f32) * 100.0;
+        //     if usage_percent > 80.0 {
+        //         self.add_alert(PerformanceAlert::MemoryPressure {
+        //             usage_mb: metrics.memory_usage_mb,
+        //             threshold_mb: (mem_info.total as f32 * 0.8) / 1024.0,
+        //         });
+        //     }
+        // }
 
-        // Estimate CPU usage (simplified)
-        if let Ok(loadavg) = sys_info::loadavg() {
-            metrics.cpu_usage = (loadavg.one as f32) * 100.0 / num_cpus::get() as f32;
-
-            if metrics.cpu_usage > 80.0 {
-                self.add_alert(PerformanceAlert::HighCpuUsage {
-                    usage: metrics.cpu_usage,
-                    threshold: 80.0,
-                });
-            }
-        }
+        // Estimate CPU usage (Windows only - DISABLED, sys_info requires Windows SDK)
+        // #[cfg(target_os = "windows")]
+        // if let Ok(loadavg) = sys_info::loadavg() {
+        //     metrics.cpu_usage = (loadavg.one as f32) * 100.0 / num_cpus::get() as f32;
+        //
+        //     if metrics.cpu_usage > 80.0 {
+        //         self.add_alert(PerformanceAlert::HighCpuUsage {
+        //             usage: metrics.cpu_usage,
+        //             threshold: 80.0,
+        //         });
+        //     }
+        // }
 
         // Store in history
         self.history.write().push(metrics.clone());

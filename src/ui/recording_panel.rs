@@ -79,11 +79,11 @@ impl RecordingPanel {
     pub fn update_levels(&mut self) {
         if let Some(recorder) = &self.recorder {
             let buffer = recorder.buffer();
-            let buffer_lock = buffer.lock().unwrap();
-            
+            // Lock-free buffer - direct access, no .lock() needed
+
             for ch in 0..self.peak_levels.len() {
-                self.peak_levels[ch] = buffer_lock.peak_level(ch);
-                self.rms_levels[ch] = buffer_lock.rms_level(ch);
+                self.peak_levels[ch] = buffer.peak_level(ch);
+                self.rms_levels[ch] = buffer.rms_level(ch);
                 
                 // Detect clipping (> 0.99)
                 if self.peak_levels[ch] > 0.99 {
@@ -219,10 +219,9 @@ impl RecordingPanel {
                 );
                 ui.label(RichText::new(duration_text).size(14.0));
                 
-                // Buffer info
+                // Buffer info (lock-free access)
                 let buffer = recorder.buffer();
-                let buffer_lock = buffer.lock().unwrap();
-                let buffer_duration = buffer_lock.duration();
+                let buffer_duration = buffer.duration();
                 let buffer_text = format!("Recorded: {:.1}s", buffer_duration.as_secs_f32());
                 ui.label(RichText::new(buffer_text).size(12.0).color(colors.text_secondary));
             }
@@ -518,11 +517,11 @@ impl RecordingPanel {
             
             ui.add_space(5.0);
             
-            // Save button
+            // Save button (lock-free access)
             let can_save = self.recorder.as_ref()
-                .map(|r| r.buffer().lock().unwrap().position() > 0)
+                .map(|r| r.buffer().position() > 0)
                 .unwrap_or(false);
-            
+
             ui.horizontal(|ui| {
                 if ui.add_enabled(can_save, egui::Button::new("💾 Save Recording..."))
                     .clicked()
@@ -530,10 +529,10 @@ impl RecordingPanel {
                     // TODO: Open file dialog
                     self.show_save_dialog = true;
                 }
-                
+
                 if ui.button("🗑️ Clear Buffer").clicked() {
                     if let Some(recorder) = &self.recorder {
-                        recorder.buffer().lock().unwrap().clear();
+                        recorder.buffer().clear();
                     }
                 }
             });

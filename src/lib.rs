@@ -70,3 +70,8 @@ pub mod async_audio_loader;
 // Optimized audio performance modules (Phase 1.3, 3, 4.1, 4.2)
 pub mod audio_performance_optimized;
 pub mod audio_pipeline_integration;
+// WASM web integration (WASM/PWA deployment)
+#[cfg(target_arch = "wasm32")]
+pub mod web;
+// Platform abstraction layer
+pub mod platform;

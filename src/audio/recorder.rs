@@ -660,8 +660,8 @@ impl AudioRecorder {
         let callback = move |data: &[f32]| {
             let state = state_clone.lock().unwrap();
             if *state == RecordingState::Recording {
-                drop(state); // Release state lock before acquiring buffer lock
-                buffer_clone.lock().unwrap().write(data);
+                drop(state); // Release state lock (no buffer lock needed - lock-free)
+                buffer_clone.write(data);
             }
         };
         
@@ -776,8 +776,8 @@ impl AudioRecorder {
         }
     }
 
-    /// Get reference to the recording buffer
-    pub fn buffer(&self) -> Arc<Mutex<RecordingBuffer>> {
+    /// Get reference to the lock-free recording buffer
+    pub fn buffer(&self) -> Arc<LockFreeRecordingBuffer> {
         self.buffer.clone()
     }
 
