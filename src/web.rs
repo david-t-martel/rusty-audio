@@ -62,8 +62,9 @@ impl WebHandle {
         console_error_panic_hook::set_once();
 
         // Initialize logging to browser console
-        console_log::init_with_level(log::Level::Debug)
-            .expect("Failed to initialize console logging");
+        if let Err(err) = console_log::init_with_level(log::Level::Debug) {
+            web_sys::console::error_1(&format!("Console logging init failed: {}", err).into());
+        }
 
         log::info!("Rusty Audio WASM initializing...");
 

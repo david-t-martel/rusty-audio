@@ -342,6 +342,7 @@ pub enum ConfigError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use tempfile::TempDir;
 
     #[test]
@@ -351,17 +352,18 @@ mod tests {
     }
 
     #[test]
-    fn test_config_save_and_load() {
-        let temp_dir = TempDir::new().unwrap();
+    fn test_config_save_and_load() -> Result<()> {
+        let temp_dir = TempDir::new()?;
         let config_path = temp_dir.path().join("test_config.toml");
 
         // Save default config
         let config = SecureConfig::default();
-        config.save_to_file(&config_path).unwrap();
+        config.save_to_file(&config_path)?;
 
         // Load and verify
-        let loaded_config = SecureConfig::load_from_file(&config_path).unwrap();
+        let loaded_config = SecureConfig::load_from_file(&config_path)?;
         assert_eq!(loaded_config.audio.max_volume, config.audio.max_volume);
+        Ok(())
     }
 
     #[test]

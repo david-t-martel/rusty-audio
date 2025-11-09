@@ -380,7 +380,7 @@ impl TestRunner {
         let mut durations: Vec<_> = self.results.iter()
             .map(|r| r.duration.as_secs_f64())
             .collect();
-        durations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        durations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         if !durations.is_empty() {
             let fastest = durations[0];

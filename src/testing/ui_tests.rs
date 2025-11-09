@@ -613,7 +613,11 @@ impl UiPerformanceTester {
         }
 
         let avg_frame_time = frame_times.iter().sum::<Duration>() / frame_count as u32;
-        let max_frame_time = frame_times.iter().max().unwrap();
+        let max_frame_time = frame_times
+            .iter()
+            .copied()
+            .max()
+            .unwrap_or_else(|| Duration::from_millis(0));
 
         // Target: 16.67ms for 60fps, allow 20ms tolerance
         let test_passed = avg_frame_time.as_millis() < 20 && max_frame_time.as_millis() < 33;

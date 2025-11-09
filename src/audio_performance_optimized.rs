@@ -50,18 +50,28 @@ unsafe impl Sync for AlignedBuffer {}
 
 impl AlignedBuffer {
     /// Create a new cache-line aligned buffer
+    ///
+    /// # Safety
+    ///
+    /// This function allocates memory using the global allocator and initializes it to zero.
+    /// The allocation is guaranteed to be cache-line aligned (64 bytes).
     pub fn new(size: usize) -> Self {
         // Ensure alignment to cache line size
-        let layout = Layout::from_size_align(size * std::mem::size_of::<f32>(), CACHE_LINE_SIZE)
-            .expect("Invalid alignment");
+        let layout =
+            match Layout::from_size_align(size * std::mem::size_of::<f32>(), CACHE_LINE_SIZE) {
+                Ok(layout) => layout,
+                Err(_) => handle_alloc_error(Layout::new::<f32>()),
+            };
 
         unsafe {
+            // Safety: alloc returns a valid pointer or null
             let ptr = alloc(layout) as *mut f32;
             if ptr.is_null() {
                 handle_alloc_error(layout);
             }
 
-            // Initialize to zero for audio safety
+            // Safety: ptr is non-null and points to `size` allocated f32 values
+            // Initialize to zero for audio safety (prevents garbage noise)
             std::ptr::write_bytes(ptr, 0, size);
 
             Self {
@@ -73,29 +83,67 @@ impl AlignedBuffer {
     }
 
     /// Get a mutable slice to the buffer data
+    ///
+    /// # Safety
+    ///
+    /// This is safe because:
+    /// - `self.data` is always valid and properly aligned
+    /// - `self.capacity` accurately reflects the allocated size
+    /// - The lifetime of the slice is tied to the lifetime of self
     #[inline(always)]
     pub fn as_mut_slice(&mut self) -> &mut [f32] {
-        unsafe { std::slice::from_raw_parts_mut(self.data, self.capacity) }
+        unsafe {
+            // Safety: self.data was allocated with capacity elements
+            // and remains valid for the lifetime of self
+            std::slice::from_raw_parts_mut(self.data, self.capacity)
+        }
     }
 
     /// Get an immutable slice to the buffer data
+    ///
+    /// # Safety
+    ///
+    /// This is safe because:
+    /// - `self.data` is always valid and properly aligned
+    /// - `self.capacity` accurately reflects the allocated size
+    /// - The lifetime of the slice is tied to the lifetime of self
     #[inline(always)]
     pub fn as_slice(&self) -> &[f32] {
-        unsafe { std::slice::from_raw_parts(self.data, self.capacity) }
+        unsafe {
+            // Safety: self.data was allocated with capacity elements
+            // and remains valid for the lifetime of self
+            std::slice::from_raw_parts(self.data, self.capacity)
+        }
     }
 
     /// Clear the buffer (set to zero)
+    ///
+    /// # Safety
+    ///
+    /// This is safe because:
+    /// - `self.data` points to `self.capacity` valid f32 values
+    /// - `write_bytes` with value 0 is valid for any type
     #[inline(always)]
     pub fn clear(&mut self) {
         unsafe {
+            // Safety: self.data points to capacity valid f32 elements
+            // Setting all bytes to 0 creates valid f32 values (0.0)
             std::ptr::write_bytes(self.data, 0, self.capacity);
         }
     }
 }
 
 impl Drop for AlignedBuffer {
+    /// # Safety
+    ///
+    /// Deallocates the aligned buffer using the same layout that was used for allocation.
+    /// This is safe because:
+    /// - `self.data` was allocated using `alloc(self.layout)`
+    /// - `self.layout` matches the original allocation
+    /// - This is called exactly once when the AlignedBuffer is dropped
     fn drop(&mut self) {
         unsafe {
+            // Safety: self.data and self.layout match the original allocation
             dealloc(self.data as *mut u8, self.layout);
         }
     }
@@ -122,15 +170,15 @@ impl OptimizedBufferPoolV2 {
 
     /// Acquire a buffer from the pool (lock-free fast path)
     #[inline(always)]
-    pub fn acquire(&self) -> Option<AlignedBuffer> {
+    pub fn acquire(&self) -> AlignedBuffer {
         let mut pool = self.buffers.write();
         if let Some(mut buffer) = pool.pop() {
             buffer.clear(); // Ensure clean state
             self.cache_hits.fetch_add(1, Ordering::Relaxed);
-            Some(buffer)
+            buffer
         } else {
             // Pool exhausted, create new buffer (rare case)
-            Some(AlignedBuffer::new(self.buffer_size))
+            AlignedBuffer::new(self.buffer_size)
         }
     }
 
@@ -200,39 +248,34 @@ impl PooledSpectrumProcessor {
         analyser: &mut web_audio_api::node::AnalyserNode,
     ) -> &[f32] {
         // Acquire temporary buffer from pool instead of allocating
-        if let Some(mut temp_buffer) = self.buffer_pool.acquire() {
-            let byte_slice = unsafe {
-                std::slice::from_raw_parts_mut(
-                    temp_buffer.as_mut_slice().as_mut_ptr() as *mut u8,
-                    self.frequency_buffer.capacity.min(temp_buffer.capacity),
-                )
-            };
+        let mut temp_buffer = self.buffer_pool.acquire();
+        // Safety: Reinterpret f32 buffer as u8 buffer for byte-level operations
+        let byte_slice = unsafe {
+            std::slice::from_raw_parts_mut(
+                temp_buffer.as_mut_slice().as_mut_ptr() as *mut u8,
+                self.frequency_buffer.capacity.min(temp_buffer.capacity),
+            )
+        };
 
-            analyser.get_byte_frequency_data(byte_slice);
+        analyser.get_byte_frequency_data(byte_slice);
 
-            // Process with SIMD if available (DESKTOP ONLY)
-            #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
-            {
-                if is_x86_feature_detected!("avx2") {
-                    unsafe {
-                        self.process_spectrum_avx2_pooled(byte_slice);
-                    }
-                    self.buffer_pool.release(temp_buffer);
-                    return self.spectrum_buffer.as_slice();
+        // Process with SIMD if available (DESKTOP ONLY)
+        #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
+        {
+            if is_x86_feature_detected!("avx2") {
+                unsafe {
+                    self.process_spectrum_avx2_pooled(byte_slice);
                 }
+                self.buffer_pool.release(temp_buffer);
+                return self.spectrum_buffer.as_slice();
             }
-
-            // Scalar fallback (WASM-compatible)
-            self.process_spectrum_scalar_pooled(byte_slice);
-
-            // Return buffer to pool
-            self.buffer_pool.release(temp_buffer);
-        } else {
-            // Fallback if pool is exhausted (should be rare)
-            let mut byte_data = vec![0u8; self.frequency_buffer.capacity];
-            analyser.get_byte_frequency_data(&mut byte_data);
-            self.process_spectrum_scalar_pooled(&byte_data);
         }
+
+        // Scalar fallback (WASM-compatible)
+        self.process_spectrum_scalar_pooled(byte_slice);
+
+        // Return buffer to pool
+        self.buffer_pool.release(temp_buffer);
 
         self.spectrum_buffer.as_slice()
     }
@@ -240,9 +283,39 @@ impl PooledSpectrumProcessor {
     // DESKTOP-ONLY: AVX2 SIMD optimization (not available in WASM)
     #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
     #[target_feature(enable = "avx2")]
+    /// # Safety
+    ///
+    /// This function requires:
+    /// - `byte_data.len() >= 8` for SIMD operations to be safe
+    /// - `self.spectrum_buffer.capacity >= 8` to prevent buffer overflow
+    /// - Pointers returned by `.add(i)` must remain within allocated bounds
+    /// - All SIMD loads/stores must be aligned to natural alignment (no special alignment required for _mm256_loadu_ps/_mm256_storeu_ps)
     unsafe fn process_spectrum_avx2_pooled(&mut self, byte_data: &[u8]) {
         let len = byte_data.len().min(self.spectrum_buffer.capacity);
+
+        // CRITICAL SAFETY CHECK: Prevent buffer overflow for small inputs
+        // If length < 8, SIMD operations would read out of bounds
+        if len < 8 {
+            // Fallback to safe scalar processing for small buffers
+            self.process_spectrum_scalar_pooled(byte_data);
+            return;
+        }
+
         let simd_len = len - (len % 8);
+
+        // Additional safety assertion in debug builds
+        debug_assert!(
+            simd_len >= 8 || simd_len == 0,
+            "SIMD length calculation error"
+        );
+        debug_assert!(
+            simd_len <= byte_data.len(),
+            "SIMD length exceeds input buffer"
+        );
+        debug_assert!(
+            simd_len <= self.spectrum_buffer.capacity,
+            "SIMD length exceeds spectrum buffer"
+        );
 
         let scale_vec = _mm256_set1_ps(100.0 / 255.0);
         let offset_vec = _mm256_set1_ps(-100.0);
@@ -252,6 +325,19 @@ impl PooledSpectrumProcessor {
         let spectrum_slice = self.spectrum_buffer.as_mut_slice();
 
         for i in (0..simd_len).step_by(8) {
+            // Safety: i is guaranteed to be <= simd_len - 8, and simd_len <= len
+            // Therefore i + 8 <= len, so this read is within bounds
+            debug_assert!(
+                i + 8 <= byte_data.len(),
+                "SIMD read would overflow byte_data at index {}",
+                i
+            );
+            debug_assert!(
+                i + 8 <= spectrum_slice.len(),
+                "SIMD write would overflow spectrum_slice at index {}",
+                i
+            );
+
             let bytes = _mm_loadu_si64(byte_data.as_ptr().add(i) as *const _);
             let bytes_32 = _mm256_cvtepu8_epi32(bytes);
             let floats = _mm256_cvtepi32_ps(bytes_32);
@@ -275,7 +361,7 @@ impl PooledSpectrumProcessor {
             _mm256_storeu_ps(spectrum_slice.as_mut_ptr().add(i), smoothed);
         }
 
-        // Handle remaining elements
+        // Handle remaining elements (scalar processing for remainder)
         for i in simd_len..len {
             let db = (byte_data[i] as f32 / 255.0) * 100.0 - 100.0;
             let linear = if db > -100.0 {
@@ -312,7 +398,7 @@ pub struct ParallelEqProcessor {
     sample_rate: f32,
     #[allow(dead_code)]
     work_buffers: Vec<AlignedBuffer>,
-    thread_pool: rayon::ThreadPool,
+    thread_pool: Option<rayon::ThreadPool>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -346,10 +432,10 @@ impl ParallelEqProcessor {
 
         // Create custom thread pool for audio processing
         let thread_pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
+            .num_threads(num_threads.max(1))
             .thread_name(|i| format!("audio-eq-{}", i))
             .build()
-            .unwrap();
+            .ok();
 
         Self {
             coefficients: vec![
@@ -387,22 +473,32 @@ impl ParallelEqProcessor {
         let coeffs = &self.coefficients;
         let states_arc = Arc::clone(&self.states);
 
-        self.thread_pool.install(|| {
+        if let Some(pool) = &self.thread_pool {
+            pool.install(|| {
+                band_outputs
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(band_idx, band_output)| {
+                        band_output.copy_from_slice(input);
+
+                        let mut states = states_arc.write();
+                        let state = &mut states[band_idx];
+                        let coeff = &coeffs[band_idx];
+                        Self::process_band_simd(band_output, coeff, state);
+                    });
+            });
+        } else {
             band_outputs
-                .par_iter_mut()
+                .iter_mut()
                 .enumerate()
                 .for_each(|(band_idx, band_output)| {
-                    // Copy input to band buffer
                     band_output.copy_from_slice(input);
-
-                    // Process this band
                     let mut states = states_arc.write();
                     let state = &mut states[band_idx];
                     let coeff = &coeffs[band_idx];
-
                     Self::process_band_simd(band_output, coeff, state);
                 });
-        });
+        }
 
         // Mix all bands back to output (simplified - in reality you'd want proper mixing)
         // For now, we just use the last band's output
@@ -432,13 +528,39 @@ impl ParallelEqProcessor {
     // DESKTOP-ONLY: AVX2 SIMD optimization for biquad filter
     #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
     #[target_feature(enable = "avx2")]
+    /// # Safety
+    ///
+    /// This function requires:
+    /// - `samples.len() >= 8` for SIMD operations to be safe
+    /// - Pointers returned by `.add(i)` must remain within allocated bounds
+    /// - `copy_nonoverlapping` requires source and destination not to overlap
+    /// - All pointer arithmetic must remain within the allocated buffer
     unsafe fn process_band_avx2(
         samples: &mut [f32],
         coeff: &BiquadCoefficients,
         state: &mut BiquadState,
     ) {
         let len = samples.len();
+
+        // CRITICAL SAFETY CHECK: Prevent buffer overflow for small inputs
+        // If length < 8, SIMD operations would read/write out of bounds
+        if len < 8 {
+            // Fallback to safe scalar processing for small buffers
+            Self::process_band_scalar(samples, coeff, state);
+            return;
+        }
+
         let simd_len = len - (len % 8);
+
+        // Additional safety assertion in debug builds
+        debug_assert!(
+            simd_len >= 8 || simd_len == 0,
+            "SIMD length calculation error"
+        );
+        debug_assert!(
+            simd_len <= samples.len(),
+            "SIMD length exceeds sample buffer"
+        );
 
         // Normalize coefficients
         let b0 = coeff.b0 / coeff.a0;
@@ -454,6 +576,14 @@ impl ParallelEqProcessor {
 
         // Process 8 samples at a time
         for i in (0..simd_len).step_by(8) {
+            // Safety: i is guaranteed to be <= simd_len - 8, and simd_len <= len
+            // Therefore i + 8 <= len, so this read/write is within bounds
+            debug_assert!(
+                i + 8 <= samples.len(),
+                "SIMD operation would overflow at index {}",
+                i
+            );
+
             let mut temp = [0.0f32; 8];
             std::ptr::copy_nonoverlapping(samples.as_ptr().add(i), temp.as_mut_ptr(), 8);
 
@@ -479,7 +609,7 @@ impl ParallelEqProcessor {
         state.y1 = y1;
         state.y2 = y2;
 
-        // Process remaining samples
+        // Process remaining samples (scalar processing for remainder)
         if simd_len < len {
             Self::process_band_scalar(&mut samples[simd_len..], coeff, state);
         }
@@ -624,8 +754,8 @@ mod tests {
         let pool = OptimizedBufferPoolV2::new(4, 512);
 
         // Acquire buffers
-        let b1 = pool.acquire().unwrap();
-        let b2 = pool.acquire().unwrap();
+        let b1 = pool.acquire();
+        let b2 = pool.acquire();
 
         let (available, _, _) = pool.stats();
         assert_eq!(available, 2);

@@ -436,11 +436,12 @@ mod pool_tests {
 #[cfg(test)]
 mod stress_tests {
     use super::*;
+    use anyhow::{anyhow, Result};
     use std::thread;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
-    fn stress_test_ring_buffer_concurrent() {
+    fn stress_test_ring_buffer_concurrent() -> Result<()> {
         let buffer = Arc::new(LockFreeRingBuffer::new(1024));
         let iterations = 1000;
         let write_count = Arc::new(AtomicUsize::new(0));
@@ -474,11 +475,16 @@ mod stress_tests {
             }
         });
 
-        writer.join().unwrap();
-        reader.join().unwrap();
+        writer
+            .join()
+            .map_err(|_| anyhow!("Writer thread panicked"))?;
+        reader
+            .join()
+            .map_err(|_| anyhow!("Reader thread panicked"))?;
 
         assert_eq!(write_count.load(Ordering::Relaxed), iterations * 10);
         assert_eq!(read_count.load(Ordering::Relaxed), iterations * 10);
+        Ok(())
     }
 
     #[test]

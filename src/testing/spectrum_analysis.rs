@@ -45,7 +45,7 @@ impl SpectrumAnalysis {
             .magnitudes
             .iter()
             .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())?;
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))?;
 
         Some((self.frequencies[max_idx], max_magnitude))
     }
@@ -481,10 +481,10 @@ mod tests {
         let analysis = analyzer.analyze(&samples, 44100.0);
 
         // Should detect peak near 1000 Hz
-        if let Some((peak_freq, _)) = analysis.find_peak() {
+        let peak = analysis.find_peak();
+        assert!(peak.is_some(), "No peak detected");
+        if let Some((peak_freq, _)) = peak {
             assert_abs_diff_eq!(peak_freq, 1000.0, epsilon = 50.0);
-        } else {
-            panic!("No peak detected");
         }
     }
 
@@ -496,11 +496,13 @@ mod tests {
 
         let analysis = analyzer.analyze(&samples, 44100.0);
 
-        if let Some(magnitude) = analysis.magnitude_at_frequency(1000.0) {
-            // Should be approximately 0.5 for a 0.5 amplitude sine wave
+        let magnitude = analysis.magnitude_at_frequency(1000.0);
+        assert!(
+            magnitude.is_some(),
+            "Could not measure magnitude at 1000 Hz"
+        );
+        if let Some(magnitude) = magnitude {
             assert_abs_diff_eq!(magnitude, 0.5, epsilon = 0.1);
-        } else {
-            panic!("Could not measure magnitude at 1000 Hz");
         }
     }
 

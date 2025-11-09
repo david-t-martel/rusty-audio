@@ -10,8 +10,8 @@
 
 use super::backend::{AudioConfig, AudioStream, SampleFormat};
 use super::device::CpalBackend;
-use anyhow::{Context, Result};
-use std::sync::{Arc, Mutex};
+use anyhow::{anyhow, Context, Result};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 #[cfg(target_arch = "x86_64")]
@@ -634,6 +634,12 @@ pub struct AudioRecorder {
 }
 
 impl AudioRecorder {
+    fn lock_state(&self) -> Result<MutexGuard<'_, RecordingState>> {
+        self.state
+            .lock()
+            .map_err(|_| anyhow!("Recorder state lock poisoned"))
+    }
+
     /// Create a new audio recorder with specified configuration
     pub fn new(config: RecordingConfig) -> Self {
         let buffer = Arc::new(LockFreeRecordingBuffer::new(
@@ -679,10 +685,11 @@ impl AudioRecorder {
 
         // Create callback that writes to buffer when recording
         let callback = move |data: &[f32]| {
-            let state = state_clone.lock().unwrap();
-            if *state == RecordingState::Recording {
-                drop(state); // Release state lock (no buffer lock needed - lock-free)
-                buffer_clone.write(data);
+            if let Ok(state) = state_clone.lock() {
+                if *state == RecordingState::Recording {
+                    drop(state); // Release state lock (no buffer lock needed - lock-free)
+                    buffer_clone.write(data);
+                }
             }
         };
 
@@ -703,92 +710,115 @@ impl AudioRecorder {
 
     /// Start recording
     pub fn start(&mut self) -> Result<()> {
-        let mut state = self.state.lock().unwrap();
+        // Check current state and update it
+        let current_state = {
+            let mut state = self.lock_state()?;
+            let old_state = *state;
 
-        match *state {
-            RecordingState::Idle => {
-                *state = RecordingState::Recording;
-                self.start_time = Some(Instant::now());
-                self.pause_duration = Duration::ZERO;
-                Ok(())
+            match old_state {
+                RecordingState::Idle | RecordingState::Stopped => {
+                    *state = RecordingState::Recording;
+                    old_state
+                }
+                _ => {
+                    return Err(anyhow::anyhow!(
+                        "Cannot start recording from {:?} state",
+                        old_state
+                    ));
+                }
             }
-            RecordingState::Stopped => {
-                // Clear buffer and start fresh
-                self.buffer.clear();
-                *state = RecordingState::Recording;
-                self.start_time = Some(Instant::now());
-                self.pause_duration = Duration::ZERO;
-                Ok(())
-            }
-            _ => Err(anyhow::anyhow!(
-                "Cannot start recording from {:?} state",
-                *state
-            )),
+        }; // MutexGuard dropped here
+
+        // Now we can safely modify other fields without holding the lock
+        if current_state == RecordingState::Stopped {
+            self.buffer.clear();
         }
+        self.start_time = Some(Instant::now());
+        self.pause_duration = Duration::ZERO;
+
+        Ok(())
     }
 
     /// Stop recording
     pub fn stop(&mut self) -> Result<()> {
-        let mut state = self.state.lock().unwrap();
+        // Update state while holding the lock
+        {
+            let mut state = self.lock_state()?;
 
-        match *state {
-            RecordingState::Recording | RecordingState::Paused => {
-                *state = RecordingState::Stopped;
-
-                // If paused, account for pause time
-                if let Some(pause_time) = self.pause_time {
-                    self.pause_duration += pause_time.elapsed();
-                    self.pause_time = None;
+            match *state {
+                RecordingState::Recording | RecordingState::Paused => {
+                    *state = RecordingState::Stopped;
                 }
-
-                Ok(())
+                _ => {
+                    return Err(anyhow::anyhow!(
+                        "Cannot stop recording from {:?} state",
+                        *state
+                    ));
+                }
             }
-            _ => Err(anyhow::anyhow!(
-                "Cannot stop recording from {:?} state",
-                *state
-            )),
+        } // MutexGuard dropped here
+
+        // Now safely modify other fields without holding the lock
+        if let Some(pause_time) = self.pause_time {
+            self.pause_duration += pause_time.elapsed();
+            self.pause_time = None;
         }
+
+        Ok(())
     }
 
     /// Pause recording
     pub fn pause(&mut self) -> Result<()> {
-        let mut state = self.state.lock().unwrap();
+        // Update state while holding the lock
+        {
+            let mut state = self.lock_state()?;
 
-        if *state == RecordingState::Recording {
-            *state = RecordingState::Paused;
-            self.pause_time = Some(Instant::now());
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!(
-                "Cannot pause recording from {:?} state",
-                *state
-            ))
-        }
+            if *state == RecordingState::Recording {
+                *state = RecordingState::Paused;
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Cannot pause recording from {:?} state",
+                    *state
+                ));
+            }
+        } // MutexGuard dropped here
+
+        // Now safely modify pause_time without holding the lock
+        self.pause_time = Some(Instant::now());
+
+        Ok(())
     }
 
     /// Resume recording from paused state
     pub fn resume(&mut self) -> Result<()> {
-        let mut state = self.state.lock().unwrap();
+        // Update state while holding the lock
+        {
+            let mut state = self.lock_state()?;
 
-        if *state == RecordingState::Paused {
-            *state = RecordingState::Recording;
-
-            if let Some(pause_time) = self.pause_time.take() {
-                self.pause_duration += pause_time.elapsed();
+            if *state == RecordingState::Paused {
+                *state = RecordingState::Recording;
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Cannot resume recording from {:?} state",
+                    *state
+                ));
             }
+        } // MutexGuard dropped here
 
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!(
-                "Cannot resume recording from {:?} state",
-                *state
-            ))
+        // Now safely modify pause_time and pause_duration without holding the lock
+        if let Some(pause_time) = self.pause_time.take() {
+            self.pause_duration += pause_time.elapsed();
         }
+
+        Ok(())
     }
 
     /// Get current recording state
     pub fn state(&self) -> RecordingState {
-        *self.state.lock().unwrap()
+        match self.lock_state() {
+            Ok(state) => *state,
+            Err(_) => RecordingState::Idle,
+        }
     }
 
     /// Get recording duration (excluding pauses)
@@ -838,11 +868,10 @@ impl AudioRecorder {
 
     /// Write audio samples to the buffer (called from audio thread)
     pub fn write_samples(&mut self, samples: &[f32]) {
-        let state = self.state.lock().unwrap();
-
-        // Only write if actively recording (lock-free write)
-        if *state == RecordingState::Recording {
-            self.buffer.write(samples);
+        if let Ok(state) = self.state.lock() {
+            if *state == RecordingState::Recording {
+                self.buffer.write(samples);
+            }
         }
     }
 
@@ -876,28 +905,30 @@ impl AudioRecorder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
 
     #[test]
-    fn test_recording_state_transitions() {
+    fn test_recording_state_transitions() -> Result<()> {
         let mut recorder = AudioRecorder::new(RecordingConfig::default());
 
         assert_eq!(recorder.state(), RecordingState::Idle);
 
         // Idle -> Recording
-        recorder.start().unwrap();
+        recorder.start()?;
         assert_eq!(recorder.state(), RecordingState::Recording);
 
         // Recording -> Paused
-        recorder.pause().unwrap();
+        recorder.pause()?;
         assert_eq!(recorder.state(), RecordingState::Paused);
 
         // Paused -> Recording
-        recorder.resume().unwrap();
+        recorder.resume()?;
         assert_eq!(recorder.state(), RecordingState::Recording);
 
         // Recording -> Stopped
-        recorder.stop().unwrap();
+        recorder.stop()?;
         assert_eq!(recorder.state(), RecordingState::Stopped);
+        Ok(())
     }
 
     #[test]

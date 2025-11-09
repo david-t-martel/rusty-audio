@@ -106,8 +106,8 @@ impl AsyncAudioLoader {
         Self {
             buffer_pool: Arc::new(OptimizedBufferPool::new(16, 48000 * 10)), // 10 second buffers
             cache: Arc::new(RwLock::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(cache_size)
-                    .unwrap_or(std::num::NonZeroUsize::new(1).unwrap()),
+                std::num::NonZeroUsize::new(cache_size.max(1))
+                    .unwrap_or(std::num::NonZeroUsize::MIN),
             ))),
             active_loads: Arc::new(RwLock::new(std::collections::HashMap::new())),
             config,
@@ -402,7 +402,11 @@ impl AsyncAudioLoader {
             let progress_callback = progress_callback.clone();
 
             async move {
-                let _permit = semaphore.acquire().await.unwrap();
+                let _permit = semaphore.acquire().await.map_err(|_| {
+                    AudioPlayerError::FileOperation(FileError::ReadFailed {
+                        path: format!("Concurrency semaphore closed for task {}", index),
+                    })
+                })?;
 
                 // Clone completed_count before moving into nested closure
                 let file_progress_callback = progress_callback.map(|callback| {
@@ -562,6 +566,7 @@ impl StreamingHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use std::io::Write;
     use tempfile::tempdir;
 
@@ -593,35 +598,35 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_streaming_loader() {
+    async fn test_streaming_loader() -> Result<()> {
         let loader = StreamingAudioLoader::new(1024, AsyncLoadConfig::default());
 
         // Create a temporary file
-        let dir = tempdir().unwrap();
+        let dir = tempdir()?;
         let file_path = dir.path().join("test.raw");
-        let mut file = std::fs::File::create(&file_path).unwrap();
+        let mut file = std::fs::File::create(&file_path)?;
 
         // Write some test data
         let test_data = vec![0u8; 1000];
-        file.write_all(&test_data).unwrap();
+        file.write_all(&test_data)?;
 
         // Test would require actual streaming implementation
         // This is a placeholder for the structure
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_concurrent_loading() {
+    async fn test_concurrent_loading() -> Result<()> {
         let loader = AsyncAudioLoader::new(AsyncLoadConfig::default());
 
         // Create temporary files
-        let dir = tempdir().unwrap();
-        let paths: Vec<_> = (0..3)
-            .map(|i| {
-                let path = dir.path().join(format!("test{}.mp3", i));
-                std::fs::write(&path, b"fake mp3 data").unwrap();
-                path
-            })
-            .collect();
+        let dir = tempdir()?;
+        let mut paths = Vec::new();
+        for i in 0..3 {
+            let path = dir.path().join(format!("test{}.mp3", i));
+            std::fs::write(&path, b"fake mp3 data")?;
+            paths.push(path);
+        }
 
         let progress_callback = Arc::new(|progress: f32| {
             println!("Overall progress: {:.1}%", progress * 100.0);
@@ -633,5 +638,6 @@ mod tests {
 
         // All should fail since we're using fake data, but structure should work
         assert_eq!(results.len(), 3);
+        Ok(())
     }
 }

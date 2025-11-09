@@ -5,6 +5,7 @@
 
 use crate::ai::feature_extractor::AudioFeatures;
 use anyhow::{Context, Result};
+use std::cmp::Ordering;
 
 /// Format optimizer for intelligent codec and bitrate selection
 pub struct FormatOptimizer {
@@ -131,7 +132,7 @@ impl QualityAnalyzer {
         // Simple noise floor estimation
         let sorted_magnitudes = {
             let mut mags: Vec<f32> = buffer.iter().map(|x| x.abs()).collect();
-            mags.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            mags.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
             mags
         };
 
@@ -266,10 +267,11 @@ impl BitrateOptimizer {
     fn snap_to_standard_bitrate(&self, bitrate: u32) -> u32 {
         const STANDARD_BITRATES: &[u32] = &[64000, 96000, 128000, 160000, 192000, 256000, 320000];
 
-        *STANDARD_BITRATES
+        STANDARD_BITRATES
             .iter()
             .min_by_key(|&&b| (b as i32 - bitrate as i32).abs())
-            .unwrap()
+            .copied()
+            .unwrap_or(bitrate)
     }
 }
 

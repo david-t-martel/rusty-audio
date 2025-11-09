@@ -3,14 +3,45 @@
 //! Professional recording interface with level meters, device selection,
 //! and monitoring controls
 
+use chrono::Local;
 use egui::{Color32, RichText, Ui, Vec2};
+use std::time::{Duration, Instant};
 
-use super::theme::ThemeColors;
+use super::{theme::ThemeColors, utils::ColorUtils};
 use crate::audio::backend::DeviceInfo;
 use crate::audio::manager::AudioDeviceManager;
 use crate::audio::recorder::{
     AudioRecorder, MonitoringMode, RecordingConfig, RecordingFormat, RecordingState,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TakeSource {
+    Live,
+    Generated,
+}
+
+impl TakeSource {
+    fn label(&self) -> &'static str {
+        match self {
+            TakeSource::Live => "Live",
+            TakeSource::Generated => "Generated",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct RecordedTake {
+    id: usize,
+    label: String,
+    source: TakeSource,
+    duration: Duration,
+    peak: f32,
+    rms: f32,
+    clip_events: u32,
+    timestamp_label: String,
+    waveform: Vec<f32>,
+    notes: String,
+}
 
 /// Recording panel state
 pub struct RecordingPanel {
@@ -27,7 +58,11 @@ pub struct RecordingPanel {
     peak_levels: Vec<f32>,      // Per channel
     rms_levels: Vec<f32>,       // Per channel
     clip_indicators: Vec<bool>, // Per channel
-    last_meter_update: std::time::Instant,
+    last_meter_update: Instant,
+    takes: Vec<RecordedTake>,
+    selected_take: Option<usize>,
+    last_state: RecordingState,
+    next_take_id: usize,
 }
 
 impl Default for RecordingPanel {
@@ -53,7 +88,11 @@ impl Default for RecordingPanel {
             peak_levels: vec![0.0; 2], // Stereo default
             rms_levels: vec![0.0; 2],
             clip_indicators: vec![false; 2],
-            last_meter_update: std::time::Instant::now(),
+            last_meter_update: Instant::now(),
+            takes: Vec::new(),
+            selected_take: None,
+            last_state: RecordingState::Idle,
+            next_take_id: 1,
         }
     }
 }
@@ -68,16 +107,54 @@ impl RecordingPanel {
 
     /// Initialize recorder with configuration
     pub fn initialize_recorder(&mut self, config: RecordingConfig) {
+        let channels = config.channels as usize;
         self.recorder = Some(AudioRecorder::new(config));
-        let channels = self.recorder.as_ref().unwrap().config().channels as usize;
         self.peak_levels = vec![0.0; channels];
         self.rms_levels = vec![0.0; channels];
         self.clip_indicators = vec![false; channels];
     }
 
+    pub fn current_state(&self) -> RecordingState {
+        self.recorder
+            .as_ref()
+            .map(|rec| rec.state())
+            .unwrap_or(RecordingState::Idle)
+    }
+
+    pub fn is_recording(&self) -> bool {
+        matches!(self.current_state(), RecordingState::Recording)
+    }
+
+    pub fn toggle_recording(&mut self) {
+        if let Some(recorder) = &mut self.recorder {
+            match recorder.state() {
+                RecordingState::Recording => {
+                    let _ = recorder.stop();
+                }
+                RecordingState::Paused => {
+                    let _ = recorder.resume();
+                }
+                _ => {
+                    let _ = recorder.start();
+                }
+            }
+        }
+    }
+
+    pub fn status_badge(&self) -> (&'static str, Color32) {
+        match self.current_state() {
+            RecordingState::Recording => ("REC", Color32::from_rgb(255, 80, 80)),
+            RecordingState::Paused => ("Paused", Color32::from_rgb(255, 200, 120)),
+            RecordingState::Stopped => ("Stopped", Color32::from_rgb(170, 170, 170)),
+            RecordingState::Idle => ("Idle", Color32::from_rgb(120, 160, 200)),
+        }
+    }
+
     /// Update level meters from recorder
     pub fn update_levels(&mut self) {
+        let mut current_state = RecordingState::Idle;
         if let Some(recorder) = &self.recorder {
+            current_state = recorder.state();
             let buffer = recorder.buffer();
             // Lock-free buffer - direct access, no .lock() needed
 
@@ -91,11 +168,166 @@ impl RecordingPanel {
                 }
             }
         }
+
+        self.handle_state_transition(current_state);
     }
 
     /// Clear clip indicators
     pub fn clear_clips(&mut self) {
         self.clip_indicators.fill(false);
+    }
+
+    fn handle_state_transition(&mut self, current_state: RecordingState) {
+        if self.last_state == RecordingState::Recording && current_state == RecordingState::Stopped
+        {
+            // Capture data from recorder before calling capture_live_take
+            if let Some(recorder) = &self.recorder {
+                let buffer = recorder.buffer();
+                let mut samples = Vec::new();
+                buffer.get_samples(&mut samples);
+
+                if !samples.is_empty() {
+                    let channels = recorder.config().channels.max(1) as usize;
+                    let sample_rate = recorder.config().sample_rate as f32;
+
+                    // Now call the method with extracted data (no borrow conflict)
+                    self.add_take_from_samples(
+                        format!("Take {}", self.next_take_id),
+                        TakeSource::Live,
+                        &samples,
+                        sample_rate,
+                        channels,
+                    );
+                }
+            }
+        }
+        self.last_state = current_state;
+    }
+
+    fn add_take_from_samples(
+        &mut self,
+        label: String,
+        source: TakeSource,
+        samples: &[f32],
+        sample_rate: f32,
+        channels: usize,
+    ) {
+        if samples.is_empty() || channels == 0 {
+            return;
+        }
+
+        let frames = samples.len() / channels;
+        if frames == 0 {
+            return;
+        }
+
+        let duration_secs = frames as f32 / sample_rate.max(1.0);
+        let duration = Duration::from_secs_f32(duration_secs);
+        let (peak, rms, clip_events) = Self::analyze_samples(samples);
+        let waveform = Self::downsample_waveform(samples, channels, 256);
+
+        if self.takes.len() >= 32 {
+            self.takes.remove(0);
+            if let Some(selected) = self.selected_take {
+                self.selected_take = selected.checked_sub(1);
+            }
+        }
+
+        let take = RecordedTake {
+            id: self.next_take_id,
+            label,
+            source,
+            duration,
+            peak,
+            rms,
+            clip_events,
+            timestamp_label: Local::now().format("%H:%M:%S").to_string(),
+            waveform,
+            notes: String::new(),
+        };
+
+        self.next_take_id += 1;
+        self.takes.push(take);
+        self.selected_take = Some(self.takes.len().saturating_sub(1));
+    }
+
+    fn analyze_samples(samples: &[f32]) -> (f32, f32, u32) {
+        if samples.is_empty() {
+            return (0.0, 0.0, 0);
+        }
+
+        let mut peak: f32 = 0.0;
+        let mut sum_squares = 0.0;
+        let mut clip_events = 0;
+
+        for &sample in samples {
+            let abs = sample.abs();
+            peak = peak.max(abs);
+            sum_squares += sample * sample;
+            if abs >= 0.99 {
+                clip_events += 1;
+            }
+        }
+
+        let rms = (sum_squares / samples.len() as f32).sqrt();
+        (peak, rms, clip_events)
+    }
+
+    fn downsample_waveform(samples: &[f32], channels: usize, target: usize) -> Vec<f32> {
+        if samples.is_empty() || channels == 0 || target == 0 {
+            return Vec::new();
+        }
+
+        let frames = samples.len() / channels;
+        if frames == 0 {
+            return Vec::new();
+        }
+
+        let step = (frames as f32 / target as f32).ceil() as usize;
+        let mut waveform = Vec::with_capacity(target);
+
+        for frame in (0..frames).step_by(step) {
+            let mut sum = 0.0;
+            for ch in 0..channels {
+                let idx = frame * channels + ch;
+                if idx < samples.len() {
+                    sum += samples[idx];
+                }
+            }
+            waveform.push(sum / channels as f32);
+            if waveform.len() >= target {
+                break;
+            }
+        }
+
+        Self::normalize_waveform(waveform)
+    }
+
+    fn normalize_waveform(mut waveform: Vec<f32>) -> Vec<f32> {
+        let max = waveform
+            .iter()
+            .fold(0.0f32, |acc, &sample| acc.max(sample.abs()));
+        if max > 0.0 {
+            for sample in &mut waveform {
+                *sample /= max;
+            }
+        }
+        waveform
+    }
+
+    fn linear_to_db(value: f32) -> f32 {
+        20.0 * value.max(1e-6).log10()
+    }
+
+    /// Log a virtual take produced by the signal generator
+    pub fn log_generated_take(
+        &mut self,
+        label: String,
+        samples: &[f32],
+        sample_rate: f32,
+        channels: usize,
+    ) {
+        self.add_take_from_samples(label, TakeSource::Generated, samples, sample_rate, channels);
     }
 
     /// Draw the recording panel
@@ -126,6 +358,10 @@ impl RecordingPanel {
 
             // File management
             self.draw_file_management(ui, colors);
+
+            ui.add_space(15.0);
+
+            self.draw_take_manager(ui, colors);
         });
     }
 
@@ -577,6 +813,129 @@ impl RecordingPanel {
                     .color(colors.text_secondary),
             );
         });
+    }
+
+    fn draw_take_manager(&mut self, ui: &mut Ui, colors: &ThemeColors) {
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("🎞️ Takes & Notes")
+                        .size(16.0)
+                        .color(colors.text),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(
+                        RichText::new(format!("{} total", self.takes.len()))
+                            .color(colors.text_secondary),
+                    );
+                });
+            });
+
+            ui.add_space(6.0);
+
+            if self.takes.is_empty() {
+                ui.label(
+                    RichText::new(
+                        "No takes yet. Record or route a generator signal to capture one.",
+                    )
+                    .color(colors.text_secondary),
+                );
+                return;
+            }
+
+            let mut clicked_take: Option<usize> = None;
+            egui::ScrollArea::vertical()
+                .max_height(220.0)
+                .show(ui, |ui| {
+                    for (idx, take) in self.takes.iter().enumerate() {
+                        let selected = Some(idx) == self.selected_take;
+                        let header = format!(
+                            "{} · {} · {:.1}s",
+                            take.label,
+                            take.source.label(),
+                            take.duration.as_secs_f32()
+                        );
+                        let response = ui.selectable_label(selected, header);
+                        if response.clicked() {
+                            clicked_take = Some(idx);
+                        }
+                        if selected {
+                            self.draw_take_details(ui, colors, take);
+                        }
+                        ui.add_space(6.0);
+                    }
+                });
+
+            if let Some(idx) = clicked_take {
+                self.selected_take = Some(idx);
+            }
+
+            if let Some(idx) = self.selected_take {
+                if let Some(take) = self.takes.get_mut(idx) {
+                    ui.add_space(6.0);
+                    ui.label(RichText::new("Notes").strong());
+                    ui.text_edit_multiline(&mut take.notes)
+                        .on_hover_text("Add reminders for this take");
+                }
+            }
+        });
+    }
+
+    fn draw_take_details(&self, ui: &mut Ui, colors: &ThemeColors, take: &RecordedTake) {
+        ui.indent(format!("take_detail_{}", take.id), |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(format!("Peak {:.1} dBFS", Self::linear_to_db(take.peak)))
+                        .color(colors.text_secondary),
+                );
+                ui.add_space(10.0);
+                ui.label(
+                    RichText::new(format!("RMS {:.1} dBFS", Self::linear_to_db(take.rms)))
+                        .color(colors.text_secondary),
+                );
+                ui.add_space(10.0);
+                ui.label(
+                    RichText::new(format!("Clips {}", take.clip_events))
+                        .color(colors.text_secondary),
+                );
+                ui.add_space(10.0);
+                ui.label(
+                    RichText::new(format!("Captured {}", take.timestamp_label))
+                        .color(colors.text_secondary),
+                );
+            });
+
+            let (rect, _) =
+                ui.allocate_exact_size(Vec2::new(ui.available_width(), 48.0), egui::Sense::hover());
+            self.draw_take_waveform(ui, colors, rect, &take.waveform);
+        });
+    }
+
+    fn draw_take_waveform(
+        &self,
+        ui: &mut Ui,
+        colors: &ThemeColors,
+        rect: egui::Rect,
+        waveform: &[f32],
+    ) {
+        let painter = ui.painter();
+        painter.rect_filled(rect, 6.0, ColorUtils::with_alpha(colors.surface, 0.7));
+
+        if waveform.is_empty() {
+            return;
+        }
+
+        let step = rect.width() / (waveform.len().max(1) as f32);
+        let mut last_point = rect.center();
+        for (i, sample) in waveform.iter().enumerate() {
+            let x = rect.min.x + i as f32 * step;
+            let y = rect.center().y - sample * rect.height() * 0.4;
+            let point = egui::pos2(x, y);
+            if i > 0 {
+                painter.line_segment([last_point, point], egui::Stroke::new(1.0, colors.accent));
+            }
+            last_point = point;
+        }
     }
 
     /// Get recorder reference

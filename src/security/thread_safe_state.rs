@@ -295,11 +295,12 @@ impl AudioStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::{anyhow, Result};
     use std::sync::Arc;
     use std::thread;
 
     #[test]
-    fn test_thread_safety() {
+    fn test_thread_safety() -> Result<()> {
         let state = Arc::new(ThreadSafeAudioState::new());
         let mut handles = vec![];
 
@@ -320,11 +321,14 @@ mod tests {
 
         // Wait for all threads
         for handle in handles {
-            handle.join().unwrap();
+            handle
+                .join()
+                .map_err(|_| anyhow!("State update thread panicked"))?;
         }
 
         // Verify state is still valid
         assert!(state.get_volume() >= 0.0 && state.get_volume() <= 1.0);
+        Ok(())
     }
 
     #[test]

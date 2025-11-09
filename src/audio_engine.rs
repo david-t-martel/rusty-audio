@@ -49,6 +49,14 @@ pub trait AudioEngineInterface {
     /// Get current playback position
     fn get_position(&self) -> Duration;
 
+    /// Audition an in-memory buffer (e.g., generated signal) through the playback chain
+    fn audition_buffer(
+        &mut self,
+        samples: &[f32],
+        sample_rate: f32,
+        channels: usize,
+    ) -> Result<Duration>;
+
     /// Get current playback state
     fn get_state(&self) -> PlaybackState;
 
@@ -78,16 +86,11 @@ pub struct WebAudioEngine {
 }
 
 impl WebAudioEngine {
-    /// Create a new WebAudioEngine instance
-    pub fn new() -> Result<Self> {
-        info!("Initializing WebAudio engine");
-
-        let audio_context = AudioContext::default();
+    fn from_context(audio_context: AudioContext) -> Self {
         let analyser = audio_context.create_analyser();
         let gain_node = audio_context.create_gain();
         gain_node.gain().set_value(0.5);
 
-        // Create 8-band equalizer
         let mut eq_bands = Vec::new();
         for i in 0..8 {
             let mut band = audio_context.create_biquad_filter();
@@ -100,7 +103,7 @@ impl WebAudioEngine {
 
         debug!("Created {} EQ bands", eq_bands.len());
 
-        Ok(Self {
+        Self {
             audio_context,
             source_node: None,
             gain_node,
@@ -112,7 +115,13 @@ impl WebAudioEngine {
             total_duration: Duration::ZERO,
             is_seeking: false,
             spectrum: vec![0.0; 1024],
-        })
+        }
+    }
+
+    /// Create a new WebAudioEngine instance
+    pub fn new() -> Result<Self> {
+        info!("Initializing WebAudio engine");
+        Ok(Self::from_context(AudioContext::default()))
     }
 
     /// Connect the audio chain: source -> EQ bands -> gain -> analyser -> output
@@ -282,6 +291,59 @@ impl AudioEngineInterface for WebAudioEngine {
         self.spectrum.clone()
     }
 
+    fn audition_buffer(
+        &mut self,
+        samples: &[f32],
+        sample_rate: f32,
+        channels: usize,
+    ) -> Result<Duration> {
+        if samples.is_empty() {
+            return Err(AudioError::InvalidParameters {
+                details: "Cannot audition an empty buffer".to_string(),
+            }
+            .into());
+        }
+
+        let channels = channels.max(1);
+        let frame_count = samples.len() / channels;
+        if frame_count == 0 {
+            return Err(AudioError::InvalidParameters {
+                details: "Buffer must contain at least one full frame".to_string(),
+            }
+            .into());
+        }
+
+        // Stop any existing playback before replacing the source node
+        let _ = self.stop();
+
+        let mut buffer = self
+            .audio_context
+            .create_buffer(channels, frame_count, sample_rate);
+
+        // Copy interleaved samples into per-channel buffers
+        for ch in 0..channels {
+            let mut channel_data = vec![0.0f32; frame_count];
+            for (frame_idx, sample) in samples.iter().skip(ch).step_by(channels).enumerate() {
+                channel_data[frame_idx] = *sample;
+            }
+            buffer.copy_to_channel(&channel_data, ch);
+        }
+
+        let mut source_node = self.audio_context.create_buffer_source();
+        source_node.set_buffer(buffer);
+        self.source_node = Some(source_node);
+        self.connect_audio_chain()?;
+
+        if let Some(node) = &mut self.source_node {
+            node.start();
+        }
+
+        self.playback_state = PlaybackState::Playing;
+        self.playback_pos = Duration::ZERO;
+        self.total_duration = Duration::from_secs_f64(frame_count as f64 / sample_rate as f64);
+        Ok(self.total_duration)
+    }
+
     fn set_eq_gain(&mut self, band: usize, gain: f32) -> Result<()> {
         if band >= self.eq_bands.len() {
             return Err(AudioError::InvalidParameters {
@@ -303,6 +365,9 @@ impl AudioEngineInterface for WebAudioEngine {
 
 impl Default for WebAudioEngine {
     fn default() -> Self {
-        Self::new().expect("Failed to create default WebAudioEngine")
+        Self::new().unwrap_or_else(|err| {
+            error!("Failed to create default WebAudioEngine: {}", err);
+            Self::from_context(AudioContext::default())
+        })
     }
 }

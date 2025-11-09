@@ -149,25 +149,24 @@ impl VolumeNormalizer {
             self.lookahead_buffer.push_back(sample);
 
             if self.lookahead_buffer.len() >= self.lookahead_size {
-                // Get the oldest sample
-                let delayed_sample = self.lookahead_buffer.pop_front().unwrap();
+                if let Some(delayed_sample) = self.lookahead_buffer.pop_front() {
+                    // Find the maximum in the lookahead window
+                    let peak = self
+                        .lookahead_buffer
+                        .iter()
+                        .map(|x| x.abs())
+                        .fold(0.0f32, f32::max);
 
-                // Find the maximum in the lookahead window
-                let peak = self
-                    .lookahead_buffer
-                    .iter()
-                    .map(|x| x.abs())
-                    .fold(0.0f32, f32::max);
+                    // Calculate limiting factor
+                    let limit_factor = if peak * gain > 0.95 {
+                        0.95 / (peak * gain)
+                    } else {
+                        1.0
+                    };
 
-                // Calculate limiting factor
-                let limit_factor = if peak * gain > 0.95 {
-                    0.95 / (peak * gain)
-                } else {
-                    1.0
-                };
-
-                // Apply gain with limiting
-                output.push(delayed_sample * gain * limit_factor);
+                    // Apply gain with limiting
+                    output.push(delayed_sample * gain * limit_factor);
+                }
             }
         }
 
@@ -530,46 +529,220 @@ impl Gate {
     }
 }
 
-/// LUFS/LKFS loudness meter
+/// K-weighting filter implementing ITU-R BS.1770-4 standard
+/// Two-stage filtering: pre-filter (high-shelf) + RLB filter (high-pass)
+struct KWeightingFilter {
+    // Pre-filter (high-shelf) coefficients
+    pre_b0: f32,
+    pre_b1: f32,
+    pre_b2: f32,
+    pre_a1: f32,
+    pre_a2: f32,
+
+    // RLB filter (high-pass) coefficients
+    rlb_b0: f32,
+    rlb_b1: f32,
+    rlb_b2: f32,
+    rlb_a1: f32,
+    rlb_a2: f32,
+
+    // Pre-filter state variables (for biquad IIR)
+    pre_x1: f32,
+    pre_x2: f32,
+    pre_y1: f32,
+    pre_y2: f32,
+
+    // RLB filter state variables
+    rlb_x1: f32,
+    rlb_x2: f32,
+    rlb_y1: f32,
+    rlb_y2: f32,
+}
+
+impl KWeightingFilter {
+    /// Create new K-weighting filter for given sample rate
+    fn new(sample_rate: f32) -> Self {
+        use std::f32::consts::PI;
+
+        // Stage 1: Pre-filter (high-shelf)
+        // fc = 1681.97 Hz, Q = 0.7071, Gain = 3.999843853973347 dB
+        let fc_pre = 1681.97;
+        let gain_db = 3.999843853973347;
+        let k_pre = (PI * fc_pre / sample_rate).tan();
+        let vh = 10.0_f32.powf(gain_db / 20.0);
+        let sqrt_vh = vh.sqrt();
+
+        let denominator_pre = 1.0 + 2.0_f32.sqrt() * k_pre + k_pre * k_pre;
+        let pre_b0 = (vh + sqrt_vh * k_pre + k_pre * k_pre) / denominator_pre;
+        let pre_b1 = 2.0 * (k_pre * k_pre - vh) / denominator_pre;
+        let pre_b2 = (vh - sqrt_vh * k_pre + k_pre * k_pre) / denominator_pre;
+        let pre_a1 = 2.0 * (k_pre * k_pre - 1.0) / denominator_pre;
+        let pre_a2 = (1.0 - 2.0_f32.sqrt() * k_pre + k_pre * k_pre) / denominator_pre;
+
+        // Stage 2: RLB filter (high-pass)
+        // fc = 38.13547 Hz, Q = 0.5003270373253953
+        let fc_rlb = 38.13547;
+        let q_rlb = 0.5003270373253953;
+        let k_rlb = (PI * fc_rlb / sample_rate).tan();
+
+        let denominator_rlb = 1.0 + k_rlb / q_rlb + k_rlb * k_rlb;
+        let rlb_b0 = 1.0 / denominator_rlb;
+        let rlb_b1 = -2.0 * rlb_b0;
+        let rlb_b2 = rlb_b0;
+        let rlb_a1 = 2.0 * (k_rlb * k_rlb - 1.0) / denominator_rlb;
+        let rlb_a2 = (1.0 - k_rlb / q_rlb + k_rlb * k_rlb) / denominator_rlb;
+
+        Self {
+            pre_b0,
+            pre_b1,
+            pre_b2,
+            pre_a1,
+            pre_a2,
+            rlb_b0,
+            rlb_b1,
+            rlb_b2,
+            rlb_a1,
+            rlb_a2,
+            pre_x1: 0.0,
+            pre_x2: 0.0,
+            pre_y1: 0.0,
+            pre_y2: 0.0,
+            rlb_x1: 0.0,
+            rlb_x2: 0.0,
+            rlb_y1: 0.0,
+            rlb_y2: 0.0,
+        }
+    }
+
+    /// Process a single sample through K-weighting filters
+    fn process(&mut self, sample: f32) -> f32 {
+        // Stage 1: Pre-filter (high-shelf)
+        let pre_output =
+            self.pre_b0 * sample + self.pre_b1 * self.pre_x1 + self.pre_b2 * self.pre_x2
+                - self.pre_a1 * self.pre_y1
+                - self.pre_a2 * self.pre_y2;
+
+        // Update pre-filter state
+        self.pre_x2 = self.pre_x1;
+        self.pre_x1 = sample;
+        self.pre_y2 = self.pre_y1;
+        self.pre_y1 = pre_output;
+
+        // Stage 2: RLB filter (high-pass)
+        let rlb_output =
+            self.rlb_b0 * pre_output + self.rlb_b1 * self.rlb_x1 + self.rlb_b2 * self.rlb_x2
+                - self.rlb_a1 * self.rlb_y1
+                - self.rlb_a2 * self.rlb_y2;
+
+        // Update RLB filter state
+        self.rlb_x2 = self.rlb_x1;
+        self.rlb_x1 = pre_output;
+        self.rlb_y2 = self.rlb_y1;
+        self.rlb_y1 = rlb_output;
+
+        rlb_output
+    }
+
+    /// Reset filter state (e.g., between tracks)
+    fn reset(&mut self) {
+        self.pre_x1 = 0.0;
+        self.pre_x2 = 0.0;
+        self.pre_y1 = 0.0;
+        self.pre_y2 = 0.0;
+        self.rlb_x1 = 0.0;
+        self.rlb_x2 = 0.0;
+        self.rlb_y1 = 0.0;
+        self.rlb_y2 = 0.0;
+    }
+}
+
+/// LUFS/LKFS loudness meter implementing ITU-R BS.1770-4 standard
 struct LoudnessMeter {
     sample_rate: u32,
     block_size: usize,
     blocks: VecDeque<f32>,
+    k_weighting_filter: KWeightingFilter,
+    gate_threshold_absolute: f32, // -70 LKFS
+    gate_threshold_relative: f32, // -10 LU relative to ungated loudness
 }
 
 impl LoudnessMeter {
     fn new() -> Result<Self> {
+        let sample_rate = 48000;
         Ok(Self {
-            sample_rate: 48000,
+            sample_rate,
             block_size: 400, // 400ms blocks for integrated loudness
             blocks: VecDeque::with_capacity(75), // 30 seconds of blocks
+            k_weighting_filter: KWeightingFilter::new(sample_rate as f32),
+            gate_threshold_absolute: -70.0,
+            gate_threshold_relative: -10.0,
         })
     }
 
+    /// Measure integrated loudness using ITU-R BS.1770-4 algorithm
     fn measure_integrated(&mut self, buffer: &[f32]) -> Result<f32> {
-        // Simplified LUFS calculation
-        // In production, use proper ITU-R BS.1770 algorithm
+        // Reset filter state for new measurement
+        self.k_weighting_filter.reset();
 
-        let mut sum = 0.0;
+        // Apply K-weighting filter to all samples and calculate mean square
+        let mut sum_squares = 0.0;
         for &sample in buffer {
-            sum += sample * sample;
+            let weighted_sample = self.k_weighting_filter.process(sample);
+            sum_squares += weighted_sample * weighted_sample;
         }
 
-        let mean_square = sum / buffer.len() as f32;
-        let lufs = if mean_square > 0.0 {
+        let mean_square = sum_squares / buffer.len() as f32;
+
+        // Convert to LUFS using ITU-R BS.1770-4 formula
+        // LUFS = -0.691 + 10 * log10(mean_square)
+        let block_loudness = if mean_square > 1e-10 {
             -0.691 + 10.0 * mean_square.log10()
         } else {
-            -70.0
+            -70.0 // Silence floor
         };
 
-        self.blocks.push_back(lufs);
+        // Store block loudness for gated integration
+        self.blocks.push_back(block_loudness);
         if self.blocks.len() > 75 {
             self.blocks.pop_front();
         }
 
-        // Return integrated loudness
-        let integrated = self.blocks.iter().sum::<f32>() / self.blocks.len() as f32;
+        // Apply gating as per ITU-R BS.1770-4
+        // Stage 1: Absolute gate at -70 LKFS
+        let gated_blocks: Vec<f32> = self
+            .blocks
+            .iter()
+            .copied()
+            .filter(|&loudness| loudness > self.gate_threshold_absolute)
+            .collect();
+
+        if gated_blocks.is_empty() {
+            return Ok(-70.0); // All blocks below absolute gate
+        }
+
+        // Stage 2: Relative gate at -10 LU below ungated mean
+        let ungated_mean = gated_blocks.iter().sum::<f32>() / gated_blocks.len() as f32;
+        let relative_gate = ungated_mean + self.gate_threshold_relative;
+
+        let relative_gated_blocks: Vec<f32> = gated_blocks
+            .into_iter()
+            .filter(|&loudness| loudness > relative_gate)
+            .collect();
+
+        if relative_gated_blocks.is_empty() {
+            return Ok(ungated_mean); // Fall back to ungated mean
+        }
+
+        // Final integrated loudness
+        let integrated =
+            relative_gated_blocks.iter().sum::<f32>() / relative_gated_blocks.len() as f32;
         Ok(integrated)
+    }
+
+    /// Set sample rate (requires filter recalculation)
+    pub fn set_sample_rate(&mut self, sample_rate: u32) {
+        self.sample_rate = sample_rate;
+        self.k_weighting_filter = KWeightingFilter::new(sample_rate as f32);
     }
 }
 

@@ -17,6 +17,7 @@ use super::backend::{
     AudioBackend, AudioBackendError, AudioConfig, AudioStream, Result, StreamStatus,
 };
 use super::device::CpalBackend;
+use anyhow::anyhow;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
@@ -485,7 +486,11 @@ impl AudioBackend for HybridAudioBackend {
 
                 // Create cpal stream that reads from ring buffer
                 if let Some(backend) = &mut self.cpal_backend {
-                    let ring_buffer = self.ring_buffer.as_ref().unwrap().clone();
+                    let ring_buffer = self.ring_buffer.as_ref().cloned().ok_or_else(|| {
+                        AudioBackendError::Other(anyhow!(
+                            "Ring buffer not initialized for hybrid output stream"
+                        ))
+                    })?;
 
                     // Create stream with callback that reads from ring buffer
                     let stream = backend.create_output_stream_with_callback(

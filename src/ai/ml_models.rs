@@ -3,9 +3,10 @@
 //! Manages loading, caching, and inference for machine learning models
 //! used throughout the AI-enhanced audio processing pipeline.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use ndarray::{Array1, Array2, ArrayD};
 use parking_lot::RwLock;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -172,8 +173,8 @@ impl Model for GenreClassifierModel {
                 let (best_idx, &best_prob) = probs
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .unwrap();
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+                    .ok_or_else(|| anyhow!("No probabilities produced by genre classifier"))?;
 
                 Ok(ModelOutput::Classification {
                     label: self.labels[best_idx].clone(),
@@ -424,7 +425,7 @@ impl ModelCache {
     fn new(max_size: usize) -> Self {
         Self {
             cache: RwLock::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(1000).unwrap(),
+                std::num::NonZeroUsize::new(max_size.max(1)).unwrap_or(std::num::NonZeroUsize::MIN),
             )),
             max_size,
         }

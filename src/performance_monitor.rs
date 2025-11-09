@@ -1,6 +1,7 @@
 // Real-time performance monitoring and telemetry system
 
 use parking_lot::RwLock;
+use std::cmp::Ordering;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -83,7 +84,7 @@ impl MetricsHistory {
         }
 
         let mut latencies: Vec<_> = self.history.iter().map(|m| m.callback_latency_us).collect();
-        latencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        latencies.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
 
         let idx = ((latencies.len() - 1) as f32 * (percentile / 100.0)) as usize;
 
@@ -178,42 +179,51 @@ impl PerformanceMonitor {
     pub fn update_system_metrics(&self) {
         let mut metrics = self.metrics.write();
 
-        // Platform-specific memory monitoring (disabled on WASM and cross-compilation)
-        // Requires sys-info crate which is platform-dependent
-        #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+        // Platform-specific memory monitoring (disabled - sys-info crate requires Windows SDK)
+        // TODO: Re-enable when sys-info compilation issues are resolved
+        // See Cargo.toml for details
+        #[cfg(all(
+            feature = "system-metrics",
+            target_os = "windows",
+            not(target_arch = "wasm32")
+        ))]
         {
             // Get memory usage statistics
-            if let Ok(mem_info) = sys_info::mem_info() {
-                let used_kb = mem_info.total - mem_info.free;
-                metrics.memory_usage_mb = (used_kb as f32) / 1024.0;
-
-                // Alert on high memory pressure (>80% usage)
-                let usage_percent = (used_kb as f32 / mem_info.total as f32) * 100.0;
-                if usage_percent > 80.0 {
-                    self.add_alert(PerformanceAlert::MemoryPressure {
-                        usage_mb: metrics.memory_usage_mb,
-                        threshold_mb: (mem_info.total as f32 * 0.8) / 1024.0,
-                    });
-                }
-            }
+            // if let Ok(mem_info) = sys_info::mem_info() {
+            //     let used_kb = mem_info.total - mem_info.free;
+            //     metrics.memory_usage_mb = (used_kb as f32) / 1024.0;
+            //
+            //     // Alert on high memory pressure (>80% usage)
+            //     let usage_percent = (used_kb as f32 / mem_info.total as f32) * 100.0;
+            //     if usage_percent > 80.0 {
+            //         self.add_alert(PerformanceAlert::MemoryPressure {
+            //             usage_mb: metrics.memory_usage_mb,
+            //             threshold_mb: (mem_info.total as f32 * 0.8) / 1024.0,
+            //         });
+            //     }
+            // }
         }
 
-        // Platform-specific CPU monitoring (disabled on WASM and cross-compilation)
-        // Uses system load average to estimate CPU utilization
-        #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+        // Platform-specific CPU monitoring (disabled - sys-info crate requires Windows SDK)
+        // TODO: Re-enable when sys-info compilation issues are resolved
+        #[cfg(all(
+            feature = "system-metrics",
+            target_os = "windows",
+            not(target_arch = "wasm32")
+        ))]
         {
-            if let Ok(loadavg) = sys_info::loadavg() {
-                // Normalize load average by CPU count to get percentage
-                metrics.cpu_usage = (loadavg.one as f32) * 100.0 / num_cpus::get() as f32;
-
-                // Alert on sustained high CPU usage (>80%)
-                if metrics.cpu_usage > 80.0 {
-                    self.add_alert(PerformanceAlert::HighCpuUsage {
-                        usage: metrics.cpu_usage,
-                        threshold: 80.0,
-                    });
-                }
-            }
+            // if let Ok(loadavg) = sys_info::loadavg() {
+            //     // Normalize load average by CPU count to get percentage
+            //     metrics.cpu_usage = (loadavg.one as f32) * 100.0 / num_cpus::get() as f32;
+            //
+            //     // Alert on sustained high CPU usage (>80%)
+            //     if metrics.cpu_usage > 80.0 {
+            //         self.add_alert(PerformanceAlert::HighCpuUsage {
+            //             usage: metrics.cpu_usage,
+            //             threshold: 80.0,
+            //         });
+            //     }
+            // }
         }
 
         // Store current metrics snapshot in performance history
@@ -432,8 +442,11 @@ mod tests {
         assert_eq!(history.history.len(), 10);
 
         // Check average calculation
-        let avg = history.get_average(Duration::from_secs(1)).unwrap();
-        assert!(avg.callback_latency_us > 0.0);
+        let avg = history.get_average(Duration::from_secs(1));
+        assert!(avg.is_some());
+        if let Some(avg_metrics) = avg {
+            assert!(avg_metrics.callback_latency_us > 0.0);
+        }
     }
 
     #[test]
@@ -467,10 +480,16 @@ mod tests {
             history.push(metrics);
         }
 
-        let p50 = history.get_percentile(50.0).unwrap();
-        assert!((p50.callback_latency_us - 500.0).abs() < 50.0); // ~500μs
+        let p50 = history.get_percentile(50.0);
+        assert!(p50.is_some());
+        if let Some(p50_metrics) = p50 {
+            assert!((p50_metrics.callback_latency_us - 500.0).abs() < 50.0); // ~500μs
+        }
 
-        let p99 = history.get_percentile(99.0).unwrap();
-        assert!((p99.callback_latency_us - 990.0).abs() < 50.0); // ~990μs
+        let p99 = history.get_percentile(99.0);
+        assert!(p99.is_some());
+        if let Some(p99_metrics) = p99 {
+            assert!((p99_metrics.callback_latency_us - 990.0).abs() < 50.0); // ~990μs
+        }
     }
 }

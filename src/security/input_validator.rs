@@ -166,18 +166,38 @@ impl InputValidator {
 
     /// Sanitize string input (remove dangerous characters)
     pub fn sanitize_string(input: &str, max_length: usize) -> String {
-        input
+        // First pass: filter allowed characters
+        let filtered: String = input
             .chars()
             .filter(|c| {
                 c.is_alphanumeric()
                     || c.is_whitespace()
-                    || *c == '-'
                     || *c == '_'
                     || *c == '.'
                     || *c == ','
                     || *c == '!'
                     || *c == '?'
             })
+            .collect();
+
+        // Second pass: collapse sequences of 3+ dots to 2 dots (security: prevent ../../.. patterns)
+        let mut deduplicated = String::new();
+        let mut dot_count = 0;
+        for c in filtered.chars() {
+            if c == '.' {
+                dot_count += 1;
+                if dot_count <= 2 {
+                    deduplicated.push(c);
+                }
+                // Skip 3rd and beyond consecutive dots
+            } else {
+                dot_count = 0;
+                deduplicated.push(c);
+            }
+        }
+
+        deduplicated
+            .chars()
             .take(max_length)
             .collect::<String>()
             .trim()
@@ -314,6 +334,7 @@ pub enum ValidationError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
 
     #[test]
     fn test_volume_validation() {
@@ -381,23 +402,20 @@ mod tests {
     }
 
     #[test]
-    fn test_metadata_validation() {
+    fn test_metadata_validation() -> Result<()> {
         // Valid metadata
-        let result = InputValidator::validate_metadata("artist", "John Doe");
-        assert!(result.is_ok());
-        let (key, value) = result.unwrap();
+        let (key, value) = InputValidator::validate_metadata("artist", "John Doe")?;
         assert_eq!(key, "artist");
         assert_eq!(value, "John Doe");
 
         // Metadata with special characters
-        let result = InputValidator::validate_metadata("title", "Song & Dance!");
-        assert!(result.is_ok());
-        let (_, value) = result.unwrap();
+        let (_, value) = InputValidator::validate_metadata("title", "Song & Dance!")?;
         assert_eq!(value, "Song  Dance!");
 
         // Empty key after sanitization
         let result = InputValidator::validate_metadata("<<<>>>", "value");
         assert!(result.is_err());
+        Ok(())
     }
 
     #[test]

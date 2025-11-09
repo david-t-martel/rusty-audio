@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use rustfft::{num_complex::Complex, FftPlanner};
+use std::cmp::Ordering;
 use std::f32::consts::PI;
 
 /// Audio analyzer for intelligent analysis
@@ -230,7 +231,11 @@ impl AudioAnalyzer {
         }
 
         // Sort by magnitude and keep top peaks
-        peaks.sort_by(|&a, &b| spectrum[b].partial_cmp(&spectrum[a]).unwrap());
+        peaks.sort_by(|&a, &b| {
+            spectrum[b]
+                .partial_cmp(&spectrum[a])
+                .unwrap_or(Ordering::Equal)
+        });
         peaks.truncate(10);
         peaks.sort();
 
@@ -312,7 +317,7 @@ impl AudioAnalyzer {
     /// Calculate median
     fn calculate_median(&self, buffer: &[f32]) -> f32 {
         let mut sorted = buffer.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
 
         let mid = sorted.len() / 2;
         if sorted.len() % 2 == 0 {
@@ -394,9 +399,60 @@ impl AudioAnalyzer {
 
     /// Calculate rhythm regularity
     fn calculate_rhythm_regularity(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
-        // Simplified rhythm regularity - measures consistency of onset intervals
+        // Measures consistency of onset intervals
         // Returns value between 0 (irregular) and 1 (perfectly regular)
-        Ok(0.7) // Placeholder - implement proper onset interval analysis
+
+        let hop_size = 512;
+        let mut onset_times = Vec::new();
+
+        // Detect onsets and record their times
+        for i in (hop_size..buffer.len()).step_by(hop_size) {
+            let prev_energy = self.calculate_energy(&buffer[i - hop_size..i]);
+            let curr_energy =
+                self.calculate_energy(&buffer[i..i.min(i + hop_size).min(buffer.len())]);
+
+            if curr_energy > prev_energy * 1.5 {
+                onset_times.push(i as f32 / sample_rate as f32);
+            }
+        }
+
+        // Need at least 3 onsets to measure regularity
+        if onset_times.len() < 3 {
+            return Ok(0.0);
+        }
+
+        // Calculate inter-onset intervals (IOIs)
+        let mut intervals = Vec::with_capacity(onset_times.len() - 1);
+        for i in 1..onset_times.len() {
+            intervals.push(onset_times[i] - onset_times[i - 1]);
+        }
+
+        // Calculate coefficient of variation (CV) of intervals
+        // Lower CV = more regular rhythm
+        let mean_interval = intervals.iter().sum::<f32>() / intervals.len() as f32;
+
+        if mean_interval == 0.0 {
+            return Ok(0.0);
+        }
+
+        let variance = intervals
+            .iter()
+            .map(|&interval| {
+                let diff = interval - mean_interval;
+                diff * diff
+            })
+            .sum::<f32>()
+            / intervals.len() as f32;
+
+        let std_dev = variance.sqrt();
+        let cv = std_dev / mean_interval;
+
+        // Convert CV to regularity score (0-1 scale)
+        // CV of 0 = perfectly regular (score 1.0)
+        // CV of 1+ = very irregular (score approaches 0)
+        let regularity = (1.0 / (1.0 + cv * 2.0)).max(0.0).min(1.0);
+
+        Ok(regularity)
     }
 
     /// Calculate overall quality score

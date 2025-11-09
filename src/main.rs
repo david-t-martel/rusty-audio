@@ -1,5 +1,5 @@
 use eframe::{egui, NativeOptions};
-use egui::{load::SizedTexture, Color32, RichText, Vec2};
+use egui::{load::SizedTexture, Color32, Layout, RichText, Vec2};
 use image::GenericImageView;
 use lofty::{file::TaggedFileExt, tag::Accessor};
 
@@ -11,6 +11,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 // Audio context - platform specific
+#[cfg(not(target_arch = "wasm32"))]
+use web_audio_api::buffer::AudioBuffer;
 #[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::context::{AudioContext, BaseAudioContext};
 #[cfg(not(target_arch = "wasm32"))]
@@ -40,19 +42,17 @@ use testing::signal_generators::*;
 use ui::{
     accessibility::{AccessibilityAction, AccessibilityManager},
     components::{AlbumArtDisplay, MetadataDisplay, MetadataLayout, ProgressBar, ProgressBarStyle},
-    controls::{
-        ButtonStyle, CircularKnob, EnhancedButton, EnhancedSlider, SliderOrientation, SliderStyle,
-    },
+    controls::{ButtonStyle, CircularKnob, EnhancedButton},
     dock_layout::{DockLayoutManager, PanelContent, PanelId},
     enhanced_button::{AccessibleButton, ProgressIndicator, VolumeSafetyIndicator},
     enhanced_controls::{AccessibleKnob, AccessibleSlider},
     error_handling::{ErrorManager, RecoveryActionType},
     layout::{DockSide, LayoutManager, PanelConfig, PanelType},
     recording_panel::RecordingPanel,
-    signal_generator::{GeneratorState, SignalGeneratorPanel},
+    signal_generator::{GeneratorRoutingMode, GeneratorState, SignalGeneratorPanel},
     spectrum::{SpectrumMode, SpectrumVisualizer, SpectrumVisualizerConfig},
     theme::{Theme, ThemeColors, ThemeManager},
-    utils::{AnimationState, ResponsiveSize, ScreenSize},
+    utils::{ColorUtils, ScreenSize},
 };
 
 // ============================================================================
@@ -84,15 +84,18 @@ struct TrackMetadata {
     year: String,
 }
 
+const WAVEFORM_PREVIEW_SAMPLES: usize = 1024;
+
 // ============================================================================
 // Native Application (Desktop)
 // ============================================================================
 
 #[cfg(not(target_arch = "wasm32"))]
 struct AudioPlayerApp {
-    audio_context: AudioContext,
-    source_node: Option<web_audio_api::node::AudioBufferSourceNode>,
-    gain_node: web_audio_api::node::GainNode,
+    // Audio Engine Abstraction (replaces 12 audio fields)
+    audio_engine: Box<dyn rusty_audio::audio_engine::AudioEngineInterface>,
+
+    // Playback state (kept in UI for responsiveness)
     playback_state: PlaybackState,
     current_file: Option<Arc<FileHandle>>,
     metadata: Option<TrackMetadata>,
@@ -116,9 +119,10 @@ struct AudioPlayerApp {
     album_art_display: AlbumArtDisplay,
     progress_bar: ProgressBar,
     metadata_display: MetadataDisplay,
+    waveform_preview: Vec<f32>,
+    waveform_dirty: bool,
 
     // Enhanced controls (legacy - to be replaced)
-    volume_slider: EnhancedSlider,
     eq_knobs: Vec<CircularKnob>,
 
     // Accessibility and enhanced controls
@@ -129,12 +133,6 @@ struct AudioPlayerApp {
     volume_safety_indicator: VolumeSafetyIndicator,
     error_manager: ErrorManager,
 
-    // Audio processing
-    spectrum: Vec<f32>,
-    eq_bands: Vec<BiquadFilterNode>,
-    analyser: AnalyserNode,
-    spectrum_processor: audio_performance::OptimizedSpectrumProcessor,
-
     // Responsive and animation state
     last_frame_time: Instant,
     screen_size: ScreenSize,
@@ -144,7 +142,7 @@ struct AudioPlayerApp {
     dock_layout_manager: DockLayoutManager,
     enable_dock_layout: bool,
 
-    // Phase 3.1: Hybrid audio backend
+    // Phase 3.1: Hybrid audio backend (TODO: Move into AudioEngine)
     audio_backend: Option<HybridAudioBackend>,
     device_manager: Option<AudioDeviceManager>,
     web_audio_bridge: Option<WebAudioBridge>,
@@ -164,23 +162,15 @@ struct AudioPlayerApp {
 #[cfg(not(target_arch = "wasm32"))]
 impl Default for AudioPlayerApp {
     fn default() -> Self {
-        let audio_context = AudioContext::default();
-        let analyser = audio_context.create_analyser();
-        let gain_node = audio_context.create_gain();
-        gain_node.gain().set_value(0.5);
+        // Initialize audio engine (replaces ~50 lines of manual setup)
+        let audio_engine = Box::new(rusty_audio::audio_engine::WebAudioEngine::default())
+            as Box<dyn rusty_audio::audio_engine::AudioEngineInterface>;
 
-        let mut eq_bands = Vec::new();
+        // Create UI controls for EQ (8 bands)
         let mut eq_knobs = Vec::new();
         let mut accessible_eq_knobs = Vec::new();
 
         for i in 0..8 {
-            let mut band = audio_context.create_biquad_filter();
-            band.set_type(BiquadFilterType::Peaking);
-            band.frequency().set_value(60.0 * 2.0_f32.powi(i));
-            band.q().set_value(1.0);
-            band.gain().set_value(0.0);
-            eq_bands.push(band);
-
             // Create corresponding knob controls (legacy and accessible)
             eq_knobs.push(CircularKnob::new(0.0, -40.0..=40.0).radius(20.0));
 
@@ -211,9 +201,10 @@ impl Default for AudioPlayerApp {
         }
 
         Self {
-            audio_context,
-            source_node: None,
-            gain_node,
+            // Audio Engine (replaces 12 audio fields)
+            audio_engine,
+
+            // Playback state
             playback_state: PlaybackState::Stopped,
             current_file: None,
             metadata: None,
@@ -237,11 +228,9 @@ impl Default for AudioPlayerApp {
             album_art_display: AlbumArtDisplay::new(Vec2::new(200.0, 200.0)),
             progress_bar: ProgressBar::new(),
             metadata_display: MetadataDisplay::new(),
+            waveform_preview: Vec::new(),
+            waveform_dirty: false,
 
-            // Enhanced controls (legacy - to be replaced)
-            volume_slider: EnhancedSlider::new(0.5, 0.0..=1.0)
-                .orientation(SliderOrientation::Horizontal)
-                .style(SliderStyle::default()),
             eq_knobs,
 
             // Accessibility and enhanced controls
@@ -260,12 +249,6 @@ impl Default for AudioPlayerApp {
             volume_safety_indicator: VolumeSafetyIndicator::new(),
             error_manager: ErrorManager::new(),
 
-            // Audio processing
-            spectrum: vec![0.0; 1024],
-            eq_bands,
-            analyser,
-            spectrum_processor: audio_performance::OptimizedSpectrumProcessor::new(2048),
-
             // Responsive and animation state
             last_frame_time: Instant::now(),
             screen_size: ScreenSize::Desktop,
@@ -275,7 +258,7 @@ impl Default for AudioPlayerApp {
             dock_layout_manager: DockLayoutManager::new(),
             enable_dock_layout: false, // Start with traditional layout, can be toggled
 
-            // Phase 3.1: Hybrid audio backend (initialize gracefully)
+            // Phase 3.1: Hybrid audio backend (TODO: integrate into AudioEngine)
             audio_backend: {
                 let mut backend = HybridAudioBackend::new();
                 match backend.initialize() {
@@ -303,14 +286,7 @@ impl Default for AudioPlayerApp {
 
             // Phase 1.4: Async file loading
             async_loader: AsyncAudioLoader::new(AsyncLoadConfig::default()),
-            tokio_runtime: Arc::new(
-                tokio::runtime::Builder::new_multi_thread()
-                    .worker_threads(4)
-                    .thread_name("rusty-audio-async")
-                    .enable_all()
-                    .build()
-                    .expect("Failed to create tokio runtime"),
-            ),
+            tokio_runtime: Self::build_async_runtime(),
             load_progress: None,
         }
     }
@@ -361,7 +337,7 @@ impl eframe::App for AudioPlayerApp {
             AccessibilityAction::EmergencyVolumeReduction => {
                 let emergency_volume = self.accessibility_manager.get_volume_safety_status();
                 self.volume = 0.2; // Emergency volume level
-                self.gain_node.gain().set_value(self.volume);
+                self.audio_engine.set_volume(self.volume);
                 self.accessible_volume_slider.set_value(self.volume);
                 self.accessibility_manager.announce(
                     "Emergency volume reduction activated".to_string(),
@@ -404,6 +380,7 @@ impl eframe::App for AudioPlayerApp {
 
         // Update UI components
         self.update_ui_components(&colors);
+        self.handle_signal_generator_routing();
 
         // Update signal generator
         self.signal_generator_panel.update(dt);
@@ -472,12 +449,45 @@ impl eframe::App for AudioPlayerApp {
 }
 
 impl AudioPlayerApp {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn build_async_runtime() -> Arc<tokio::runtime::Runtime> {
+        match tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(4)
+            .thread_name("rusty-audio-async")
+            .enable_all()
+            .build()
+        {
+            Ok(runtime) => Arc::new(runtime),
+            Err(err) => {
+                eprintln!("Failed to create multithreaded runtime: {}", err);
+                match tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                {
+                    Ok(runtime) => Arc::new(runtime),
+                    Err(fallback_err) => {
+                        eprintln!(
+                            "Failed to create fallback runtime: {}. Exiting.",
+                            fallback_err
+                        );
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+    }
+
     fn update_ui_components(&mut self, colors: &ThemeColors) {
         // Update progress bar
         self.progress_bar.set_progress(
             self.playback_pos.as_secs_f32(),
             self.total_duration.as_secs_f32(),
         );
+        if self.waveform_dirty {
+            self.progress_bar
+                .set_waveform(self.waveform_preview.clone());
+            self.waveform_dirty = false;
+        }
 
         // Update metadata display
         if let Some(metadata) = &self.metadata {
@@ -493,11 +503,46 @@ impl AudioPlayerApp {
         self.album_art_display
             .set_texture(self.album_art.as_ref().map(|arc| (**arc).clone()));
 
-        // Update spectrum visualizer
-        self.spectrum_visualizer.update(&self.spectrum);
+        // Update spectrum visualizer with data from audio engine
+        let spectrum_data = self.audio_engine.get_spectrum();
+        self.spectrum_visualizer.update(spectrum_data);
+    }
 
-        // Update volume slider
-        self.volume_slider.set_value(self.volume);
+    fn handle_signal_generator_routing(&mut self) {
+        if let Some(intent) = self.signal_generator_panel.take_route_intent() {
+            let Some(output) = self.signal_generator_panel.output_snapshot() else {
+                self.error = Some("Generate a signal before routing it.".to_string());
+                return;
+            };
+
+            match intent.mode {
+                GeneratorRoutingMode::Recorder => {
+                    self.recording_panel.log_generated_take(
+                        intent.label.clone(),
+                        output.samples,
+                        output.sample_rate,
+                        output.channels,
+                    );
+                    self.audio_status_message = Some((
+                        format!("Saved {} as a virtual take", intent.label),
+                        Instant::now(),
+                    ));
+                }
+                _ => {
+                    if let Err(error) = self.audio_engine.audition_buffer(
+                        output.samples,
+                        output.sample_rate,
+                        output.channels,
+                    ) {
+                        self.error =
+                            Some(format!("Failed to route generator through deck: {}", error));
+                    } else {
+                        self.audio_status_message =
+                            Some((format!("Routing {}", intent.label), Instant::now()));
+                    }
+                }
+            }
+        }
     }
 
     fn draw_desktop_layout(&mut self, ctx: &egui::Context, colors: &ThemeColors) {
@@ -547,6 +592,8 @@ impl AudioPlayerApp {
                     });
                 });
             });
+
+        self.draw_transport_panel(ctx, colors);
 
         // Tab panel - horizontal layout for landscape optimization
         egui::TopBottomPanel::top("tabs")
@@ -658,6 +705,7 @@ impl AudioPlayerApp {
     }
 
     fn draw_mobile_layout(&mut self, ctx: &egui::Context, colors: &ThemeColors) {
+        self.draw_transport_panel(ctx, colors);
         // Mobile layout with bottom tab bar
         egui::TopBottomPanel::bottom("mobile_tabs").show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
@@ -720,93 +768,29 @@ impl AudioPlayerApp {
                             }
                         });
 
-                        ui.add_space(20.0);
-
-                        // Control buttons with enhanced styling - larger for landscape
-                        ui.horizontal_centered(|ui| {
-                            let button_size = egui::Vec2::new(80.0, 40.0);
-
-                            let mut open_button =
-                                EnhancedButton::new("📁 Open").style(ButtonStyle {
-                                    glow: true,
-                                    ..Default::default()
-                                });
-                            if ui
-                                .add_sized(button_size, egui::Button::new("📁 Open"))
-                                .clicked()
-                            {
-                                self.open_file_dialog();
-                            }
-
-                            ui.add_space(10.0);
-
-                            let play_pause_text = if self.playback_state == PlaybackState::Playing {
-                                "⏸️ Pause"
-                            } else {
-                                "▶️ Play"
-                            };
-                            if ui
-                                .add_sized(button_size, egui::Button::new(play_pause_text))
-                                .clicked()
-                            {
-                                self.play_pause_main();
-                            }
-
-                            ui.add_space(10.0);
-
-                            if ui
-                                .add_sized(button_size, egui::Button::new("⏹️ Stop"))
-                                .clicked()
-                            {
-                                self.stop_playback_main();
-                            }
-
-                            ui.add_space(10.0);
-
-                            let loop_text = if self.is_looping {
-                                "🔁 Loop: On"
-                            } else {
-                                "🔁 Loop: Off"
-                            };
-                            if ui
-                                .add_sized(button_size, egui::Button::new(loop_text))
-                                .clicked()
-                            {
-                                self.is_looping = !self.is_looping;
-                            }
-                        });
-
-                        ui.add_space(20.0);
-
-                        // Volume control with accessible slider - horizontal for landscape
-                        ui.horizontal_centered(|ui| {
-                            ui.label(egui::RichText::new("🔊 Volume:").size(14.0));
-                            ui.add_space(10.0);
-
-                            // Wider volume slider for landscape layout
-                            ui.allocate_ui(egui::Vec2::new(300.0, 30.0), |ui| {
-                                let volume_response = self.accessible_volume_slider.show(
-                                    ui,
-                                    colors,
-                                    &mut self.accessibility_manager,
+                        ui.add_space(16.0);
+                        ui.group(|ui| {
+                            ui.label(RichText::new("Session Overview").strong());
+                            if let Some(metadata) = &self.metadata {
+                                ui.label(
+                                    RichText::new(format!(
+                                        "{} • {}",
+                                        metadata.album, metadata.year
+                                    ))
+                                    .color(colors.text_secondary),
                                 );
-                                if volume_response.changed() {
-                                    self.volume = self.accessible_volume_slider.value();
-                                    self.gain_node.gain().set_value(self.volume);
-
-                                    // Check volume safety
-                                    if !self.accessibility_manager.is_volume_safe(self.volume) {
-                                        self.accessibility_manager.announce(
-                                            "Warning: Volume level may be harmful to hearing"
-                                                .to_string(),
-                                            ui::accessibility::AnnouncementPriority::High,
-                                        );
-                                    }
-                                }
-                            });
-
-                            ui.add_space(10.0);
-                            ui.label(format!("{:.0}%", self.volume * 100.0));
+                            } else {
+                                ui.label(
+                                    RichText::new("Load a track to populate the overview.")
+                                        .color(colors.text_secondary),
+                                );
+                            }
+                            ui.label(
+                                RichText::new(
+                                    "Transport and volume controls live in the global dock above.",
+                                )
+                                .color(colors.text_secondary),
+                            );
                         });
                     });
                 },
@@ -844,45 +828,10 @@ impl AudioPlayerApp {
 
             ui.add_space(10.0);
 
-            // Compact controls
-            ui.horizontal_centered(|ui| {
-                if ui.button("📁").clicked() {
-                    self.open_file_dialog();
-                }
-                ui.add_space(15.0);
-
-                let play_pause_icon = if self.playback_state == PlaybackState::Playing {
-                    "⏸️"
-                } else {
-                    "▶️"
-                };
-                if ui.button(play_pause_icon).clicked() {
-                    self.play_pause_main();
-                }
-                ui.add_space(15.0);
-
-                if ui.button("⏹️").clicked() {
-                    self.stop_playback_main();
-                }
-                ui.add_space(15.0);
-
-                let loop_icon = if self.is_looping { "🔁" } else { "🔁" };
-                if ui.button(loop_icon).clicked() {
-                    self.toggle_loop_main();
-                }
-            });
-
-            ui.add_space(10.0);
-
-            // Compact volume
-            ui.horizontal_centered(|ui| {
-                ui.label("🔊");
-                let volume_response = self.volume_slider.show(ui, colors);
-                if volume_response.changed() {
-                    self.volume = self.volume_slider.value();
-                    self.gain_node.gain().set_value(self.volume);
-                }
-            });
+            ui.label(
+                RichText::new("Transport, volume, and recording live in the global dock above.")
+                    .color(colors.text_secondary),
+            );
         });
     }
 
@@ -947,12 +896,10 @@ impl AudioPlayerApp {
                         .show(ui, colors)
                         .clicked()
                     {
-                        for (band, knob) in self
-                            .eq_bands
-                            .iter_mut()
-                            .zip(self.accessible_eq_knobs.iter_mut())
-                        {
-                            band.gain().set_value(0.0);
+                        for (i, knob) in self.accessible_eq_knobs.iter_mut().enumerate() {
+                            if let Err(e) = self.audio_engine.set_eq_band(i, 0.0) {
+                                self.error = Some(format!("EQ reset failed: {}", e));
+                            }
                             knob.set_value(0.0);
                         }
                         self.accessibility_manager.announce(
@@ -967,13 +914,8 @@ impl AudioPlayerApp {
 
             // EQ bands with accessible knobs
             ui.horizontal(|ui| {
-                let eq_bands_len = self.eq_bands.len();
-                for (i, (band, knob)) in self
-                    .eq_bands
-                    .iter_mut()
-                    .zip(self.accessible_eq_knobs.iter_mut())
-                    .enumerate()
-                {
+                let eq_knobs_len = self.accessible_eq_knobs.len();
+                for (i, knob) in self.accessible_eq_knobs.iter_mut().enumerate() {
                     ui.vertical(|ui| {
                         // Frequency label
                         let freq = 60.0 * 2.0_f32.powi(i as i32);
@@ -988,7 +930,9 @@ impl AudioPlayerApp {
                         let knob_response = knob.show(ui, colors, &mut self.accessibility_manager);
                         if knob_response.changed() {
                             let gain_value = knob.value();
-                            band.gain().set_value(gain_value);
+                            if let Err(e) = self.audio_engine.set_eq_band(i, gain_value) {
+                                self.error = Some(format!("EQ band {} update failed: {}", i, e));
+                            }
 
                             // Announce EQ changes for accessibility
                             self.accessibility_manager.announce(
@@ -1005,7 +949,7 @@ impl AudioPlayerApp {
                         );
                     });
 
-                    if i < eq_bands_len - 1 {
+                    if i < eq_knobs_len - 1 {
                         ui.add_space(5.0);
                     }
                 }
@@ -1018,7 +962,7 @@ impl AudioPlayerApp {
                 ui.label(RichText::new("Master Gain:").color(colors.text));
                 ui.add_space(10.0);
 
-                let mut master_gain = self.gain_node.gain().value();
+                let mut master_gain = self.audio_engine.get_volume();
                 if ui
                     .add(
                         egui::Slider::new(&mut master_gain, 0.0..=2.0)
@@ -1027,7 +971,7 @@ impl AudioPlayerApp {
                     )
                     .changed()
                 {
-                    self.gain_node.gain().set_value(master_gain);
+                    self.audio_engine.set_volume(master_gain);
                     self.accessibility_manager.announce(
                         format!("Master gain set to {:.1}", master_gain),
                         ui::accessibility::AnnouncementPriority::Low,
@@ -1073,12 +1017,10 @@ impl AudioPlayerApp {
                 ui.label(RichText::new("📊 EQ").size(18.0).color(colors.text));
                 ui.add_space(10.0);
                 if ui.button("Reset").clicked() {
-                    for (band, knob) in self
-                        .eq_bands
-                        .iter_mut()
-                        .zip(self.accessible_eq_knobs.iter_mut())
-                    {
-                        band.gain().set_value(0.0);
+                    for (i, knob) in self.accessible_eq_knobs.iter_mut().enumerate() {
+                        if let Err(e) = self.audio_engine.set_eq_gain(i, 0.0) {
+                            self.error = Some(format!("EQ reset failed: {}", e));
+                        }
                         knob.set_value(0.0);
                     }
                 }
@@ -1090,13 +1032,7 @@ impl AudioPlayerApp {
             ui.vertical(|ui| {
                 // First row (0-3)
                 ui.horizontal_centered(|ui| {
-                    for (i, (band, knob)) in self
-                        .eq_bands
-                        .iter_mut()
-                        .zip(self.accessible_eq_knobs.iter_mut())
-                        .enumerate()
-                        .take(4)
-                    {
+                    for (i, knob) in self.accessible_eq_knobs.iter_mut().enumerate().take(4) {
                         ui.vertical(|ui| {
                             let freq = 60.0 * 2.0_f32.powi(i as i32);
                             let freq_label = if freq < 1000.0 {
@@ -1109,7 +1045,10 @@ impl AudioPlayerApp {
                             let knob_response =
                                 knob.show(ui, colors, &mut self.accessibility_manager);
                             if knob_response.changed() {
-                                band.gain().set_value(knob.value());
+                                if let Err(e) = self.audio_engine.set_eq_gain(i, knob.value()) {
+                                    self.error =
+                                        Some(format!("EQ band {} update failed: {}", i, e));
+                                }
                             }
                         });
                     }
@@ -1119,13 +1058,7 @@ impl AudioPlayerApp {
 
                 // Second row (4-7)
                 ui.horizontal_centered(|ui| {
-                    for (i, (band, knob)) in self
-                        .eq_bands
-                        .iter_mut()
-                        .zip(self.accessible_eq_knobs.iter_mut())
-                        .enumerate()
-                        .skip(4)
-                    {
+                    for (i, knob) in self.accessible_eq_knobs.iter_mut().enumerate().skip(4) {
                         ui.vertical(|ui| {
                             let freq = 60.0 * 2.0_f32.powi(i as i32);
                             let freq_label = if freq < 1000.0 {
@@ -1138,7 +1071,10 @@ impl AudioPlayerApp {
                             let knob_response =
                                 knob.show(ui, colors, &mut self.accessibility_manager);
                             if knob_response.changed() {
-                                band.gain().set_value(knob.value());
+                                if let Err(e) = self.audio_engine.set_eq_gain(i, knob.value()) {
+                                    self.error =
+                                        Some(format!("EQ band {} update failed: {}", i, e));
+                                }
                             }
                         });
                     }
@@ -1178,8 +1114,10 @@ impl AudioPlayerApp {
             ui.horizontal(|ui| {
                 ui.label("Equalizer");
                 if ui.button("Reset").clicked() {
-                    for band in &mut self.eq_bands {
-                        band.gain().set_value(0.0);
+                    for i in 0..8 {
+                        if let Err(e) = self.audio_engine.set_eq_band(i, 0.0) {
+                            self.error = Some(format!("EQ reset failed: {}", e));
+                        }
                     }
                 }
             });
@@ -1187,15 +1125,26 @@ impl AudioPlayerApp {
             ui.add_space(10.0);
 
             ui.horizontal(|ui| {
-                for (i, band) in self.eq_bands.iter_mut().enumerate() {
+                for i in 0..8 {
                     ui.vertical(|ui| {
                         ui.label(format!("{} Hz", 60 * 2_i32.pow(i as u32)));
-                        let mut gain = band.gain().value();
+                        // Get current gain from knob state (or default)
+                        let mut gain = if i < self.accessible_eq_knobs.len() {
+                            self.accessible_eq_knobs[i].value()
+                        } else {
+                            0.0
+                        };
                         if ui
                             .add(egui::Slider::new(&mut gain, -40.0..=40.0).vertical())
                             .changed()
                         {
-                            band.gain().set_value(gain);
+                            if let Err(e) = self.audio_engine.set_eq_band(i, gain) {
+                                self.error = Some(format!("EQ band {} update failed: {}", i, e));
+                            }
+                            // Update knob state if it exists
+                            if i < self.accessible_eq_knobs.len() {
+                                self.accessible_eq_knobs[i].set_value(gain);
+                            }
                         }
                     });
                 }
@@ -1205,12 +1154,12 @@ impl AudioPlayerApp {
 
             ui.horizontal(|ui| {
                 ui.label("Master Gain:");
-                let mut master_gain = self.gain_node.gain().value();
+                let mut master_gain = self.audio_engine.get_volume();
                 if ui
                     .add(egui::Slider::new(&mut master_gain, 0.0..=2.0))
                     .changed()
                 {
-                    self.gain_node.gain().set_value(master_gain);
+                    self.audio_engine.set_volume(master_gain);
                 }
             });
         });
@@ -1263,14 +1212,13 @@ impl AudioPlayerApp {
     }
 
     fn tick(&mut self) {
-        // Use optimized spectrum processor for better performance
-        let spectrum_data = self.spectrum_processor.process_spectrum(&mut self.analyser);
-
-        // Copy the optimized spectrum data (already normalized to 0-1 range)
-        self.spectrum = spectrum_data.to_vec();
+        // Get spectrum data from audio engine
+        // The AudioEngine internally handles spectrum processing and normalization
 
         if self.playback_state == PlaybackState::Playing && !self.is_seeking {
-            self.playback_pos = Duration::from_secs_f64(self.audio_context.current_time());
+            // Use audio_context from engine to get current time
+            self.playback_pos =
+                Duration::from_secs_f64(self.audio_engine.get_context().current_time());
         }
     }
 
@@ -1287,11 +1235,11 @@ impl AudioPlayerApp {
             }
             if i.key_pressed(egui::Key::ArrowUp) {
                 self.volume = (self.volume + 0.05).min(1.0);
-                self.gain_node.gain().set_value(self.volume);
+                self.audio_engine.set_volume(self.volume);
             }
             if i.key_pressed(egui::Key::ArrowDown) {
                 self.volume = (self.volume - 0.05).max(0.0);
-                self.gain_node.gain().set_value(self.volume);
+                self.audio_engine.set_volume(self.volume);
             }
             if i.key_pressed(egui::Key::ArrowLeft) {
                 self.seek_backward();
@@ -1309,17 +1257,13 @@ impl AudioPlayerApp {
     }
 
     fn seek_backward(&mut self) {
-        if let Some(source_node) = &mut self.source_node {
-            let new_pos = self.playback_pos.saturating_sub(Duration::from_secs(5));
-            self.seek_to_position_main(new_pos.as_secs_f32());
-        }
+        let new_pos = self.playback_pos.saturating_sub(Duration::from_secs(5));
+        self.seek_to_position_main(new_pos.as_secs_f32());
     }
 
     fn seek_forward(&mut self) {
-        if let Some(source_node) = &mut self.source_node {
-            let new_pos = self.playback_pos.saturating_add(Duration::from_secs(5));
-            self.seek_to_position_main(new_pos.as_secs_f32());
-        }
+        let new_pos = self.playback_pos.saturating_add(Duration::from_secs(5));
+        self.seek_to_position_main(new_pos.as_secs_f32());
     }
 
     fn legacy_handle_keyboard_input(&mut self, ui: &mut egui::Ui) {
@@ -1338,11 +1282,11 @@ impl AudioPlayerApp {
             }
             if i.key_pressed(egui::Key::ArrowUp) {
                 self.volume = (self.volume + 0.05).min(1.0);
-                self.gain_node.gain().set_value(self.volume);
+                self.audio_engine.set_volume(self.volume);
             }
             if i.key_pressed(egui::Key::ArrowDown) {
                 self.volume = (self.volume - 0.05).max(0.0);
-                self.gain_node.gain().set_value(self.volume);
+                self.audio_engine.set_volume(self.volume);
             }
             if i.key_pressed(egui::Key::ArrowLeft) {
                 if let Some(source_node) = &mut self.source_node {
@@ -1375,7 +1319,7 @@ impl AudioPlayerApp {
             self.error = None;
             self.load_progress = Some(0.0);
 
-            // Load metadata synchronously (quick operation)
+            // Load metadata (quick operation)
             if let Ok(tagged_file) = lofty::read_from_path(path) {
                 if let Some(tag) = tagged_file.primary_tag() {
                     self.metadata = Some(TrackMetadata {
@@ -1388,89 +1332,79 @@ impl AudioPlayerApp {
                             .unwrap_or_else(|| "----".into()),
                     });
                 }
-                // Album art will be loaded separately when context is available
-                self.album_art = None;
+                self.album_art = None; // Album art loaded separately
             }
 
-            // Use async file loading to prevent UI freezing
-            // For now, keep synchronous loading as fallback
-            // TODO Phase 1.4: Fully integrate async_audio_loader with web-audio-api
+            self.load_progress = Some(0.3); // Metadata loaded
 
-            // Load and decode audio (synchronous for now - async integration requires web-audio-api changes)
-            match std::fs::File::open(path) {
-                Ok(file) => {
-                    self.load_progress = Some(0.5); // Reading file
+            // Load audio file via AudioEngine
+            match self.audio_engine.load_audio_file(path) {
+                Ok(buffer) => {
+                    self.load_progress = Some(0.8); // Audio loaded
 
-                    match self.audio_context.decode_audio_data_sync(file) {
-                        Ok(buffer) => {
-                            self.load_progress = Some(0.9); // Decoding complete
+                    // Update UI state
+                    self.total_duration = Duration::from_secs_f64(buffer.duration());
+                    self.update_waveform_from_buffer(&buffer);
 
-                            self.total_duration = Duration::from_secs_f64(buffer.duration());
+                    // Start playback via AudioEngine
+                    if let Err(e) = self.audio_engine.play() {
+                        self.error_manager
+                            .add_playback_error(Some(format!("Play File: {}", e)));
+                        self.error = Some("Failed to start playback".to_string());
+                    } else {
+                        self.playback_state = PlaybackState::Playing;
+                        self.playback_pos = Duration::ZERO;
 
-                            let mut source_node = self.audio_context.create_buffer_source();
-                            source_node.set_buffer(buffer);
-
-                            source_node.connect(&self.gain_node);
-                            let mut previous_node: &dyn AudioNode = &self.gain_node;
-                            for band in &self.eq_bands {
-                                previous_node.connect(band);
-                                previous_node = band;
-                            }
-                            previous_node.connect(&self.analyser);
-                            self.analyser.connect(&self.audio_context.destination());
-
-                            source_node.start();
-                            self.source_node = Some(source_node);
-                            self.playback_state = PlaybackState::Playing;
-                            self.playback_pos = Duration::ZERO;
-
-                            self.load_progress = None; // Loading complete
-
-                            // Announce successful load
-                            self.accessibility_manager.announce(
-                                format!("Audio file loaded: {}", filename),
-                                ui::accessibility::AnnouncementPriority::Medium,
-                            );
-                        }
-                        Err(decode_error) => {
-                            self.load_progress = None;
-                            self.error_manager.add_audio_decode_error(
-                                filename,
-                                Some("audio"), // Could be enhanced to detect actual format
-                            );
-                            self.error = Some("Failed to decode audio file".to_string());
-                        }
+                        // Announce successful load
+                        self.accessibility_manager.announce(
+                            format!("Audio file loaded: {}", filename),
+                            ui::accessibility::AnnouncementPriority::Medium,
+                        );
                     }
+
+                    self.load_progress = None; // Loading complete
                 }
-                Err(io_error) => {
+                Err(e) => {
                     self.load_progress = None;
-                    if io_error.kind() == std::io::ErrorKind::PermissionDenied {
+
+                    // Detailed error handling
+                    let error_str = e.to_string();
+                    if error_str.contains("Permission denied") {
                         self.error_manager
                             .add_permission_error("access", path.to_str().unwrap_or(filename));
+                        self.error = Some("Permission denied".to_string());
+                    } else if error_str.contains("decode") || error_str.contains("format") {
+                        self.error_manager
+                            .add_audio_decode_error(filename, Some("audio"));
+                        self.error = Some("Failed to decode audio file".to_string());
                     } else {
                         self.error_manager
-                            .add_file_load_error(filename, Some(format!("IO Error: {}", io_error)));
+                            .add_file_load_error(filename, Some(error_str.clone()));
+                        self.error = Some(format!("Failed to load file: {}", error_str));
                     }
-                    self.error = Some("Failed to open audio file".to_string());
                 }
             }
         }
     }
 
     fn reset_all_settings(&mut self) {
-        // Reset equalizer
-        for (band, knob) in self
-            .eq_bands
-            .iter_mut()
-            .zip(self.accessible_eq_knobs.iter_mut())
-        {
-            band.gain().set_value(0.0);
-            knob.set_value(0.0);
+        // Reset equalizer via AudioEngine
+        for i in 0..8 {
+            if let Err(e) = self.audio_engine.set_eq_gain(i, 0.0) {
+                self.error_manager
+                    .add_playback_error(Some(format!("Reset EQ Band {}: {}", i, e)));
+            }
+            // Sync UI state
+            self.eq_bands[i].gain().set_value(0.0);
+            self.accessible_eq_knobs[i].set_value(0.0);
         }
 
-        // Reset volume to safe level
+        // Reset volume via AudioEngine
         self.volume = 0.5;
-        self.gain_node.gain().set_value(self.volume);
+        if let Err(e) = self.audio_engine.set_volume(self.volume) {
+            self.error_manager
+                .add_playback_error(Some(format!("Reset Volume: {}", e)));
+        }
         self.accessible_volume_slider.set_value(self.volume);
 
         // Reset spectrum visualizer
@@ -1529,9 +1463,12 @@ impl AudioPlayerApp {
     fn play_pause_main(&mut self) {
         match self.playback_state {
             PlaybackState::Playing => {
-                self.playback_state = PlaybackState::Paused;
-                if let Some(source) = &mut self.source_node {
-                    source.stop();
+                // Pause playback via AudioEngine
+                if let Err(e) = self.audio_engine.pause() {
+                    self.error_manager
+                        .add_playback_error(Some(format!("Pause: {}", e)));
+                } else {
+                    self.playback_state = PlaybackState::Paused;
                 }
             }
             PlaybackState::Paused | PlaybackState::Stopped => {
@@ -1545,74 +1482,351 @@ impl AudioPlayerApp {
     }
 
     fn stop_playback_main(&mut self) {
+        // Stop playback via AudioEngine
+        if let Err(e) = self.audio_engine.stop() {
+            self.error_manager
+                .add_playback_error(Some(format!("Stop: {}", e)));
+        }
+
+        // Update UI state
         self.playback_state = PlaybackState::Stopped;
         self.playback_pos = Duration::ZERO;
-        if let Some(source) = &mut self.source_node {
-            source.stop();
-        }
-        self.source_node = None;
+        self.source_node = None; // Clear source reference
     }
 
     fn toggle_loop_main(&mut self) {
         self.is_looping = !self.is_looping;
-        if let Some(source_node) = &mut self.source_node {
-            source_node.set_loop(self.is_looping);
+
+        // Set loop state via AudioEngine
+        if let Err(e) = self.audio_engine.set_loop(self.is_looping) {
+            self.error_manager
+                .add_playback_error(Some(format!("Toggle Loop: {}", e)));
+            // Revert state on error
+            self.is_looping = !self.is_looping;
         }
     }
 
     fn seek_to_position_main(&mut self, position_seconds: f32) {
-        if let Some(source_node) = &mut self.source_node {
-            let new_pos = Duration::from_secs_f32(
-                position_seconds.clamp(0.0, self.total_duration.as_secs_f32()),
-            );
+        let new_pos =
+            Duration::from_secs_f32(position_seconds.clamp(0.0, self.total_duration.as_secs_f32()));
 
-            // For simplicity, restart playback at the new position
-            source_node.stop();
-
-            if self.current_file.is_some() {
-                self.playback_pos = new_pos;
-                self.load_current_file();
-            } else if !self.signal_generator_panel.generated_samples.is_empty() {
-                self.playback_pos = new_pos;
-                self.play_generated_signal();
-            }
+        // Seek via AudioEngine
+        if let Err(e) = self.audio_engine.seek(new_pos) {
+            self.error_manager
+                .add_playback_error(Some(format!("Seek: {}", e)));
+        } else {
+            // Update UI state
+            self.playback_pos = new_pos;
         }
     }
 
     fn play_generated_signal(&mut self) {
+        // Create audio buffer from signal generator
         if let Some(buffer) = self
             .signal_generator_panel
             .create_audio_buffer(&self.audio_context)
         {
-            // Stop any currently playing source
-            if let Some(source) = &mut self.source_node {
-                source.stop();
+            // Update waveform preview
+            if !self.signal_generator_panel.generated_samples.is_empty() {
+                self.update_waveform_from_samples(
+                    &self.signal_generator_panel.generated_samples,
+                    1,
+                );
             }
 
-            // Create new source node
-            let mut source_node = self.audio_context.create_buffer_source();
-            source_node.set_buffer(buffer);
-
-            // Connect to audio graph
-            source_node.connect(&self.gain_node);
-            let mut previous_node: &dyn AudioNode = &self.gain_node;
-            for band in &self.eq_bands {
-                previous_node.connect(band);
-                previous_node = band;
+            // Load buffer into AudioEngine
+            match self.audio_engine.load_buffer(buffer) {
+                Ok(_) => {
+                    // Start playback via AudioEngine
+                    if let Err(e) = self.audio_engine.play() {
+                        self.error_manager
+                            .add_playback_error(Some(format!("Play Signal: {}", e)));
+                    } else {
+                        // Update UI state
+                        self.playback_state = PlaybackState::Playing;
+                        self.total_duration = Duration::from_secs_f32(
+                            self.signal_generator_panel.parameters.duration,
+                        );
+                        self.playback_pos = Duration::ZERO;
+                    }
+                }
+                Err(e) => {
+                    self.error_manager
+                        .add_playback_error(Some(format!("Load Signal Buffer: {}", e)));
+                }
             }
-            previous_node.connect(&self.analyser);
-            self.analyser.connect(&self.audio_context.destination());
-
-            // Start playback
-            source_node.start();
-            self.source_node = Some(source_node);
-            self.playback_state = PlaybackState::Playing;
-
-            // Set duration for progress tracking
-            self.total_duration =
-                Duration::from_secs_f32(self.signal_generator_panel.parameters.duration);
-            self.playback_pos = Duration::ZERO;
         }
+    }
+
+    fn update_waveform_from_buffer(&mut self, buffer: &AudioBuffer) {
+        let preview = Self::downsample_waveform_from_buffer(buffer);
+        if !preview.is_empty() {
+            self.waveform_preview = preview;
+            self.waveform_dirty = true;
+        }
+    }
+
+    fn update_waveform_from_samples(&mut self, samples: &[f32], channels: usize) {
+        let preview = Self::downsample_waveform_from_samples(samples, channels);
+        if !preview.is_empty() {
+            self.waveform_preview = preview;
+            self.waveform_dirty = true;
+        }
+    }
+
+    fn downsample_waveform_from_buffer(buffer: &AudioBuffer) -> Vec<f32> {
+        let num_channels = buffer.number_of_channels().max(1);
+        let total_frames = buffer.length().max(1);
+        let step = (total_frames / WAVEFORM_PREVIEW_SAMPLES).max(1);
+        let channels: Vec<&[f32]> = (0..num_channels)
+            .map(|ch| buffer.get_channel_data(ch))
+            .collect();
+
+        let mut waveform = Vec::with_capacity(WAVEFORM_PREVIEW_SAMPLES);
+        for frame in (0..total_frames).step_by(step) {
+            let mut sample = 0.0;
+            for channel in &channels {
+                if frame < channel.len() {
+                    sample += channel[frame];
+                }
+            }
+            waveform.push(sample / num_channels as f32);
+            if waveform.len() >= WAVEFORM_PREVIEW_SAMPLES {
+                break;
+            }
+        }
+
+        Self::normalize_waveform(waveform)
+    }
+
+    fn downsample_waveform_from_samples(samples: &[f32], channels: usize) -> Vec<f32> {
+        if samples.is_empty() {
+            return Vec::new();
+        }
+        let channels = channels.max(1);
+        let frames = samples.len() / channels;
+        let step = (frames / WAVEFORM_PREVIEW_SAMPLES).max(1);
+
+        let mut waveform = Vec::with_capacity(WAVEFORM_PREVIEW_SAMPLES);
+        for frame in (0..frames).step_by(step) {
+            let mut value = 0.0;
+            for ch in 0..channels {
+                let index = frame * channels + ch;
+                if index < samples.len() {
+                    value += samples[index];
+                }
+            }
+            waveform.push(value / channels as f32);
+            if waveform.len() >= WAVEFORM_PREVIEW_SAMPLES {
+                break;
+            }
+        }
+
+        Self::normalize_waveform(waveform)
+    }
+
+    fn normalize_waveform(mut waveform: Vec<f32>) -> Vec<f32> {
+        let max = waveform
+            .iter()
+            .fold(0.0_f32, |acc, &sample| acc.max(sample.abs()));
+        if max > 0.0 {
+            for sample in &mut waveform {
+                *sample /= max;
+            }
+        }
+        waveform
+    }
+
+    fn draw_transport_panel(&mut self, ctx: &egui::Context, colors: &ThemeColors) {
+        let compact = matches!(self.screen_size, ScreenSize::Mobile | ScreenSize::Tablet);
+        let height = if compact { 110.0 } else { 95.0 };
+        egui::TopBottomPanel::top("transport_panel")
+            .resizable(false)
+            .exact_height(height)
+            .frame(egui::Frame::none().fill(ColorUtils::with_alpha(colors.surface, 0.9)))
+            .show(ctx, |ui| {
+                ui.set_width(ui.available_width());
+                self.render_transport_controls(ui, colors, compact);
+            });
+    }
+
+    fn render_transport_controls(
+        &mut self,
+        ui: &mut egui::Ui,
+        colors: &ThemeColors,
+        compact: bool,
+    ) {
+        let button_height = if compact { 34.0 } else { 44.0 };
+        let primary_width = if compact { 88.0 } else { 110.0 };
+        let secondary_width = if compact { 72.0 } else { 92.0 };
+        let full_width = ui.available_width();
+
+        ui.vertical(|ui| {
+            ui.horizontal_wrapped(|ui| {
+                self.transport_button(
+                    ui,
+                    colors,
+                    "📁 Open",
+                    primary_width,
+                    button_height,
+                    false,
+                    |this| this.open_file_dialog(),
+                );
+
+                let play_label = if self.playback_state == PlaybackState::Playing {
+                    "⏸ Pause"
+                } else {
+                    "▶ Play"
+                };
+                self.transport_button(
+                    ui,
+                    colors,
+                    play_label,
+                    primary_width,
+                    button_height,
+                    true,
+                    |this| this.play_pause_main(),
+                );
+
+                self.transport_button(
+                    ui,
+                    colors,
+                    "⏹ Stop",
+                    secondary_width,
+                    button_height,
+                    false,
+                    |this| this.stop_playback_main(),
+                );
+
+                let loop_label = if self.is_looping {
+                    "🔁 Loop On"
+                } else {
+                    "🔁 Loop Off"
+                };
+                self.transport_button(
+                    ui,
+                    colors,
+                    loop_label,
+                    secondary_width,
+                    button_height,
+                    false,
+                    |this| this.toggle_loop_main(),
+                );
+
+                let (record_badge, record_color) = self.recording_panel.status_badge();
+                let record_label = if self.recording_panel.is_recording() {
+                    format!("{} Stop Rec", record_badge)
+                } else {
+                    format!("{} Record", record_badge)
+                };
+                let mut record_button = EnhancedButton::new(record_label).style(ButtonStyle {
+                    rounding: 12.0,
+                    padding: Vec2::new(16.0, 10.0),
+                    min_size: Vec2::new(primary_width.max(96.0), button_height),
+                    gradient: true,
+                    shadow: true,
+                    glow: true,
+                });
+                if record_button.show(ui, colors).clicked() {
+                    self.recording_panel.toggle_recording();
+                    self.active_tab = Tab::Recording;
+                }
+                ui.label(RichText::new(format!("{} Recorder", record_badge)).color(record_color));
+            });
+
+            ui.add_space(6.0);
+
+            ui.horizontal(|ui| {
+                let slider_width = full_width * if compact { 0.45 } else { 0.55 };
+                ui.label(RichText::new("🔊").size(14.0));
+                ui.allocate_ui(Vec2::new(slider_width, 30.0), |ui| {
+                    let response = self.accessible_volume_slider.show(
+                        ui,
+                        colors,
+                        &mut self.accessibility_manager,
+                    );
+                    if response.changed() {
+                        self.volume = self.accessible_volume_slider.value();
+                        self.audio_engine.set_volume(self.volume);
+
+                        if !self.accessibility_manager.is_volume_safe(self.volume) {
+                            self.accessibility_manager.announce(
+                                "Warning: Volume level may be harmful to hearing".to_string(),
+                                ui::accessibility::AnnouncementPriority::High,
+                            );
+                        }
+                    }
+                });
+                ui.label(format!("{:.0}%", self.volume * 100.0));
+                self.volume_safety_indicator.show(ui, colors);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if let Some((badge, color)) = self.backend_health_badge() {
+                        ui.label(RichText::new(badge).color(color).strong());
+                    }
+                    if let Some(device) = self.selected_output_device_label() {
+                        ui.label(RichText::new(device).color(colors.text_secondary));
+                    }
+                });
+            });
+
+            let mut clear_status = false;
+            if let Some((message, timestamp)) = self.audio_status_message.as_ref() {
+                if timestamp.elapsed() < Duration::from_secs(4) {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new(message).color(colors.text_secondary));
+                } else {
+                    clear_status = true;
+                }
+            }
+            if clear_status {
+                self.audio_status_message = None;
+            }
+        });
+    }
+
+    fn transport_button<F>(
+        &mut self,
+        ui: &mut egui::Ui,
+        colors: &ThemeColors,
+        label: &str,
+        width: f32,
+        height: f32,
+        primary: bool,
+        mut on_click: F,
+    ) where
+        F: FnMut(&mut Self),
+    {
+        let mut button = EnhancedButton::new(label.to_string()).style(ButtonStyle {
+            rounding: 12.0,
+            padding: Vec2::new(16.0, 10.0),
+            min_size: Vec2::new(width, height),
+            gradient: primary,
+            shadow: true,
+            glow: primary,
+        });
+        if button.show(ui, colors).clicked() {
+            on_click(self);
+        }
+    }
+
+    fn backend_health_badge(&self) -> Option<(String, Color32)> {
+        let backend = self.audio_backend.as_ref()?;
+        let (label, color) = match backend.health() {
+            BackendHealth::Healthy => ("✅ Backend Healthy", Color32::from_rgb(100, 255, 100)),
+            BackendHealth::Degraded => ("⚠️ Backend Degraded", Color32::from_rgb(255, 210, 120)),
+            BackendHealth::Failed => ("❌ Backend Failed", Color32::from_rgb(255, 120, 120)),
+        };
+        Some((label.to_string(), color))
+    }
+
+    fn selected_output_device_label(&self) -> Option<String> {
+        let manager = self.device_manager.as_ref()?;
+        let device = manager.selected_output_device()?;
+        let latency = manager
+            .stream_latency_ms()
+            .map(|ms| format!("{:.1} ms", ms))
+            .unwrap_or_else(|| "latency n/a".to_string());
+        Some(format!("{} • {}", device.name, latency))
     }
 
     /// Setup hybrid audio mode with ring buffer bridge
@@ -1633,7 +1847,8 @@ impl AudioPlayerApp {
 
                     // Connect the bridge to the audio graph
                     // The analyser is the last node before destination
-                    bridge.connect_to_graph(&self.audio_context, &self.analyser);
+                    // TODO: Phase 2 - Requires AudioEngine to expose audio_context and analyser
+                    //                     bridge.connect_to_graph(&self.audio_context, &self.analyser);
 
                     self.web_audio_bridge = Some(bridge);
 
@@ -1979,6 +2194,8 @@ impl AudioPlayerApp {
                 ));
             });
         });
+
+        self.draw_transport_panel(ctx, colors);
 
         // Render the dock layout by temporarily taking ownership
         // This is safe because we're not using dock_layout_manager again in this function

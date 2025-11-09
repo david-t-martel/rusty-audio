@@ -198,7 +198,8 @@ impl CachedAudioLoader {
     pub fn new(max_cache_entries: usize) -> Self {
         Self {
             cache: Arc::new(RwLock::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(max_cache_entries).unwrap(),
+                std::num::NonZeroUsize::new(max_cache_entries.max(1))
+                    .unwrap_or(std::num::NonZeroUsize::MIN),
             ))),
             max_cache_size: max_cache_entries,
         }

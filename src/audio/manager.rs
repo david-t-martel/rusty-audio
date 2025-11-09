@@ -9,6 +9,7 @@ use super::backend::{
 use super::device::CpalBackend;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use tracing::error;
 
 /// High-level audio device manager
 pub struct AudioDeviceManager {
@@ -185,7 +186,16 @@ impl AudioDeviceManager {
 
 impl Default for AudioDeviceManager {
     fn default() -> Self {
-        Self::new().expect("Failed to initialize audio device manager")
+        Self::new().unwrap_or_else(|err| {
+            error!("Failed to initialize audio device manager: {}", err);
+            let backend: Box<dyn AudioBackend> = Box::new(CpalBackend::new());
+            Self {
+                backend: Arc::new(RwLock::new(backend)),
+                selected_output_device: Arc::new(RwLock::new(None)),
+                selected_input_device: Arc::new(RwLock::new(None)),
+                current_stream: Arc::new(RwLock::new(None)),
+            }
+        })
     }
 }
 

@@ -335,7 +335,7 @@ mod tests {
 
         // Test with excessive volume samples
         let mut samples = vec![2.0, -1.5, 1.8, -2.2]; // Out of range values
-        limiter.process_audio(&mut samples, 1.0).unwrap();
+        assert!(limiter.process_audio(&mut samples, 1.0).is_ok());
 
         // All samples should be within -1.0 to 1.0
         for sample in &samples {
@@ -353,7 +353,7 @@ mod tests {
 
         // Process audio - should be muted
         let mut samples = vec![0.5, -0.5, 0.3, -0.3];
-        limiter.process_audio(&mut samples, 0.5).unwrap();
+        assert!(limiter.process_audio(&mut samples, 0.5).is_ok());
 
         // All samples should be zero
         assert!(
@@ -364,7 +364,7 @@ mod tests {
         // Reset and test again
         limiter.reset_emergency_stop();
         let mut samples = vec![0.5, -0.5, 0.3, -0.3];
-        limiter.process_audio(&mut samples, 0.5).unwrap();
+        assert!(limiter.process_audio(&mut samples, 0.5).is_ok());
 
         // Samples should not be zero after reset
         assert!(

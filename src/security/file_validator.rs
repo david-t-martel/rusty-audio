@@ -117,11 +117,20 @@ impl FileValidator {
         })?;
 
         let mut magic_bytes = [0u8; 16];
-        file.read_exact(&mut magic_bytes)
-            .map_err(|e| SecurityError::InvalidContent {
+        let bytes_read =
+            file.read(&mut magic_bytes)
+                .map_err(|e| SecurityError::InvalidContent {
+                    path: path.display().to_string(),
+                    reason: format!("Cannot read file header: {}", e),
+                })?;
+
+        // Need at least 4 bytes for magic number detection
+        if bytes_read < 4 {
+            return Err(SecurityError::InvalidContent {
                 path: path.display().to_string(),
-                reason: format!("Cannot read file header: {}", e),
-            })?;
+                reason: format!("File too small ({} bytes, need at least 4)", bytes_read),
+            });
+        }
 
         // Check for known audio file magic numbers
         let is_valid = match &magic_bytes[..4] {
@@ -131,15 +140,15 @@ impl FileValidator {
             [0xFF, 0xFB, _, _] | [0xFF, 0xFA, _, _] | [0xFF, 0xF3, _, _] => true,
             // WAV/RIFF
             [0x52, 0x49, 0x46, 0x46] => {
-                // Check for WAVE signature at offset 8
-                &magic_bytes[8..12] == b"WAVE"
+                // Check for WAVE signature at offset 8 (need at least 12 bytes)
+                bytes_read >= 12 && &magic_bytes[8..12] == b"WAVE"
             }
             // FLAC
             [0x66, 0x4C, 0x61, 0x43] => true,
             // OGG
             [0x4F, 0x67, 0x67, 0x53] => true,
-            // M4A/MP4
-            _ if &magic_bytes[4..8] == b"ftyp" => true,
+            // M4A/MP4 (need at least 8 bytes)
+            _ if bytes_read >= 8 && &magic_bytes[4..8] == b"ftyp" => true,
             _ => false,
         };
 
@@ -155,18 +164,34 @@ impl FileValidator {
 
     /// Create a safe filename from user input
     pub fn sanitize_filename(filename: &str) -> String {
+        // Find the last dot (for file extension)
+        // Only keep it if the immediate next character is alphanumeric (like .mp3, .wav)
+        // This prevents keeping dots from path traversal patterns like ../
+        let last_dot_pos = filename.rfind('.').and_then(|pos| {
+            // Check if the character immediately after the dot is alphanumeric
+            filename.chars().nth(pos + 1).and_then(|next_char| {
+                if next_char.is_alphanumeric() {
+                    Some(pos)
+                } else {
+                    None
+                }
+            })
+        });
+
         filename
             .chars()
-            .map(|c| {
-                if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+            .enumerate()
+            .map(|(i, c)| {
+                if c.is_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else if c == '.' && Some(i) == last_dot_pos {
+                    // Keep the last dot only if it's a valid extension separator
                     c
                 } else {
                     '_'
                 }
             })
-            .collect::<String>()
-            .chars()
-            .take(255) // Max filename length
+            .take(253) // Max filename length (leave 2 chars buffer for safety)
             .collect()
     }
 }
@@ -214,11 +239,12 @@ impl From<super::secure_config::ConfigError> for SecurityError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use tempfile::TempDir;
 
     #[test]
-    fn test_path_traversal_prevention() {
-        let temp_dir = TempDir::new().unwrap();
+    fn test_path_traversal_prevention() -> Result<()> {
+        let temp_dir = TempDir::new()?;
         let validator = FileValidator::new(temp_dir.path().to_path_buf());
 
         // Various path traversal attempts
@@ -234,25 +260,27 @@ mod tests {
             let result = validator.validate_file_path(Path::new(attack));
             assert!(result.is_err(), "Path traversal not caught: {}", attack);
         }
+        Ok(())
     }
 
     #[test]
-    fn test_file_extension_validation() {
-        let temp_dir = TempDir::new().unwrap();
+    fn test_file_extension_validation() -> Result<()> {
+        let temp_dir = TempDir::new()?;
         let validator = FileValidator::new(temp_dir.path().to_path_buf());
 
         // Create test files
         let valid_file = temp_dir.path().join("test.mp3");
         let invalid_file = temp_dir.path().join("test.exe");
 
-        fs::write(&valid_file, b"ID3\x03test").unwrap();
-        fs::write(&invalid_file, b"MZ\x90\x00").unwrap();
+        fs::write(&valid_file, b"ID3\x03test")?;
+        fs::write(&invalid_file, b"MZ\x90\x00")?;
 
         // Valid extension should pass
         assert!(validator.validate_file_path(&valid_file).is_ok());
 
         // Invalid extension should fail
         assert!(validator.validate_file_path(&invalid_file).is_err());
+        Ok(())
     }
 
     #[test]

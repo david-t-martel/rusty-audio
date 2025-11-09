@@ -4,6 +4,7 @@
 
 use anyhow::{Context, Result};
 use rustfft::{num_complex::Complex, FftPlanner};
+use std::cmp::Ordering;
 
 /// Comprehensive audio features for AI processing
 #[derive(Debug, Clone)]
@@ -367,18 +368,73 @@ impl FeatureExtractor {
     }
 
     fn estimate_tempo(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
-        // Simplified tempo estimation
-        Ok(120.0) // Placeholder
+        // Tempo estimation using autocorrelation on energy envelope
+        let window_size = 2048;
+        let hop_size = 512;
+        let mut energy_envelope = Vec::new();
+
+        for i in (0..buffer.len()).step_by(hop_size) {
+            let end = (i + window_size).min(buffer.len());
+            let energy: f32 = buffer[i..end].iter().map(|x| x * x).sum();
+            energy_envelope.push(energy);
+        }
+
+        // Autocorrelation to find periodic structure
+        let min_lag = (60.0 * sample_rate as f32 / (200.0 * hop_size as f32)) as usize; // 200 BPM max
+        let max_lag = (60.0 * sample_rate as f32 / (40.0 * hop_size as f32)) as usize; // 40 BPM min
+
+        let mut best_correlation = 0.0;
+        let mut best_lag = min_lag;
+
+        for lag in min_lag..max_lag.min(energy_envelope.len() / 2) {
+            let mut correlation = 0.0;
+            for i in 0..energy_envelope.len() - lag {
+                correlation += energy_envelope[i] * energy_envelope[i + lag];
+            }
+
+            if correlation > best_correlation {
+                best_correlation = correlation;
+                best_lag = lag;
+            }
+        }
+
+        let tempo = 60.0 * sample_rate as f32 / (best_lag as f32 * hop_size as f32);
+        Ok(tempo)
     }
 
     fn calculate_beat_strength(&self, buffer: &[f32]) -> Result<f32> {
-        // Simplified beat strength
-        Ok(0.7) // Placeholder
+        // Beat strength from energy variance
+        let energy = self.calculate_energy(buffer);
+
+        // Calculate variance directly
+        let mean = buffer.iter().sum::<f32>() / buffer.len() as f32;
+        let variance = buffer.iter().map(|x| (x - mean).powi(2)).sum::<f32>() / buffer.len() as f32;
+
+        // Higher variance relative to energy indicates stronger beats
+        Ok((variance / (energy + 0.001)).min(1.0))
     }
 
     fn calculate_onset_density(&self, buffer: &[f32], sample_rate: u32) -> Result<f32> {
-        // Simplified onset density
-        Ok(2.5) // Placeholder
+        // Onset detection using energy-based spectral flux
+        let hop_size = 512;
+        let mut onsets = 0;
+
+        for i in (hop_size..buffer.len()).step_by(hop_size) {
+            let prev_energy = self.calculate_energy(&buffer[i - hop_size..i]);
+            let curr_energy =
+                self.calculate_energy(&buffer[i..i.min(i + hop_size).min(buffer.len())]);
+
+            if curr_energy > prev_energy * 1.5 {
+                onsets += 1;
+            }
+        }
+
+        let duration_seconds = buffer.len() as f32 / sample_rate as f32;
+        Ok(onsets as f32 / duration_seconds)
+    }
+
+    fn calculate_energy(&self, buffer: &[f32]) -> f32 {
+        buffer.iter().map(|x| x * x).sum()
     }
 
     fn detect_harmonic_peaks(&self, spectrum: &[f32]) -> Vec<usize> {
@@ -390,7 +446,11 @@ impl FeatureExtractor {
             }
         }
 
-        peaks.sort_by(|&a, &b| spectrum[b].partial_cmp(&spectrum[a]).unwrap());
+        peaks.sort_by(|&a, &b| {
+            spectrum[b]
+                .partial_cmp(&spectrum[a])
+                .unwrap_or(Ordering::Equal)
+        });
         peaks.truncate(10);
         peaks.sort();
 

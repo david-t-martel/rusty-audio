@@ -585,6 +585,7 @@ impl GeneratorPool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::{anyhow, Result};
 
     #[test]
     fn test_trig_lookup() {
@@ -642,22 +643,26 @@ mod tests {
     }
 
     #[test]
-    fn test_generator_pool() {
+    fn test_generator_pool() -> Result<()> {
         let pool = GeneratorPool::new(4);
 
         // Acquire generators
-        let gen1 = pool.acquire_sine_generator();
-        let gen2 = pool.acquire_noise_generator();
-
-        assert!(gen1.is_some());
-        assert!(gen2.is_some());
+        let gen1 = pool
+            .acquire_sine_generator()
+            .ok_or_else(|| anyhow!("Failed to acquire sine generator"))?;
+        let gen2 = pool
+            .acquire_noise_generator()
+            .ok_or_else(|| anyhow!("Failed to acquire noise generator"))?;
 
         // Release them back
-        pool.release_generator(gen1.unwrap());
-        pool.release_generator(gen2.unwrap());
+        pool.release_generator(gen1);
+        pool.release_generator(gen2);
 
         // Should be able to acquire again
-        let gen3 = pool.acquire_sine_generator();
-        assert!(gen3.is_some());
+        let gen3 = pool
+            .acquire_sine_generator()
+            .ok_or_else(|| anyhow!("Reacquire sine generator failed"))?;
+        pool.release_generator(gen3);
+        Ok(())
     }
 }

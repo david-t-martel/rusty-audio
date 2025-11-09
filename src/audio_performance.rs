@@ -53,6 +53,7 @@
 //! ```
 
 use parking_lot::RwLock;
+use std::alloc::handle_alloc_error;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -268,8 +269,12 @@ pub mod simd_ops {
 ///     println!("Read {} samples", samples_read);
 /// });
 ///
-/// producer.join().unwrap();
-/// consumer.join().unwrap();
+/// if let Err(err) = producer.join() {
+///     eprintln!("Producer thread failed: {:?}", err);
+/// }
+/// if let Err(err) = consumer.join() {
+///     eprintln!("Consumer thread failed: {:?}", err);
+/// }
 /// ```
 ///
 /// # Performance
@@ -443,8 +448,10 @@ pub struct AlignedAudioBuffer {
 impl AlignedAudioBuffer {
     /// Create a new aligned audio buffer
     pub fn new(size: usize, alignment: usize) -> Self {
-        let layout =
-            std::alloc::Layout::from_size_align(size * 4, alignment).expect("Invalid alignment");
+        let layout = match std::alloc::Layout::from_size_align(size * 4, alignment) {
+            Ok(layout) => layout,
+            Err(_) => handle_alloc_error(std::alloc::Layout::new::<f32>()),
+        };
 
         unsafe {
             let ptr = std::alloc::alloc(layout) as *mut f32;
@@ -1033,6 +1040,7 @@ impl AudioOptimizer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::{anyhow, Result};
     use std::thread;
 
     #[test]
@@ -1064,7 +1072,7 @@ mod tests {
     }
 
     #[test]
-    fn test_threaded_ring_buffer() {
+    fn test_threaded_ring_buffer() -> Result<()> {
         let buffer = Arc::new(LockFreeRingBuffer::new(1024));
         let buffer_clone = buffer.clone();
 
@@ -1088,8 +1096,13 @@ mod tests {
             total_read
         });
 
-        producer.join().unwrap();
-        let total = consumer.join().unwrap();
+        producer
+            .join()
+            .map_err(|_| anyhow!("Producer thread panicked"))?;
+        let total = consumer
+            .join()
+            .map_err(|_| anyhow!("Consumer thread panicked"))?;
         assert_eq!(total, 1000);
+        Ok(())
     }
 }
