@@ -9,7 +9,8 @@ use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
-#[cfg(target_arch = "x86_64")]
+// SIMD intrinsics are DESKTOP-ONLY (not available in WASM)
+#[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
 use std::arch::x86_64::*;
 
 /// Cache line size for optimal memory alignment (64 bytes on x86_64)
@@ -209,20 +210,20 @@ impl PooledSpectrumProcessor {
             };
             
             analyser.get_byte_frequency_data(byte_slice);
-            
-            // Process with SIMD if available
-            #[cfg(target_arch = "x86_64")]
+
+            // Process with SIMD if available (DESKTOP ONLY)
+            #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
             {
                 if is_x86_feature_detected!("avx2") {
-                    unsafe { 
+                    unsafe {
                         self.process_spectrum_avx2_pooled(byte_slice);
                     }
                     self.buffer_pool.release(temp_buffer);
                     return self.spectrum_buffer.as_slice();
                 }
             }
-            
-            // Scalar fallback
+
+            // Scalar fallback (WASM-compatible)
             self.process_spectrum_scalar_pooled(byte_slice);
             
             // Return buffer to pool
@@ -237,7 +238,8 @@ impl PooledSpectrumProcessor {
         self.spectrum_buffer.as_slice()
     }
 
-    #[cfg(target_arch = "x86_64")]
+    // DESKTOP-ONLY: AVX2 SIMD optimization (not available in WASM)
+    #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
     #[target_feature(enable = "avx2")]
     unsafe fn process_spectrum_avx2_pooled(&mut self, byte_data: &[u8]) {
         let len = byte_data.len().min(self.spectrum_buffer.capacity);
@@ -391,24 +393,26 @@ impl ParallelEqProcessor {
         }
     }
 
-    /// Process a single band with SIMD optimization
+    /// Process a single band with SIMD optimization (desktop) or scalar fallback (WASM)
     #[inline(always)]
     fn process_band_simd(samples: &mut [f32], coeff: &BiquadCoefficients, state: &mut BiquadState) {
-        #[cfg(target_arch = "x86_64")]
+        // DESKTOP-ONLY: AVX2 SIMD path
+        #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
         {
             if is_x86_feature_detected!("avx2") && samples.len() >= 8 {
-                unsafe { 
+                unsafe {
                     Self::process_band_avx2(samples, coeff, state);
                 }
                 return;
             }
         }
-        
-        // Scalar fallback
+
+        // Scalar fallback (WASM-compatible and x86_64 fallback)
         Self::process_band_scalar(samples, coeff, state);
     }
 
-    #[cfg(target_arch = "x86_64")]
+    // DESKTOP-ONLY: AVX2 SIMD optimization for biquad filter
+    #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
     #[target_feature(enable = "avx2")]
     unsafe fn process_band_avx2(samples: &mut [f32], coeff: &BiquadCoefficients, state: &mut BiquadState) {
         let len = samples.len();

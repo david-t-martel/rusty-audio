@@ -63,13 +63,17 @@ pub mod metadata;
 pub mod error;
 // AI-enhanced audio processing modules
 pub mod ai;
-// Native audio backend (Phase 3)
+// Native audio backend (Phase 3) - native only
+#[cfg(not(target_arch = "wasm32"))]
 pub mod audio;
-// Async audio loading (Phase 1.4)
+// Async audio loading (Phase 1.4) - native only
+#[cfg(not(target_arch = "wasm32"))]
 pub mod async_audio_loader;
 // Optimized audio performance modules (Phase 1.3, 3, 4.1, 4.2)
 pub mod audio_performance_optimized;
 pub mod audio_pipeline_integration;
+// Performance integration layer (dual-target support: desktop + WASM)
+pub mod audio_performance_integration;
 // WASM web integration (WASM/PWA deployment)
 #[cfg(target_arch = "wasm32")]
 pub mod web;

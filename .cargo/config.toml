@@ -4,7 +4,11 @@
 [target.wasm32-unknown-unknown]
 # Note: getrandom 0.3+ requires the wasm_js feature to be enabled
 # We set the backend config, but the feature must be enabled in Cargo.toml dependencies
-rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
+rustflags = [
+    "--cfg", "getrandom_backend=\"wasm_js\"",
+    # Disable LTO for WASM builds (conflicts with embed-bitcode)
+    "-C", "embed-bitcode=yes",
+]
 
 [build]
 # Default to native target, specify --target wasm32-unknown-unknown explicitly for WASM builds

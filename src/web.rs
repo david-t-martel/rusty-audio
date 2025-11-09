@@ -80,11 +80,7 @@ impl WebHandle {
     pub async fn start(&self, canvas: web_sys::HtmlCanvasElement) -> Result<(), JsValue> {
         log::info!("Starting Rusty Audio on canvas: {:?}", canvas.id());
         
-        let web_options = eframe::WebOptions {
-            follow_system_theme: true,
-            default_theme: eframe::Theme::Dark,
-            ..Default::default()
-        };
+        let web_options = eframe::WebOptions::default();
         
         self.runner
             .start(
@@ -101,7 +97,7 @@ impl WebHandle {
                 }),
             )
             .await
-            .map_err(|e| JsValue::from_str(&format!("Failed to start app: {}", e)))
+            .map_err(|e| JsValue::from_str(&e))
     }
     
     /// Destroy the web runner and clean up resources

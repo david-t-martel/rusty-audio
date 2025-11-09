@@ -66,29 +66,14 @@ tracing = "0.1"
 num_cpus = "1.16"
 rand = "0.8"
 rustfft = "6.0"
-proptest = "1.0"
-quickcheck = "1.0"
 num-complex = "0.4.4"
 approx = "0.5.1"
 lru = "0.12"
 rayon = "1.10"
 
-# Async runtime for non-blocking file I/O
-tokio = { version = "1.0", features = ["full"] }
-futures = "0.3"
-
-# ML and AI libraries (optional - enable as needed)
-# candle-core = { version = "0.4", optional = true }
-# candle-nn = { version = "0.4", optional = true }
-# linfa = { version = "0.7", optional = true }
-# smartcore = { version = "0.3", optional = true }
-ndarray = "0.15"
-# rubato = { version = "0.15", optional = true }
-
 # Performance optimizations
 realfft = "3.3"        # Faster FFT for spectrum analysis
-memmap2 = "0.9"        # Memory-mapped file I/O
-
+ndarray = "0.15"       # N-dimensional arrays for ML/AI
 
 # Additional utilities for AI
 statrs = "0.16"
@@ -96,20 +81,35 @@ statrs = "0.16"
 # Security dependencies
 toml = "0.8"
 dirs = "5.0"
-tempfile = "3.8"
 chrono = "0.4"
 
 [dev-dependencies]
-criterion = "0.5"
+# Testing property-based testing frameworks
+proptest = "1.0"
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# Testing frameworks
 bytes = "1.0"
 rstest = "0.18"
 test-case = "3.2"
-quickcheck_macros = "1.0"
 serial_test = "3.0"
 tokio-test = "0.4"
 tokio = { version = "1.0", features = ["full"] }
+
+# CLI and tooling
 clap = { version = "4.0", features = ["derive"] }
-egui_kittest = "0.33.1"  # UI testing framework for egui 0.33
+
+# UI testing (egui 0.33 compatible)
+egui_kittest = "0.33.1"
+
+# Profiling and performance analysis
+dhat = "0.3"           # Heap profiler
+# Note: cargo-flamegraph installed via: cargo install flamegraph
+# Usage: cargo flamegraph --bench <benchmark_name>
 
 [profile.release]
 opt-level = 3
@@ -154,6 +154,13 @@ path = "examples/mathematical_testing_demo.rs"
 
 # Native-only dependencies (desktop builds)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Async runtime for non-blocking file I/O (native only)
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+# File I/O utilities (native only)
+memmap2 = "0.9"        # Memory-mapped file I/O
+tempfile = "3.8"       # Temporary file handling
+# File dialogs and audio
 rfd = "0.14.1"                                       # File dialogs
 web-audio-api = { version = "1.2.0", features = ["default"] }  # Audio processing
 cpal = { version = "0.15", features = [] }           # Cross-platform audio I/O
@@ -173,6 +180,8 @@ libc = "0.2"
 
 # WASM-only dependencies (web builds)
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# Explicitly enable wgpu with webgpu backend for WASM
+wgpu = { version = "27", features = ["webgpu", "webgl"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"

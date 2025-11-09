@@ -42,7 +42,16 @@
       "mcp__rust-memory__add_observations",
       "Bash(RUSTC_WRAPPER=\"\" RUSTFLAGS=\"\" cargo check:*)",
       "mcp__rust-fs__write",
-      "mcp__rust-memory__create_relations"
+      "mcp__rust-memory__create_relations",
+      "mcp__rust-fs__find",
+      "Bash(./scripts/setup-profiling.sh:*)",
+      "Bash(RUSTC_WRAPPER=\"\" cargo test:*)",
+      "Bash(dos2unix:*)",
+      "Bash(bash:*)",
+      "Bash(tee:*)",
+      "Bash(/mnt/c/users/david/rusty-audio/scripts/verify-pwa-setup.sh:*)",
+      "Bash(export RUSTC_WRAPPER=\"\")",
+      "Bash(./scripts/verify-pwa-setup.sh:*)"
     ],
     "deny": [],
     "ask": []

@@ -55,6 +55,10 @@ use ui::{
 };
 use testing::signal_generators::*;
 
+// ============================================================================
+// Type Definitions  
+// ============================================================================
+
 #[derive(Debug, Clone, PartialEq)]
 enum Tab {
     Playback,
@@ -81,6 +85,11 @@ struct TrackMetadata {
     year: String,
 }
 
+// ============================================================================
+// Native Application (Desktop)
+// ============================================================================
+
+#[cfg(not(target_arch = "wasm32"))]
 struct AudioPlayerApp {
     audio_context: AudioContext,
     source_node: Option<web_audio_api::node::AudioBufferSourceNode>,
@@ -153,6 +162,7 @@ struct AudioPlayerApp {
     load_progress: Option<f32>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for AudioPlayerApp {
     fn default() -> Self {
         let audio_context = AudioContext::default();
@@ -301,6 +311,7 @@ impl Default for AudioPlayerApp {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl eframe::App for AudioPlayerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Update responsive layout and timing
