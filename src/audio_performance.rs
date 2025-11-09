@@ -419,6 +419,12 @@ impl LockFreeRingBuffer {
         self.size - self.available()
     }
 
+    /// Get total buffer capacity
+    #[inline(always)]
+    pub fn capacity(&self) -> usize {
+        self.size
+    }
+
     #[inline(always)]
     fn used_space(&self, write_pos: usize, read_pos: usize) -> usize {
         (write_pos.wrapping_sub(read_pos)) & self.mask
@@ -677,7 +683,6 @@ impl OptimizedEqProcessor {
     /// - All pointer arithmetic is bounds-checked
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
-    #[inline(always)]
     unsafe fn process_biquad_avx2(
         samples: &mut [f32],
         coeff: &BiquadCoefficients,
@@ -753,7 +758,6 @@ impl OptimizedEqProcessor {
     /// Fallback for systems without AVX2 support.
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse")]
-    #[inline(always)]
     unsafe fn process_biquad_sse(
         samples: &mut [f32],
         coeff: &BiquadCoefficients,

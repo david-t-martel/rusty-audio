@@ -348,7 +348,6 @@ impl LockFreeRecordingBuffer {
     /// Safe due to runtime CPU feature detection and bounds checking.
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
-    #[inline(always)]
     unsafe fn update_levels_avx2(&self, data: &[f32]) {
         use std::arch::x86_64::*;
 
@@ -429,7 +428,6 @@ impl LockFreeRecordingBuffer {
     /// Fallback for systems without AVX2. Processes 4 samples simultaneously.
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse")]
-    #[inline(always)]
     unsafe fn update_levels_sse(&self, data: &[f32]) {
         use std::arch::x86_64::*;
 

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#121212"/>
+  <meta name="color-scheme" content="dark light"/>
+  <title>Rusty Audio</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="description" content="Professional audio player built in Rust with egui and wgpu."/>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Build the Rust crate to WASM via Trunk -->
+  <link data-trunk rel="rust" data-wasm-opt="z"/>
+  <!-- Copy static assets (manifest, service worker, icons, headers) -->
+  <link data-trunk rel="copy-dir" href="static"/>
+  <style>
+    html, body { margin:0; padding:0; height:100%; background:#121212; }
+    canvas { width:100vw; height:100vh; display:block; }
+  </style>
+</head>
+<body>
+  <noscript>This app requires JavaScript and WebAssembly enabled.</noscript>
+  <canvas id="rusty-audio-canvas" aria-label="Rusty Audio Interface" role="application"></canvas>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').catch(console.error);
+      });
+    }
+  </script>
+</body>
+</html>

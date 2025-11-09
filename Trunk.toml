@@ -1,0 +1,10 @@
+[build]
+dist = "dist"
+public_url = "/"
+filehash = false
+
+[watch]
+ignore = ["dist/**", "target/**"]
+
+[serve]
+open = true

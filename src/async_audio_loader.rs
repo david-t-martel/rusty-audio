@@ -12,7 +12,7 @@ use futures::stream::{self, StreamExt};
 use parking_lot::RwLock;
 
 use crate::error::{AudioPlayerError, FileError, AudioError};
-use crate::audio_performance_optimized::{LockFreeRingBuffer, OptimizedBufferPool};
+use crate::audio_performance::{LockFreeRingBuffer, OptimizedBufferPool};
 
 /// Progress callback type for loading operations
 pub type ProgressCallback = Arc<dyn Fn(f32) + Send + Sync>;

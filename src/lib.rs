@@ -67,3 +67,6 @@ pub mod ai;
 pub mod audio;
 // Async audio loading (Phase 1.4)
 pub mod async_audio_loader;
+// Optimized audio performance modules (Phase 1.3, 3, 4.1, 4.2)
+pub mod audio_performance_optimized;
+pub mod audio_pipeline_integration;

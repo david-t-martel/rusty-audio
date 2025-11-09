@@ -39,7 +39,9 @@
       "Bash(test:*)",
       "Bash(chmod:*)",
       "Bash(cat:*)",
-      "mcp__rust-memory__add_observations"
+      "mcp__rust-memory__add_observations",
+      "Bash(RUSTC_WRAPPER=\"\" RUSTFLAGS=\"\" cargo check:*)",
+      "mcp__rust-fs__write"
     ],
     "deny": [],
     "ask": []
