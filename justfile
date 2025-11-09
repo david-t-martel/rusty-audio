@@ -283,4 +283,189 @@ help:
 install-tools:
     @echo "🔧 Installing required tools..."
     cargo install cargo-watch cargo-outdated cargo-tree cargo-expand
+    cargo install cargo-tarpaulin cargo-audit cargo-deny
     @echo "✅ Tools installed!"
+
+# Install ast-grep
+install-ast-grep:
+    @echo "🔧 Installing ast-grep..."
+    curl -L https://github.com/ast-grep/ast-grep/releases/latest/download/ast-grep-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+    @echo "✅ ast-grep installed!"
+
+# Install sccache
+install-sccache:
+    @echo "🔧 Installing sccache..."
+    cargo install sccache --locked
+    @echo "✅ sccache installed!"
+    @echo "Enable in .cargo/config.toml: rustc-wrapper = \"sccache\""
+
+# === AST-Grep Code Analysis ===
+
+# Run all ast-grep checks
+ast-grep:
+    @echo "🔍 Running AST-Grep analysis..."
+    ast-grep scan --config .ast-grep/sgconfig.yml src/
+
+# Run ast-grep panic detection
+ast-grep-panic:
+    @echo "🚨 Checking for panic-inducing code..."
+    ast-grep scan --config .ast-grep/panic-detection.yml src/
+
+# Run ast-grep audio safety checks
+ast-grep-audio:
+    @echo "🎵 Checking audio safety rules..."
+    ast-grep scan --config .ast-grep/sgconfig.yml --ruleset audio-safety src/
+
+# Run ast-grep error handling checks
+ast-grep-errors:
+    @echo "🛡️ Checking error handling..."
+    ast-grep scan --config .ast-grep/sgconfig.yml --ruleset error-handling src/
+
+# Run ast-grep performance checks
+ast-grep-perf:
+    @echo "⚡ Checking performance patterns..."
+    ast-grep scan --config .ast-grep/sgconfig.yml --ruleset performance src/
+
+# Full ast-grep analysis with JSON output
+ast-grep-report:
+    @echo "📊 Generating AST-Grep JSON report..."
+    ast-grep scan --config .ast-grep/sgconfig.yml --json src/ > ast-grep-report.json
+    @echo "✅ Report saved to ast-grep-report.json"
+
+# === Auto-Claude Integration ===
+
+# Run auto-claude analysis (requires auto-claude CLI)
+auto-claude:
+    @echo "🤖 Running auto-claude analysis..."
+    @echo "Note: Requires auto-claude CLI to be installed"
+    @# auto-claude analyze --path src/ --config .auto-claude/config.json
+    @echo "⚠️ auto-claude not yet configured - see https://github.com/anthropics/auto-claude"
+
+# Auto-claude code review
+auto-claude-review:
+    @echo "👁️ Running auto-claude code review..."
+    @echo "Analyzing uncommitted changes..."
+    @git diff > /tmp/rusty-audio-changes.diff
+    @echo "Review saved to /tmp/rusty-audio-changes.diff"
+    @echo "⚠️ Run with actual auto-claude when available"
+
+# Auto-claude security audit
+auto-claude-security:
+    @echo "🔒 Running auto-claude security audit..."
+    cargo audit --json | jq '.' > /tmp/audit-results.json
+    @echo "Security audit results saved"
+
+# === Comprehensive Quality Gates ===
+
+# Run all quality checks (matches GitHub CI)
+quality-full: fmt-check lint test ast-grep-panic ast-grep-audio
+    @echo "✅ All quality gates passed!"
+    @echo "🎉 Code is ready for commit"
+
+# Run security-focused quality checks
+quality-security: ast-grep-panic cargo-audit cargo-deny
+    @echo "✅ Security checks passed!"
+
+# Run performance-focused quality checks
+quality-performance: ast-grep-perf bench
+    @echo "✅ Performance checks passed!"
+
+# === Cargo Security Tools ===
+
+# Run cargo audit
+cargo-audit:
+    @echo "🔒 Running cargo audit..."
+    cargo audit
+
+# Run cargo deny
+cargo-deny:
+    @echo "🚫 Running cargo deny..."
+    cargo deny check
+
+# === Continuous Integration Simulation ===
+
+# Simulate GitHub Actions locally
+ci-local: quality-full cargo-audit cargo-deny
+    @echo "🎬 Running full CI pipeline locally..."
+    @echo "✅ All CI checks passed!"
+    @echo "Ready to push!"
+
+# Fast CI check (skip slow tests)
+ci-fast: fmt-check lint test-lib ast-grep-panic
+    @echo "⚡ Fast CI checks passed!"
+
+# === Git Workflow Helpers ===
+
+# Pre-push checks (run before git push)
+pre-push: quality-full
+    @echo "✅ Ready to push!"
+
+# Pre-PR checks (comprehensive)
+pre-pr: quality-full cargo-audit cargo-deny doc-check
+    @echo "✅ Ready to create PR!"
+
+# Quick commit check
+quick-commit: fmt lint test-lib
+    @echo "✅ Ready for quick commit!"
+
+# === sccache Management ===
+
+# Show sccache statistics
+sccache-stats:
+    @echo "📊 sccache statistics:"
+    @sccache --show-stats
+
+# Clear sccache cache
+sccache-clear:
+    @echo "🧹 Clearing sccache cache..."
+    @sccache --stop-server
+    @rm -rf ~/.cache/sccache
+    @echo "✅ sccache cache cleared"
+
+# Start sccache server
+sccache-start:
+    @echo "🚀 Starting sccache server..."
+    @sccache --start-server
+
+# === Panic Detection Helpers ===
+
+# Find all unwrap() usage
+find-unwrap:
+    @echo "🔍 Finding all .unwrap() calls..."
+    @grep -rn "\.unwrap()" src/ || echo "✅ No unwrap() found"
+
+# Find all expect() usage
+find-expect:
+    @echo "🔍 Finding all .expect() calls..."
+    @grep -rn "\.expect(" src/ || echo "✅ No expect() found"
+
+# Find all panic!() usage
+find-panic:
+    @echo "🔍 Finding all panic!() calls..."
+    @grep -rn "panic!" src/ || echo "✅ No panic!() found"
+
+# Find all TODO comments
+find-todos:
+    @echo "🔍 Finding all TODO comments..."
+    @grep -rn "TODO" src/ || echo "✅ No TODOs found"
+
+# Comprehensive panic audit
+panic-audit: find-unwrap find-expect find-panic ast-grep-panic
+    @echo "✅ Panic audit complete!"
+
+# === Development Workflow ===
+
+# Watch and auto-rebuild on changes
+watch:
+    @echo "👀 Watching for changes..."
+    cargo watch -x check -x test
+
+# Watch and auto-run on changes
+watch-run:
+    @echo "👀 Watching and running..."
+    cargo watch -x run
+
+# Watch with clear screen
+watch-clear:
+    @echo "👀 Watching with clear..."
+    cargo watch -c -x check

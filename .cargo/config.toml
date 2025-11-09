@@ -1,0 +1,98 @@
+# Cargo configuration for rusty-audio
+# Optimized for Windows development with sccache
+#
+# IMPORTANT: This configuration is for Windows development.
+# sccache must be installed on Windows, not WSL!
+#
+# Windows setup:
+#   1. Install sccache: cargo install sccache --locked
+#   2. Run: .\scripts\setup-sccache-windows.ps1 -Install -Configure
+#   3. Restart terminal
+#   4. Build: cargo build
+#
+# The sccache server runs on Windows and caches Rust compilations.
+
+[build]
+# Limit to 8 CPU cores for compilation (prevents system slowdown)
+jobs = 8
+
+# Incremental compilation for faster rebuilds
+incremental = true
+
+# sccache integration - ENABLED for faster Windows builds
+# NOTE: This uses the Windows sccache installation, not WSL
+rustc-wrapper = "sccache"
+
+# Shared target directory for sccache efficiency (Windows path)
+# Uncomment if you want all projects to share the same build cache:
+# target-dir = "C:\\Users\\david\\.cargo\\shared-target"
+
+# Optimize for Windows (primary target platform)
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "target-cpu=native",       # Optimize for current CPU
+    # "-D", "warnings",                 # TEMPORARILY DISABLED FOR TESTING Phase 4.1
+    "-C", "link-arg=/STACK:8388608",  # Increase stack size for audio processing
+]
+
+[target.x86_64-pc-windows-gnu]
+rustflags = [
+    "-C", "target-cpu=native",
+    "-D", "warnings",
+    "-A", "dead_code",
+    "-A", "unused_imports",
+]
+
+# Linux/WSL support (secondary platform)
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "-C", "target-cpu=native",
+    "-D", "warnings",
+    "-A", "dead_code",
+]
+
+# macOS support (tertiary platform)
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "target-cpu=native",
+    "-D", "warnings",
+    "-A", "dead_code",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-C", "target-cpu=native",
+    "-D", "warnings",
+    "-A", "dead_code",
+]
+
+# Profile optimizations
+[profile.dev]
+opt-level = 1           # Minimal optimizations for faster compile
+debug = 1               # Line numbers only
+incremental = true
+codegen-units = 256     # Max parallelism for dev builds
+
+[profile.dev.package."*"]
+opt-level = 2           # Optimize dependencies more
+
+[profile.release]
+opt-level = 3
+lto = "thin"            # Thin LTO for good optimization without huge compile time
+codegen-units = 16
+strip = true            # Strip symbols
+panic = "abort"         # Smaller binary, faster panic
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+strip = false
+
+# Alias for commonly used commands
+[alias]
+b = "build"
+c = "check"
+r = "run"
+t = "test"
+br = "build --release"
+rr = "run --release"

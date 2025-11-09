@@ -1,0 +1,39 @@
+# Clippy configuration for rusty-audio
+# Strict linting rules to prevent panic-inducing code
+
+# Deny panic-inducing patterns
+deny = [
+    "unwrap_used",
+    "expect_used",
+    "panic",
+    "unimplemented",
+    "todo",
+    "unreachable",
+]
+
+# Warn on pedantic patterns
+warn = [
+    "pedantic",
+    "nursery",
+    "cargo",
+]
+
+# Allow specific patterns that are too noisy
+allow = [
+    "must_use_candidate",
+    "missing_errors_doc",
+    "missing_panics_doc",
+    "module_name_repetitions",
+    "too_many_lines",
+    "cast_precision_loss",  # Common in audio DSP
+    "cast_possible_truncation",  # Common in audio DSP
+    "cast_sign_loss",  # Common in audio DSP
+]
+
+# Audio-specific configuration
+# Allow some patterns in test code
+[[allow_tests]]
+patterns = [
+    "unwrap_used",  # Tests can use unwrap
+    "expect_used",  # Tests can use expect
+]

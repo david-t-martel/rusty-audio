@@ -1,0 +1,222 @@
+language: rust
+
+# Panic Detection Rules - Enhanced for Audio Development
+# These rules detect panic-inducing patterns that should be errors, not warnings
+
+rules:
+  # ==========================================
+  # Critical Panic Patterns
+  # ==========================================
+  - id: unwrap-in-production
+    message: "CRITICAL: .unwrap() can panic - use proper error handling"
+    note: "Consider using .map_err(), .ok_or(), or pattern matching instead"
+    rule:
+      pattern: "$EXPR.unwrap()"
+    severity: error
+    fix: |
+      // Replace with one of:
+      // $EXPR.map_err(|e| /* handle error */)?
+      // $EXPR.expect("descriptive message explaining why this cannot fail")
+      // if let Ok(val) = $EXPR { /* use val */ }
+
+  - id: expect-in-production
+    message: "CRITICAL: .expect() can panic - use proper error handling"
+    note: "Only use expect() if failure is truly impossible and document why"
+    rule:
+      pattern: "$EXPR.expect($MSG)"
+    severity: error
+    fix: |
+      // Replace with:
+      // $EXPR.map_err(|e| /* handle error */)?
+      // Or document with a comment why this cannot fail
+
+  - id: panic-macro
+    message: "CRITICAL: panic!() terminates the program - use Result<T, E>"
+    rule:
+      pattern: "panic!($$$ARGS)"
+    severity: error
+
+  - id: unimplemented-macro
+    message: "CRITICAL: unimplemented!() panics - implement the function"
+    rule:
+      pattern: "unimplemented!($$$ARGS)"
+    severity: error
+
+  - id: unreachable-macro
+    message: "WARNING: unreachable!() panics if reached - ensure it's truly unreachable"
+    rule:
+      pattern: "unreachable!($$$ARGS)"
+    severity: warning
+
+  - id: todo-macro
+    message: "CRITICAL: todo!() panics - complete the implementation"
+    rule:
+      pattern: "todo!($$$ARGS)"
+    severity: error
+
+  # ==========================================
+  # Audio-Specific Critical Patterns
+  # ==========================================
+  - id: unwrap-in-audio-callback
+    message: "CRITICAL: unwrap() in audio callback will crash audio system"
+    note: "Audio callbacks must be panic-free and lock-free"
+    rule:
+      pattern: |
+        fn $NAME($$$PARAMS) $$$WHERE {
+          $$$BEFORE
+          $EXPR.unwrap()
+          $$$AFTER
+        }
+    where:
+      NAME:
+        regex: ".*callback.*|.*process.*|.*audio_thread.*"
+    severity: error
+
+  - id: lock-in-audio-callback
+    message: "WARNING: Mutex lock in audio callback can cause audio glitches"
+    note: "Use lock-free structures (atomics, channels) in audio callbacks"
+    rule:
+      pattern: |
+        fn $NAME($$$PARAMS) {
+          $$$BEFORE
+          $MUTEX.lock()
+          $$$AFTER
+        }
+    where:
+      NAME:
+        regex: ".*callback.*|.*process.*|.*audio_thread.*"
+    severity: warning
+
+  - id: allocation-in-audio-callback
+    message: "WARNING: Memory allocation in audio callback can cause audio glitches"
+    note: "Pre-allocate all memory before entering the audio callback"
+    rule:
+      any:
+        - pattern: |
+            fn $NAME($$$PARAMS) {
+              $$$BEFORE
+              Vec::new()
+              $$$AFTER
+            }
+        - pattern: |
+            fn $NAME($$$PARAMS) {
+              $$$BEFORE
+              Box::new($EXPR)
+              $$$AFTER
+            }
+        - pattern: |
+            fn $NAME($$$PARAMS) {
+              $$$BEFORE
+              String::new()
+              $$$AFTER
+            }
+    where:
+      NAME:
+        regex: ".*callback.*|.*process.*|.*audio_thread.*"
+    severity: warning
+
+  # ==========================================
+  # Index Out of Bounds Patterns
+  # ==========================================
+  - id: unchecked-array-access
+    message: "WARNING: Unchecked array indexing can panic"
+    note: "Use .get() for safe access or prove bounds are checked"
+    rule:
+      pattern: "$ARRAY[$INDEX]"
+    severity: warning
+
+  - id: unchecked-slice
+    message: "WARNING: Unchecked slicing can panic"
+    note: "Ensure slice bounds are validated"
+    rule:
+      pattern: "&$EXPR[$START..$END]"
+    severity: warning
+
+  # ==========================================
+  # Division by Zero
+  # ==========================================
+  - id: unchecked-division
+    message: "WARNING: Division without zero check can panic"
+    rule:
+      pattern: "$A / $B"
+    where:
+      B:
+        not:
+          kind: integer_literal
+    severity: warning
+
+  - id: unchecked-modulo
+    message: "WARNING: Modulo without zero check can panic"
+    rule:
+      pattern: "$A % $B"
+    where:
+      B:
+        not:
+          kind: integer_literal
+    severity: warning
+
+  # ==========================================
+  # Unsafe Patterns
+  # ==========================================
+  - id: transmute-usage
+    message: "CRITICAL: transmute is unsafe and can cause UB"
+    note: "Only use transmute in well-documented unsafe blocks with safety proofs"
+    rule:
+      pattern: "std::mem::transmute($EXPR)"
+    severity: error
+
+  - id: unsafe-block
+    message: "WARNING: Unsafe block detected - ensure safety invariants are documented"
+    rule:
+      pattern: "unsafe { $$$BODY }"
+    severity: warning
+
+  # ==========================================
+  # Thread Safety Issues
+  # ==========================================
+  - id: rc-in-concurrent-code
+    message: "WARNING: Rc is not thread-safe, use Arc for concurrent access"
+    rule:
+      pattern: "Rc::new($EXPR)"
+    severity: warning
+
+  - id: refcell-in-concurrent-code
+    message: "WARNING: RefCell is not thread-safe, use Mutex/RwLock for concurrent access"
+    rule:
+      pattern: "RefCell::new($EXPR)"
+    severity: warning
+
+ruleSets:
+  panic-critical:
+    - unwrap-in-production
+    - expect-in-production
+    - panic-macro
+    - unimplemented-macro
+    - todo-macro
+
+  audio-realtime:
+    - unwrap-in-audio-callback
+    - lock-in-audio-callback
+    - allocation-in-audio-callback
+
+  bounds-checking:
+    - unchecked-array-access
+    - unchecked-slice
+    - unchecked-division
+    - unchecked-modulo
+
+  unsafe-patterns:
+    - transmute-usage
+    - unsafe-block
+
+  thread-safety:
+    - rc-in-concurrent-code
+    - refcell-in-concurrent-code
+
+ignore:
+  - "target/**"
+  - "web-audio-api-rs/**"
+  - "*.generated.rs"
+  - "tests/**"  # Allow panics in tests
+  - "benches/**"  # Allow panics in benchmarks
+  - "examples/**"  # Allow panics in examples

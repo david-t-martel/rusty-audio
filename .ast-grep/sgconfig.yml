@@ -27,7 +27,21 @@ rules:
         - pattern: "panic!($MSG)"
         - pattern: "unimplemented!()"
         - pattern: "unreachable!()"
-    severity: warning
+    severity: error  # Upgraded to error to match clippy panic-as-error
+
+  - id: panic-in-audio-callback
+    message: "CRITICAL: Panic-inducing code in audio callback - will crash audio system"
+    rule:
+      pattern: |
+        fn $CALLBACK($$$PARAMS) {
+          $$$BEFORE
+          $EXPR.unwrap()
+          $$$AFTER
+        }
+    where:
+      CALLBACK:
+        regex: "callback|process_audio|audio_thread"
+    severity: error
 
   # Performance rules
   - id: string-allocation
