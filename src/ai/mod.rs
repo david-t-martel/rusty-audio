@@ -3,23 +3,23 @@
 //! This module provides AI-enhanced features for audio analysis, enhancement,
 //! and intelligent processing using Rust ML libraries.
 
-pub mod audio_analyzer;
-pub mod eq_optimizer;
-pub mod noise_reduction;
-pub mod volume_normalizer;
-pub mod format_optimizer;
-pub mod playlist_generator;
-pub mod audio_classifier;
 pub mod adaptive_ui;
-pub mod preset_recommender;
 pub mod anomaly_detector;
-pub mod voice_commands;
+pub mod audio_analyzer;
+pub mod audio_classifier;
+pub mod eq_optimizer;
 pub mod feature_extractor;
+pub mod format_optimizer;
 pub mod ml_models;
+pub mod noise_reduction;
+pub mod playlist_generator;
+pub mod preset_recommender;
+pub mod voice_commands;
+pub mod volume_normalizer;
 
-use std::sync::Arc;
-use parking_lot::RwLock;
 use anyhow::Result;
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 /// Central AI engine that coordinates all AI features
 pub struct AIEngine {
@@ -75,13 +75,21 @@ impl AIEngine {
     }
 
     /// Get EQ recommendations based on audio analysis
-    pub fn get_eq_recommendations(&mut self, buffer: &[f32], sample_rate: u32) -> Result<EQSettings> {
+    pub fn get_eq_recommendations(
+        &mut self,
+        buffer: &[f32],
+        sample_rate: u32,
+    ) -> Result<EQSettings> {
         let features = self.feature_extractor.extract(buffer, sample_rate)?;
         self.eq_optimizer.optimize(&features)
     }
 
     /// Get preset recommendations based on audio characteristics
-    pub fn get_preset_recommendations(&mut self, buffer: &[f32], sample_rate: u32) -> Result<Vec<AudioPreset>> {
+    pub fn get_preset_recommendations(
+        &mut self,
+        buffer: &[f32],
+        sample_rate: u32,
+    ) -> Result<Vec<AudioPreset>> {
         let features = self.feature_extractor.extract(buffer, sample_rate)?;
         self.preset_recommender.recommend(&features)
     }

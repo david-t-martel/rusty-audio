@@ -1,13 +1,10 @@
 //! Integration module for optimized audio pipeline
-//! 
+//!
 //! This module provides the integration layer between the main application
 //! and the optimized audio processing components.
 
 use crate::audio_performance_optimized::{
-    ZeroCopyAudioPipeline,
-    ParallelEqProcessor,
-    PooledSpectrumProcessor,
-    OptimizedBufferPoolV2,
+    OptimizedBufferPoolV2, ParallelEqProcessor, PooledSpectrumProcessor, ZeroCopyAudioPipeline,
 };
 use std::sync::Arc;
 use web_audio_api::node::AnalyserNode;
@@ -49,14 +46,14 @@ impl OptimizedAudioProcessor {
         analyser: &mut AnalyserNode,
     ) -> ProcessingResult {
         let start = std::time::Instant::now();
-        
+
         // Process through zero-copy pipeline
         let spectrum = self.pipeline.process_zero_copy(input, output, analyser);
-        
+
         let elapsed = start.elapsed();
         self.frames_processed += 1;
         self.total_processing_time_ns += elapsed.as_nanos() as u64;
-        
+
         ProcessingResult {
             spectrum: spectrum.to_vec(),
             processing_time_us: elapsed.as_micros() as u32,
@@ -66,7 +63,9 @@ impl OptimizedAudioProcessor {
 
     /// Update EQ band parameters
     pub fn update_eq_band(&mut self, band_idx: usize, frequency: f32, q: f32, gain_db: f32) {
-        self.pipeline.eq_processor.update_band(band_idx, frequency, q, gain_db);
+        self.pipeline
+            .eq_processor
+            .update_band(band_idx, frequency, q, gain_db);
     }
 
     /// Get performance statistics
@@ -76,7 +75,7 @@ impl OptimizedAudioProcessor {
         } else {
             0
         };
-        
+
         PerformanceStats {
             frames_processed: self.frames_processed,
             average_processing_time_us: avg_processing_time_us,
@@ -116,14 +115,14 @@ pub struct PerformanceStats {
 pub mod migration {
     use super::*;
     use crate::audio_performance::OptimizedSpectrumProcessor;
-    
+
     /// Create a compatibility wrapper for gradual migration
     pub struct CompatibilityWrapper {
         old_processor: OptimizedSpectrumProcessor,
         new_processor: Option<OptimizedAudioProcessor>,
         use_new_pipeline: bool,
     }
-    
+
     impl CompatibilityWrapper {
         /// Create a new compatibility wrapper
         pub fn new(fft_size: usize) -> Self {
@@ -133,7 +132,7 @@ pub mod migration {
                 use_new_pipeline: false,
             }
         }
-        
+
         /// Enable the new optimized pipeline
         pub fn enable_optimized_pipeline(
             &mut self,
@@ -150,7 +149,7 @@ pub mod migration {
             ));
             self.use_new_pipeline = true;
         }
-        
+
         /// Process spectrum using appropriate processor
         pub fn process_spectrum(&mut self, analyser: &mut AnalyserNode) -> Vec<f32> {
             if self.use_new_pipeline {
@@ -158,19 +157,15 @@ pub mod migration {
                     // For spectrum-only processing
                     let dummy_input = vec![0.0; 1024];
                     let mut dummy_output = vec![0.0; 1024];
-                    let result = processor.process_frame(
-                        &dummy_input,
-                        &mut dummy_output,
-                        analyser,
-                    );
+                    let result = processor.process_frame(&dummy_input, &mut dummy_output, analyser);
                     return result.spectrum;
                 }
             }
-            
+
             // Fallback to old processor
             self.old_processor.process_spectrum(analyser).to_vec()
         }
-        
+
         /// Toggle between old and new pipeline
         pub fn toggle_pipeline(&mut self) -> bool {
             if self.new_processor.is_some() {
@@ -180,7 +175,7 @@ pub mod migration {
                 false
             }
         }
-        
+
         /// Get current pipeline status
         pub fn is_optimized_enabled(&self) -> bool {
             self.use_new_pipeline && self.new_processor.is_some()
@@ -203,10 +198,10 @@ mod tests {
     fn test_compatibility_wrapper() {
         let mut wrapper = migration::CompatibilityWrapper::new(2048);
         assert!(!wrapper.is_optimized_enabled());
-        
+
         wrapper.enable_optimized_pipeline(1024, 8, 44100.0, 2048);
         assert!(wrapper.is_optimized_enabled());
-        
+
         wrapper.toggle_pipeline();
         assert!(!wrapper.is_optimized_enabled());
     }

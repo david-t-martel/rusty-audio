@@ -3,16 +3,16 @@
 //! This module provides high-performance, non-blocking audio file loading
 //! with progress tracking and error recovery capabilities.
 
+use futures::stream::{self, StreamExt};
+use parking_lot::RwLock;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, BufReader};
-use futures::stream::{self, StreamExt};
-use parking_lot::RwLock;
 
-use crate::error::{AudioPlayerError, FileError, AudioError};
 use crate::audio_performance::{LockFreeRingBuffer, OptimizedBufferPool};
+use crate::error::{AudioError, AudioPlayerError, FileError};
 
 /// Progress callback type for loading operations
 pub type ProgressCallback = Arc<dyn Fn(f32) + Send + Sync>;
@@ -106,7 +106,8 @@ impl AsyncAudioLoader {
         Self {
             buffer_pool: Arc::new(OptimizedBufferPool::new(16, 48000 * 10)), // 10 second buffers
             cache: Arc::new(RwLock::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(cache_size).unwrap_or(std::num::NonZeroUsize::new(1).unwrap())
+                std::num::NonZeroUsize::new(cache_size)
+                    .unwrap_or(std::num::NonZeroUsize::new(1).unwrap()),
             ))),
             active_loads: Arc::new(RwLock::new(std::collections::HashMap::new())),
             config,
@@ -134,9 +135,9 @@ impl AsyncAudioLoader {
                 LoadStatus::Completed(result) => return Ok(result),
                 LoadStatus::Failed(error) => {
                     return Err(AudioPlayerError::FileOperation(FileError::ReadFailed {
-                        path: path.to_string_lossy().to_string()
+                        path: path.to_string_lossy().to_string(),
                     }));
-                },
+                }
                 LoadStatus::Loading { .. } => {
                     // Wait for completion with polling
                     return self.wait_for_completion(&path, progress_callback).await;
@@ -147,27 +148,28 @@ impl AsyncAudioLoader {
         // Start new load
         self.active_loads.write().insert(
             path.clone(),
-            LoadStatus::Loading { progress: 0.0, started: Instant::now() }
+            LoadStatus::Loading {
+                progress: 0.0,
+                started: Instant::now(),
+            },
         );
 
         let result = self.load_file_internal(&path, progress_callback).await;
 
         match &result {
             Ok(audio_result) => {
-                self.active_loads.write().insert(
-                    path.clone(),
-                    LoadStatus::Completed(audio_result.clone())
-                );
+                self.active_loads
+                    .write()
+                    .insert(path.clone(), LoadStatus::Completed(audio_result.clone()));
 
                 if self.config.enable_caching {
                     self.cache.write().put(path, audio_result.clone());
                 }
-            },
+            }
             Err(error) => {
-                self.active_loads.write().insert(
-                    path,
-                    LoadStatus::Failed(error.to_string())
-                );
+                self.active_loads
+                    .write()
+                    .insert(path, LoadStatus::Failed(error.to_string()));
             }
         }
 
@@ -181,7 +183,8 @@ impl AsyncAudioLoader {
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Arc<AudioLoadResult>, AudioPlayerError> {
         // Validate file format
-        let format = path.extension()
+        let format = path
+            .extension()
             .and_then(|ext| ext.to_str())
             .map(AudioFormat::from_extension)
             .unwrap_or(AudioFormat::Unknown);
@@ -193,7 +196,8 @@ impl AsyncAudioLoader {
         }
 
         // Check file size
-        let metadata = tokio::fs::metadata(path).await
+        let metadata = tokio::fs::metadata(path)
+            .await
             .map_err(|e| AudioPlayerError::FileOperation(FileError::Io(e)))?;
 
         if metadata.len() > self.config.max_file_size as u64 {
@@ -204,10 +208,13 @@ impl AsyncAudioLoader {
 
         // Load file with timeout
         let load_future = self.load_with_streaming(path, progress_callback);
-        let result = tokio::time::timeout(self.config.timeout, load_future).await
-            .map_err(|_| AudioPlayerError::FileOperation(FileError::ReadFailed {
-                path: "Loading timeout".to_string(),
-            }))?;
+        let result = tokio::time::timeout(self.config.timeout, load_future)
+            .await
+            .map_err(|_| {
+                AudioPlayerError::FileOperation(FileError::ReadFailed {
+                    path: "Loading timeout".to_string(),
+                })
+            })?;
 
         result
     }
@@ -218,10 +225,13 @@ impl AsyncAudioLoader {
         path: &Path,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<Arc<AudioLoadResult>, AudioPlayerError> {
-        let file = File::open(path).await
+        let file = File::open(path)
+            .await
             .map_err(|e| AudioPlayerError::FileOperation(FileError::Io(e)))?;
 
-        let file_size = file.metadata().await
+        let file_size = file
+            .metadata()
+            .await
             .map_err(|e| AudioPlayerError::FileOperation(FileError::Io(e)))?
             .len();
 
@@ -232,7 +242,9 @@ impl AsyncAudioLoader {
         // Stream file in chunks
         let mut chunk = vec![0u8; self.config.chunk_size];
         loop {
-            let n = reader.read(&mut chunk).await
+            let n = reader
+                .read(&mut chunk)
+                .await
                 .map_err(|e| AudioPlayerError::FileOperation(FileError::Io(e)))?;
 
             if n == 0 {
@@ -251,7 +263,10 @@ impl AsyncAudioLoader {
             // Update active load status
             self.active_loads.write().insert(
                 path.to_path_buf(),
-                LoadStatus::Loading { progress: progress * 0.5, started: Instant::now() }
+                LoadStatus::Loading {
+                    progress: progress * 0.5,
+                    started: Instant::now(),
+                },
             );
 
             // Yield to allow other tasks to run
@@ -259,7 +274,9 @@ impl AsyncAudioLoader {
         }
 
         // Decode audio data
-        let decode_result = self.decode_audio_data(buffer, progress_callback.clone()).await?;
+        let decode_result = self
+            .decode_audio_data(buffer, progress_callback.clone())
+            .await?;
 
         // Final progress update
         if let Some(callback) = &progress_callback {
@@ -325,7 +342,9 @@ impl AsyncAudioLoader {
                 bit_depth: 16,
                 format: AudioFormat::Mp3, // Would be detected
             }
-        }).await.map_err(|e| AudioPlayerError::AudioProcessing(AudioError::DecodeFailed))
+        })
+        .await
+        .map_err(|e| AudioPlayerError::AudioProcessing(AudioError::DecodeFailed))
     }
 
     /// Wait for an ongoing load to complete
@@ -350,7 +369,7 @@ impl AsyncAudioLoader {
                         return Err(AudioPlayerError::FileOperation(FileError::ReadFailed {
                             path: error,
                         }));
-                    },
+                    }
                     LoadStatus::Loading { progress, .. } => {
                         if let Some(callback) = &progress_callback {
                             callback(progress);
@@ -369,7 +388,9 @@ impl AsyncAudioLoader {
         paths: Vec<P>,
         progress_callback: Option<ProgressCallback>,
     ) -> Vec<Result<Arc<AudioLoadResult>, AudioPlayerError>> {
-        let semaphore = Arc::new(tokio::sync::Semaphore::new(self.config.max_concurrent_loads));
+        let semaphore = Arc::new(tokio::sync::Semaphore::new(
+            self.config.max_concurrent_loads,
+        ));
         let total_files = paths.len();
         let completed_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
@@ -387,8 +408,11 @@ impl AsyncAudioLoader {
                 let file_progress_callback = progress_callback.map(|callback| {
                     let completed_count_inner = completed_count.clone();
                     Arc::new(move |file_progress: f32| {
-                        let overall_progress = (completed_count_inner.load(std::sync::atomic::Ordering::Relaxed) as f32
-                            + file_progress) / total_files as f32;
+                        let overall_progress = (completed_count_inner
+                            .load(std::sync::atomic::Ordering::Relaxed)
+                            as f32
+                            + file_progress)
+                            / total_files as f32;
                         callback(overall_progress);
                     }) as ProgressCallback
                 });
@@ -538,8 +562,8 @@ impl StreamingHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use std::io::Write;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_async_loader_creation() {
@@ -591,17 +615,21 @@ mod tests {
 
         // Create temporary files
         let dir = tempdir().unwrap();
-        let paths: Vec<_> = (0..3).map(|i| {
-            let path = dir.path().join(format!("test{}.mp3", i));
-            std::fs::write(&path, b"fake mp3 data").unwrap();
-            path
-        }).collect();
+        let paths: Vec<_> = (0..3)
+            .map(|i| {
+                let path = dir.path().join(format!("test{}.mp3", i));
+                std::fs::write(&path, b"fake mp3 data").unwrap();
+                path
+            })
+            .collect();
 
         let progress_callback = Arc::new(|progress: f32| {
             println!("Overall progress: {:.1}%", progress * 100.0);
         });
 
-        let results = loader.load_files_concurrent(paths, Some(progress_callback)).await;
+        let results = loader
+            .load_files_concurrent(paths, Some(progress_callback))
+            .await;
 
         // All should fail since we're using fake data, but structure should work
         assert_eq!(results.len(), 3);

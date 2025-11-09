@@ -3,11 +3,14 @@
 //! This module handles audio file metadata extraction and album art processing.
 //! It follows the Single Responsibility Principle by handling only metadata operations.
 
-use crate::error::{MetadataError, ImageError, ErrorContext, Result};
+use crate::error::{ErrorContext, ImageError, MetadataError, Result};
 use image::GenericImageView;
-use lofty::{file::{TaggedFileExt, AudioFile}, tag::Accessor};
+use lofty::{
+    file::{AudioFile, TaggedFileExt},
+    tag::Accessor,
+};
 use std::path::Path;
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 
 /// Track metadata extracted from audio files
 #[derive(Debug, Clone)]
@@ -72,27 +75,31 @@ impl MetadataExtractorInterface for LoftyMetadataExtractor {
     fn extract_metadata(&self, path: &Path) -> Result<TrackMetadata> {
         debug!("Extracting metadata from: {:?}", path);
 
-        let tagged_file = lofty::read_from_path(path)
-            .map_err(|e| MetadataError::LoftyError(e.to_string()))?;
+        let tagged_file =
+            lofty::read_from_path(path).map_err(|e| MetadataError::LoftyError(e.to_string()))?;
 
         let properties = tagged_file.file_type();
         let duration = tagged_file.properties().duration();
 
         let metadata = if let Some(tag) = tagged_file.primary_tag() {
             TrackMetadata {
-                title: tag.title()
+                title: tag
+                    .title()
                     .as_deref()
                     .unwrap_or("Unknown Title")
                     .to_string(),
-                artist: tag.artist()
+                artist: tag
+                    .artist()
                     .as_deref()
                     .unwrap_or("Unknown Artist")
                     .to_string(),
-                album: tag.album()
+                album: tag
+                    .album()
                     .as_deref()
                     .unwrap_or("Unknown Album")
                     .to_string(),
-                year: tag.year()
+                year: tag
+                    .year()
                     .map(|y| y.to_string())
                     .unwrap_or_else(|| "----".to_string()),
                 duration: Some(duration),
@@ -108,15 +115,18 @@ impl MetadataExtractorInterface for LoftyMetadataExtractor {
             }
         };
 
-        info!("Extracted metadata: {} - {} ({})", metadata.artist, metadata.title, metadata.album);
+        info!(
+            "Extracted metadata: {} - {} ({})",
+            metadata.artist, metadata.title, metadata.album
+        );
         Ok(metadata)
     }
 
     fn extract_album_art(&self, path: &Path) -> Result<Option<AlbumArt>> {
         debug!("Extracting album art from: {:?}", path);
 
-        let tagged_file = lofty::read_from_path(path)
-            .map_err(|e| MetadataError::LoftyError(e.to_string()))?;
+        let tagged_file =
+            lofty::read_from_path(path).map_err(|e| MetadataError::LoftyError(e.to_string()))?;
 
         if let Some(picture) = tagged_file.primary_tag().and_then(|t| t.pictures().get(0)) {
             debug!("Found album art, size: {} bytes", picture.data().len());
@@ -127,7 +137,10 @@ impl MetadataExtractorInterface for LoftyMetadataExtractor {
                     let (width, height) = img.dimensions();
                     Ok(Some(AlbumArt {
                         data: picture.data().to_vec(),
-                        mime_type: picture.mime_type().map(|m| m.to_string()).unwrap_or_else(|| "unknown".to_string()),
+                        mime_type: picture
+                            .mime_type()
+                            .map(|m| m.to_string())
+                            .unwrap_or_else(|| "unknown".to_string()),
                         width,
                         height,
                     }))
@@ -136,7 +149,8 @@ impl MetadataExtractorInterface for LoftyMetadataExtractor {
                     warn!("Failed to process album art image: {}", e);
                     Err(ImageError::ProcessingFailed {
                         details: e.to_string(),
-                    }.into())
+                    }
+                    .into())
                 }
             }
         } else {
@@ -146,10 +160,13 @@ impl MetadataExtractorInterface for LoftyMetadataExtractor {
     }
 
     fn process_album_art_for_ui(&self, album_art: &AlbumArt) -> Result<egui::ColorImage> {
-        debug!("Processing album art for UI: {}x{}", album_art.width, album_art.height);
+        debug!(
+            "Processing album art for UI: {}x{}",
+            album_art.width, album_art.height
+        );
 
-        let img = image::load_from_memory(&album_art.data)
-            .map_err(|e| ImageError::ProcessingFailed {
+        let img =
+            image::load_from_memory(&album_art.data).map_err(|e| ImageError::ProcessingFailed {
                 details: e.to_string(),
             })?;
 
@@ -236,7 +253,13 @@ mod tests {
 
     #[test]
     fn test_sanitize_metadata_string() {
-        assert_eq!(utils::sanitize_metadata_string("  Normal Text  "), "Normal Text");
-        assert_eq!(utils::sanitize_metadata_string("Text\x00with\x01control"), "Textwithcontrol");
+        assert_eq!(
+            utils::sanitize_metadata_string("  Normal Text  "),
+            "Normal Text"
+        );
+        assert_eq!(
+            utils::sanitize_metadata_string("Text\x00with\x01control"),
+            "Textwithcontrol"
+        );
     }
 }

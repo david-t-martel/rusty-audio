@@ -3,10 +3,10 @@
 // This test suite focuses on mathematical accuracy, signal processing verification,
 // and audio processing correctness using the testing framework we built.
 
-use std::f32::consts::PI;
-use rustfft::{FftPlanner, num_complex::Complex32};
-use rand::{Rng, SeedableRng, rngs::StdRng};
 use approx::assert_relative_eq;
+use rand::{rngs::StdRng, Rng, SeedableRng};
+use rustfft::{num_complex::Complex32, FftPlanner};
+use std::f32::consts::PI;
 
 // Test constants
 const SAMPLE_RATE: f32 = 44100.0;
@@ -162,9 +162,7 @@ pub fn calculate_thd(fundamental_amplitude: f32, harmonic_amplitudes: &[f32]) ->
         return f32::INFINITY;
     }
 
-    let harmonic_sum_squares: f32 = harmonic_amplitudes.iter()
-        .map(|&h| h * h)
-        .sum();
+    let harmonic_sum_squares: f32 = harmonic_amplitudes.iter().map(|&h| h * h).sum();
 
     (harmonic_sum_squares.sqrt() / fundamental_amplitude) * 100.0
 }
@@ -210,14 +208,24 @@ mod tests {
             let generator = TestSineGenerator::new(freq);
             let samples = generator.generate(2.0, SAMPLE_RATE); // 2 seconds for better resolution
 
-            if let Some((detected_freq, magnitude)) = analyzer.analyze_and_find_peak(&samples, SAMPLE_RATE) {
+            if let Some((detected_freq, magnitude)) =
+                analyzer.analyze_and_find_peak(&samples, SAMPLE_RATE)
+            {
                 // Frequency should be detected within 25 Hz tolerance
-                assert!((detected_freq - freq).abs() < 25.0,
-                    "Expected {:.1} Hz, got {:.1} Hz", freq, detected_freq);
+                assert!(
+                    (detected_freq - freq).abs() < 25.0,
+                    "Expected {:.1} Hz, got {:.1} Hz",
+                    freq,
+                    detected_freq
+                );
 
                 // Magnitude should be significant (> 0.3 for unit amplitude sine)
-                assert!(magnitude > 0.3,
-                    "Magnitude too low: {} for {:.1} Hz", magnitude, freq);
+                assert!(
+                    magnitude > 0.3,
+                    "Magnitude too low: {} for {:.1} Hz",
+                    magnitude,
+                    freq
+                );
             } else {
                 panic!("Failed to detect frequency for {:.1} Hz", freq);
             }
@@ -256,8 +264,12 @@ mod tests {
         // For uniform white noise, RMS should be approximately amplitude/√3
         let expected_rms = 1.0 / 3.0f32.sqrt();
         let rms_tolerance = expected_rms * 0.2; // 20% tolerance due to randomness
-        assert!((rms - expected_rms).abs() < rms_tolerance,
-            "RMS {} not within tolerance of expected {}", rms, expected_rms);
+        assert!(
+            (rms - expected_rms).abs() < rms_tolerance,
+            "RMS {} not within tolerance of expected {}",
+            rms,
+            expected_rms
+        );
 
         // Peak should be close to amplitude
         assert!(peak <= 1.0, "Peak {} exceeds amplitude", peak);
@@ -265,7 +277,11 @@ mod tests {
 
         // Test that DC component is near zero
         let dc_component: f32 = samples.iter().sum::<f32>() / samples.len() as f32;
-        assert!(dc_component.abs() < 0.1, "DC component {} too high", dc_component);
+        assert!(
+            dc_component.abs() < 0.1,
+            "DC component {} too high",
+            dc_component
+        );
     }
 
     #[test]
@@ -279,7 +295,10 @@ mod tests {
         // With same seed, should produce identical results
         assert_eq!(samples1.len(), samples2.len());
         for (s1, s2) in samples1.iter().zip(samples2.iter()) {
-            assert_eq!(s1, s2, "Noise generators with same seed should be identical");
+            assert_eq!(
+                s1, s2,
+                "Noise generators with same seed should be identical"
+            );
         }
     }
 
@@ -290,20 +309,25 @@ mod tests {
     fn test_fft_analyzer_known_frequencies() {
         let analyzer = TestFftAnalyzer::new(FFT_SIZE);
         let test_cases = vec![
-            (100.0, 25.0),   // Low frequency
-            (440.0, 25.0),   // A4 note
-            (1000.0, 25.0),  // 1 kHz
-            (5000.0, 50.0),  // High frequency (wider tolerance)
+            (100.0, 25.0),  // Low frequency
+            (440.0, 25.0),  // A4 note
+            (1000.0, 25.0), // 1 kHz
+            (5000.0, 50.0), // High frequency (wider tolerance)
         ];
 
         for (freq, tolerance) in test_cases {
             let generator = TestSineGenerator::new(freq);
             let samples = generator.generate(2.0, SAMPLE_RATE);
 
-            if let Some((detected_freq, _)) = analyzer.analyze_and_find_peak(&samples, SAMPLE_RATE) {
-                assert!((detected_freq - freq).abs() < tolerance,
+            if let Some((detected_freq, _)) = analyzer.analyze_and_find_peak(&samples, SAMPLE_RATE)
+            {
+                assert!(
+                    (detected_freq - freq).abs() < tolerance,
                     "FFT detected {:.1} Hz, expected {:.1} Hz ± {:.1} Hz",
-                    detected_freq, freq, tolerance);
+                    detected_freq,
+                    freq,
+                    tolerance
+                );
             } else {
                 panic!("FFT failed to detect {:.1} Hz signal", freq);
             }
@@ -319,8 +343,11 @@ mod tests {
         if let Some((_, magnitude)) = analyzer.analyze_and_find_peak(&samples, SAMPLE_RATE) {
             // For unit amplitude sine wave, FFT magnitude should be around 0.5
             // (due to windowing and normalization)
-            assert!(magnitude > 0.3 && magnitude < 0.7,
-                "FFT magnitude {} not in expected range [0.3, 0.7]", magnitude);
+            assert!(
+                magnitude > 0.3 && magnitude < 0.7,
+                "FFT magnitude {} not in expected range [0.3, 0.7]",
+                magnitude
+            );
         } else {
             panic!("FFT failed to analyze magnitude");
         }
@@ -342,10 +369,10 @@ mod tests {
     fn test_rms_calculation_accuracy() {
         // Test known RMS values
         let test_cases = vec![
-            (vec![1.0, -1.0, 1.0, -1.0], 1.0),           // Square wave
-            (vec![0.0, 0.0, 0.0, 0.0], 0.0),             // Silence
-            (vec![3.0, 4.0], 5.0f32.sqrt() / 2.0),       // 3-4-5 triangle
-            (vec![1.0, 1.0, 1.0, 1.0], 1.0),             // DC signal
+            (vec![1.0, -1.0, 1.0, -1.0], 1.0),     // Square wave
+            (vec![0.0, 0.0, 0.0, 0.0], 0.0),       // Silence
+            (vec![3.0, 4.0], 5.0f32.sqrt() / 2.0), // 3-4-5 triangle
+            (vec![1.0, 1.0, 1.0, 1.0], 1.0),       // DC signal
         ];
 
         for (samples, expected_rms) in test_cases {
@@ -420,8 +447,13 @@ mod tests {
 
             // Property: Energy should be conserved
             let energy: f32 = samples.iter().map(|&x| x * x).sum();
-            let expected_energy = (generator.amplitude * generator.amplitude) / 2.0 * samples.len() as f32;
-            assert_relative_eq!(energy, expected_energy, epsilon = TOLERANCE * samples.len() as f32);
+            let expected_energy =
+                (generator.amplitude * generator.amplitude) / 2.0 * samples.len() as f32;
+            assert_relative_eq!(
+                energy,
+                expected_energy,
+                epsilon = TOLERANCE * samples.len() as f32
+            );
         }
     }
 
@@ -459,7 +491,8 @@ mod tests {
 
         // Analyze signal
         let analyzer = TestFftAnalyzer::new(FFT_SIZE);
-        let (detected_freq, magnitude) = analyzer.analyze_and_find_peak(&samples, SAMPLE_RATE)
+        let (detected_freq, magnitude) = analyzer
+            .analyze_and_find_peak(&samples, SAMPLE_RATE)
             .expect("Should detect generated frequency");
 
         // Verify mathematical properties
@@ -469,7 +502,11 @@ mod tests {
         // All properties should match expected values
         assert!((detected_freq - test_freq).abs() < 25.0);
         assert!(magnitude > 0.2);
-        assert_relative_eq!(rms, test_amplitude / 2.0f32.sqrt(), epsilon = TOLERANCE * 10.0);
+        assert_relative_eq!(
+            rms,
+            test_amplitude / 2.0f32.sqrt(),
+            epsilon = TOLERANCE * 10.0
+        );
         assert_relative_eq!(peak, test_amplitude, epsilon = TOLERANCE * 10.0);
     }
 
@@ -488,7 +525,8 @@ mod tests {
         let samples2 = gen2.generate(2.0, SAMPLE_RATE);
 
         // Mix signals
-        let mixed_samples: Vec<f32> = samples1.iter()
+        let mixed_samples: Vec<f32> = samples1
+            .iter()
             .zip(samples2.iter())
             .map(|(s1, s2)| s1 + s2)
             .collect();

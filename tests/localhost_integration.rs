@@ -10,8 +10,8 @@
 #[cfg(test)]
 mod localhost_tests {
     use std::process::{Command, Stdio};
-    use std::time::Duration;
     use std::thread;
+    use std::time::Duration;
 
     const LOCALHOST_URL: &str = "http://localhost:8080";
     const TIMEOUT_SECS: u64 = 10;
@@ -50,27 +50,36 @@ mod localhost_tests {
     #[ignore]
     fn test_index_html_loads() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
         let response = client
             .get(LOCALHOST_URL)
             .send()
             .expect("Failed to fetch index.html");
 
-        assert!(response.status().is_success(), "index.html should return 200 OK");
-        
+        assert!(
+            response.status().is_success(),
+            "index.html should return 200 OK"
+        );
+
         let content = response.text().expect("Failed to read response body");
-        assert!(content.contains("<canvas"), "index.html should contain canvas element");
-        assert!(content.contains("rusty-audio"), "index.html should reference rusty-audio");
+        assert!(
+            content.contains("<canvas"),
+            "index.html should contain canvas element"
+        );
+        assert!(
+            content.contains("rusty-audio"),
+            "index.html should reference rusty-audio"
+        );
     }
 
     #[test]
     #[ignore]
     fn test_wasm_file_exists() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
-        
+
         // Check if WASM file is accessible
         let wasm_url = format!("{}/pkg/rusty_audio_bg.wasm", LOCALHOST_URL);
         let response = client
@@ -80,17 +89,20 @@ mod localhost_tests {
 
         assert!(
             response.status().is_success(),
-            "WASM file should be accessible at {}", wasm_url
+            "WASM file should be accessible at {}",
+            wasm_url
         );
 
         let content_type = response
             .headers()
             .get("content-type")
             .and_then(|h| h.to_str().ok());
-        
+
         assert!(
-            content_type.map_or(false, |ct| ct.contains("wasm") || ct.contains("application/octet-stream")),
-            "WASM file should have correct content-type, got: {:?}", content_type
+            content_type.map_or(false, |ct| ct.contains("wasm")
+                || ct.contains("application/octet-stream")),
+            "WASM file should have correct content-type, got: {:?}",
+            content_type
         );
     }
 
@@ -98,17 +110,20 @@ mod localhost_tests {
     #[ignore]
     fn test_javascript_glue_exists() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
         let js_url = format!("{}/pkg/rusty_audio.js", LOCALHOST_URL);
-        
+
         let response = client
             .get(&js_url)
             .send()
             .expect("Failed to fetch JS glue code");
 
-        assert!(response.status().is_success(), "JS glue code should be accessible");
-        
+        assert!(
+            response.status().is_success(),
+            "JS glue code should be accessible"
+        );
+
         let content = response.text().expect("Failed to read JS content");
         assert!(content.contains("wasm"), "JS should reference WASM");
         assert!(content.len() > 1000, "JS glue code should be substantial");
@@ -118,51 +133,72 @@ mod localhost_tests {
     #[ignore]
     fn test_pwa_manifest_exists() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
         let manifest_url = format!("{}/manifest.webmanifest", LOCALHOST_URL);
-        
+
         let response = client
             .get(&manifest_url)
             .send()
             .expect("Failed to fetch PWA manifest");
 
-        assert!(response.status().is_success(), "PWA manifest should be accessible");
-        
+        assert!(
+            response.status().is_success(),
+            "PWA manifest should be accessible"
+        );
+
         let content = response.text().expect("Failed to read manifest");
-        assert!(content.contains("Rusty Audio"), "Manifest should contain app name");
+        assert!(
+            content.contains("Rusty Audio"),
+            "Manifest should contain app name"
+        );
         assert!(content.contains("icons"), "Manifest should contain icons");
-        assert!(content.contains("standalone"), "Manifest should specify display mode");
+        assert!(
+            content.contains("standalone"),
+            "Manifest should specify display mode"
+        );
     }
 
     #[test]
     #[ignore]
     fn test_service_worker_exists() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
         let sw_url = format!("{}/service-worker.js", LOCALHOST_URL);
-        
+
         let response = client
             .get(&sw_url)
             .send()
             .expect("Failed to fetch service worker");
 
-        assert!(response.status().is_success(), "Service worker should be accessible");
-        
+        assert!(
+            response.status().is_success(),
+            "Service worker should be accessible"
+        );
+
         let content = response.text().expect("Failed to read service worker");
-        assert!(content.contains("install"), "Service worker should have install event");
-        assert!(content.contains("fetch"), "Service worker should have fetch event");
-        assert!(content.contains("cache"), "Service worker should implement caching");
+        assert!(
+            content.contains("install"),
+            "Service worker should have install event"
+        );
+        assert!(
+            content.contains("fetch"),
+            "Service worker should have fetch event"
+        );
+        assert!(
+            content.contains("cache"),
+            "Service worker should implement caching"
+        );
     }
 
     #[test]
     #[ignore]
     fn test_pwa_icons_exist() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
-        
+
         // Check 192x192 icon
         let icon_192_url = format!("{}/icons/icon-192.png", LOCALHOST_URL);
         let response_192 = client.get(&icon_192_url).send();
@@ -184,7 +220,7 @@ mod localhost_tests {
     #[ignore]
     fn test_security_headers() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
         let response = client
             .get(LOCALHOST_URL)
@@ -192,7 +228,7 @@ mod localhost_tests {
             .expect("Failed to fetch for header check");
 
         let headers = response.headers();
-        
+
         // Check for important security headers (may not all be present in dev server)
         println!("Response headers:");
         for (key, value) in headers.iter() {
@@ -207,10 +243,10 @@ mod localhost_tests {
     #[ignore]
     fn test_wasm_bundle_size() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
         let wasm_url = format!("{}/pkg/rusty_audio_bg.wasm", LOCALHOST_URL);
-        
+
         let response = client
             .get(&wasm_url)
             .send()
@@ -223,18 +259,25 @@ mod localhost_tests {
 
         // Warn if bundle is too large (>5MB uncompressed is concerning)
         if size_mb > 5.0 {
-            eprintln!("⚠️  Warning: WASM bundle is large ({:.2} MB). Consider optimization.", size_mb);
+            eprintln!(
+                "⚠️  Warning: WASM bundle is large ({:.2} MB). Consider optimization.",
+                size_mb
+            );
         }
 
         assert!(size_mb > 0.1, "WASM bundle should be at least 100KB");
-        assert!(size_mb < 20.0, "WASM bundle should be under 20MB (current: {:.2} MB)", size_mb);
+        assert!(
+            size_mb < 20.0,
+            "WASM bundle should be under 20MB (current: {:.2} MB)",
+            size_mb
+        );
     }
 
     #[test]
     #[ignore]
     fn test_all_core_assets_load() {
         wait_for_server().expect("Server should be running");
-        
+
         let client = reqwest::blocking::Client::new();
         let core_assets = vec![
             "/",
@@ -266,10 +309,7 @@ mod localhost_tests {
         }
 
         if !failures.is_empty() {
-            panic!(
-                "Some core assets failed to load:\n{}",
-                failures.join("\n")
-            );
+            panic!("Some core assets failed to load:\n{}", failures.join("\n"));
         }
     }
 }

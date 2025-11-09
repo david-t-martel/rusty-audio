@@ -9,8 +9,8 @@
 //! - BOTH: Benefit from buffer pooling and cache-line alignment
 
 use crate::audio_performance_optimized::{
-    OptimizedBufferPoolV2, PooledSpectrumProcessor, ParallelEqProcessor,
-    ZeroCopyAudioPipeline, AlignedBuffer,
+    AlignedBuffer, OptimizedBufferPoolV2, ParallelEqProcessor, PooledSpectrumProcessor,
+    ZeroCopyAudioPipeline,
 };
 use std::sync::Arc;
 use web_audio_api::node::AnalyserNode;
@@ -80,9 +80,19 @@ impl OptimizedAudioPipeline {
     /// * `num_eq_bands` - Number of EQ bands (typically 8)
     /// * `sample_rate` - Audio sample rate in Hz
     /// * `fft_size` - FFT size for spectrum analysis
-    pub fn new(max_block_size: usize, num_eq_bands: usize, sample_rate: f32, fft_size: usize) -> Self {
+    pub fn new(
+        max_block_size: usize,
+        num_eq_bands: usize,
+        sample_rate: f32,
+        fft_size: usize,
+    ) -> Self {
         Self {
-            pipeline: ZeroCopyAudioPipeline::new(max_block_size, num_eq_bands, sample_rate, fft_size),
+            pipeline: ZeroCopyAudioPipeline::new(
+                max_block_size,
+                num_eq_bands,
+                sample_rate,
+                fft_size,
+            ),
             max_block_size,
         }
     }
@@ -96,8 +106,16 @@ impl OptimizedAudioPipeline {
     ///
     /// Returns: Spectrum data slice (no allocation)
     #[inline(always)]
-    pub fn process(&mut self, input: &[f32], output: &mut [f32], analyser: &mut AnalyserNode) -> &[f32] {
-        assert!(input.len() <= self.max_block_size, "Input exceeds max block size");
+    pub fn process(
+        &mut self,
+        input: &[f32],
+        output: &mut [f32],
+        analyser: &mut AnalyserNode,
+    ) -> &[f32] {
+        assert!(
+            input.len() <= self.max_block_size,
+            "Input exceeds max block size"
+        );
         self.pipeline.process_zero_copy(input, output, analyser)
     }
 
@@ -109,7 +127,9 @@ impl OptimizedAudioPipeline {
     /// * `q` - Q factor (resonance)
     /// * `gain_db` - Gain in decibels
     pub fn update_eq_band(&mut self, band_idx: usize, frequency: f32, q: f32, gain_db: f32) {
-        self.pipeline.eq_processor.update_band(band_idx, frequency, q, gain_db);
+        self.pipeline
+            .eq_processor
+            .update_band(band_idx, frequency, q, gain_db);
     }
 
     /// Get pipeline statistics

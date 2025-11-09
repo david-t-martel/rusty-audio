@@ -49,11 +49,17 @@
       "Bash(dos2unix:*)",
       "Bash(bash:*)",
       "Bash(tee:*)",
-      "Bash(/mnt/c/users/david/rusty-audio/scripts/verify-pwa-setup.sh:*)",
+      "Bash(./scripts/verify-pwa-setup.sh:*)",
       "Bash(export RUSTC_WRAPPER=\"\")",
       "Bash(./scripts/verify-pwa-setup.sh:*)",
       "Bash(ls:*)",
-      "Bash(just:*)"
+      "Bash(just:*)",
+      "Bash(env -i HOME=\"$HOME\" PATH=\"$PATH\" CARGO_HOME=\"$HOME/.cargo\" bash -c \"cargo check --lib 2>&1 | head -30\")",
+      "Bash(md5sum:*)",
+      "Bash(rustfmt:*)",
+      "Bash(RUSTC_WRAPPER=\"\" cargo build:*)",
+      "Bash(find:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

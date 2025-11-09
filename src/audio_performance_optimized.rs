@@ -1,13 +1,13 @@
 //! Optimized Audio Performance Module with Buffer Pool Integration
-//! 
+//!
 //! This module extends the existing audio_performance.rs with optimized buffer pooling,
 //! parallel EQ processing, cache-line alignment, and zero-copy pipeline implementations.
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use parking_lot::RwLock;
 use rayon::prelude::*;
-use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
+use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 // SIMD intrinsics are DESKTOP-ONLY (not available in WASM)
 #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
@@ -17,7 +17,7 @@ use std::arch::x86_64::*;
 const CACHE_LINE_SIZE: usize = 64;
 
 /// Pre-allocated buffer pool with thread-safe access and cache-line alignment
-/// 
+///
 /// This implementation eliminates dynamic allocations in the audio processing pipeline
 /// by maintaining a pool of pre-allocated, cache-aligned buffers.
 #[repr(C, align(64))] // Cache-line aligned structure
@@ -52,10 +52,8 @@ impl AlignedBuffer {
     /// Create a new cache-line aligned buffer
     pub fn new(size: usize) -> Self {
         // Ensure alignment to cache line size
-        let layout = Layout::from_size_align(
-            size * std::mem::size_of::<f32>(),
-            CACHE_LINE_SIZE
-        ).expect("Invalid alignment");
+        let layout = Layout::from_size_align(size * std::mem::size_of::<f32>(), CACHE_LINE_SIZE)
+            .expect("Invalid alignment");
 
         unsafe {
             let ptr = alloc(layout) as *mut f32;
@@ -77,17 +75,13 @@ impl AlignedBuffer {
     /// Get a mutable slice to the buffer data
     #[inline(always)]
     pub fn as_mut_slice(&mut self) -> &mut [f32] {
-        unsafe {
-            std::slice::from_raw_parts_mut(self.data, self.capacity)
-        }
+        unsafe { std::slice::from_raw_parts_mut(self.data, self.capacity) }
     }
 
     /// Get an immutable slice to the buffer data
     #[inline(always)]
     pub fn as_slice(&self) -> &[f32] {
-        unsafe {
-            std::slice::from_raw_parts(self.data, self.capacity)
-        }
+        unsafe { std::slice::from_raw_parts(self.data, self.capacity) }
     }
 
     /// Clear the buffer (set to zero)
@@ -111,7 +105,7 @@ impl OptimizedBufferPoolV2 {
     /// Create a new optimized buffer pool
     pub fn new(pool_capacity: usize, buffer_size: usize) -> Self {
         let mut buffers = Vec::with_capacity(pool_capacity);
-        
+
         // Pre-allocate all buffers
         for _ in 0..pool_capacity {
             buffers.push(AlignedBuffer::new(buffer_size));
@@ -177,14 +171,15 @@ impl PooledSpectrumProcessor {
     /// Create a new spectrum processor with buffer pooling
     pub fn new(buffer_pool: Arc<OptimizedBufferPoolV2>, fft_size: usize) -> Self {
         let bin_count = fft_size / 2;
-        
+
         // Use aligned buffers from the pool
         let mut window = AlignedBuffer::new(fft_size);
-        
+
         // Initialize Hann window
         let window_slice = window.as_mut_slice();
         for i in 0..fft_size {
-            window_slice[i] = 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (fft_size - 1) as f32).cos());
+            window_slice[i] =
+                0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (fft_size - 1) as f32).cos());
         }
 
         Self {
@@ -200,16 +195,19 @@ impl PooledSpectrumProcessor {
     /// Process spectrum without allocations using buffer pool (native only)
     #[cfg(not(target_arch = "wasm32"))]
     #[inline(always)]
-    pub fn process_spectrum_pooled(&mut self, analyser: &mut web_audio_api::node::AnalyserNode) -> &[f32] {
+    pub fn process_spectrum_pooled(
+        &mut self,
+        analyser: &mut web_audio_api::node::AnalyserNode,
+    ) -> &[f32] {
         // Acquire temporary buffer from pool instead of allocating
         if let Some(mut temp_buffer) = self.buffer_pool.acquire() {
             let byte_slice = unsafe {
                 std::slice::from_raw_parts_mut(
                     temp_buffer.as_mut_slice().as_mut_ptr() as *mut u8,
-                    self.frequency_buffer.capacity.min(temp_buffer.capacity)
+                    self.frequency_buffer.capacity.min(temp_buffer.capacity),
                 )
             };
-            
+
             analyser.get_byte_frequency_data(byte_slice);
 
             // Process with SIMD if available (DESKTOP ONLY)
@@ -226,7 +224,7 @@ impl PooledSpectrumProcessor {
 
             // Scalar fallback (WASM-compatible)
             self.process_spectrum_scalar_pooled(byte_slice);
-            
+
             // Return buffer to pool
             self.buffer_pool.release(temp_buffer);
         } else {
@@ -235,7 +233,7 @@ impl PooledSpectrumProcessor {
             analyser.get_byte_frequency_data(&mut byte_data);
             self.process_spectrum_scalar_pooled(&byte_data);
         }
-        
+
         self.spectrum_buffer.as_slice()
     }
 
@@ -245,53 +243,64 @@ impl PooledSpectrumProcessor {
     unsafe fn process_spectrum_avx2_pooled(&mut self, byte_data: &[u8]) {
         let len = byte_data.len().min(self.spectrum_buffer.capacity);
         let simd_len = len - (len % 8);
-        
+
         let scale_vec = _mm256_set1_ps(100.0 / 255.0);
         let offset_vec = _mm256_set1_ps(-100.0);
         let smoothing_vec = _mm256_set1_ps(self.smoothing_factor);
         let one_minus_smoothing = _mm256_set1_ps(1.0 - self.smoothing_factor);
-        
+
         let spectrum_slice = self.spectrum_buffer.as_mut_slice();
-        
+
         for i in (0..simd_len).step_by(8) {
             let bytes = _mm_loadu_si64(byte_data.as_ptr().add(i) as *const _);
             let bytes_32 = _mm256_cvtepu8_epi32(bytes);
             let floats = _mm256_cvtepi32_ps(bytes_32);
-            
+
             let db = _mm256_add_ps(_mm256_mul_ps(floats, scale_vec), offset_vec);
-            
+
             let linear = _mm256_max_ps(
                 _mm256_setzero_ps(),
-                _mm256_add_ps(_mm256_set1_ps(1.0), _mm256_mul_ps(db, _mm256_set1_ps(0.023026)))
+                _mm256_add_ps(
+                    _mm256_set1_ps(1.0),
+                    _mm256_mul_ps(db, _mm256_set1_ps(0.023026)),
+                ),
             );
-            
+
             let old_spectrum = _mm256_loadu_ps(spectrum_slice.as_ptr().add(i));
             let smoothed = _mm256_add_ps(
                 _mm256_mul_ps(old_spectrum, smoothing_vec),
-                _mm256_mul_ps(linear, one_minus_smoothing)
+                _mm256_mul_ps(linear, one_minus_smoothing),
             );
-            
+
             _mm256_storeu_ps(spectrum_slice.as_mut_ptr().add(i), smoothed);
         }
-        
+
         // Handle remaining elements
         for i in simd_len..len {
             let db = (byte_data[i] as f32 / 255.0) * 100.0 - 100.0;
-            let linear = if db > -100.0 { 10.0_f32.powf(db * 0.05) } else { 0.0 };
-            spectrum_slice[i] = spectrum_slice[i] * self.smoothing_factor
-                + linear * (1.0 - self.smoothing_factor);
+            let linear = if db > -100.0 {
+                10.0_f32.powf(db * 0.05)
+            } else {
+                0.0
+            };
+            spectrum_slice[i] =
+                spectrum_slice[i] * self.smoothing_factor + linear * (1.0 - self.smoothing_factor);
         }
     }
 
     fn process_spectrum_scalar_pooled(&mut self, byte_data: &[u8]) {
         let spectrum_slice = self.spectrum_buffer.as_mut_slice();
         let len = byte_data.len().min(spectrum_slice.len());
-        
+
         for i in 0..len {
             let db = (byte_data[i] as f32 / 255.0) * 100.0 - 100.0;
-            let linear = if db > -100.0 { 10.0_f32.powf(db * 0.05) } else { 0.0 };
-            spectrum_slice[i] = spectrum_slice[i] * self.smoothing_factor
-                + linear * (1.0 - self.smoothing_factor);
+            let linear = if db > -100.0 {
+                10.0_f32.powf(db * 0.05)
+            } else {
+                0.0
+            };
+            spectrum_slice[i] =
+                spectrum_slice[i] * self.smoothing_factor + linear * (1.0 - self.smoothing_factor);
         }
     }
 }
@@ -328,25 +337,32 @@ impl ParallelEqProcessor {
     /// Create a new parallel EQ processor
     pub fn new(num_bands: usize, sample_rate: f32, max_block_size: usize) -> Self {
         let num_threads = rayon::current_num_threads().min(num_bands);
-        
+
         // Create per-thread work buffers
         let mut work_buffers = Vec::with_capacity(num_threads);
         for _ in 0..num_threads {
             work_buffers.push(AlignedBuffer::new(max_block_size));
         }
-        
+
         // Create custom thread pool for audio processing
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .thread_name(|i| format!("audio-eq-{}", i))
             .build()
             .unwrap();
-        
+
         Self {
-            coefficients: vec![BiquadCoefficients {
-                b0: 1.0, b1: 0.0, b2: 0.0,
-                a0: 1.0, a1: 0.0, a2: 0.0,
-            }; num_bands],
+            coefficients: vec![
+                BiquadCoefficients {
+                    b0: 1.0,
+                    b1: 0.0,
+                    b2: 0.0,
+                    a0: 1.0,
+                    a1: 0.0,
+                    a2: 0.0,
+                };
+                num_bands
+            ],
             states: Arc::new(RwLock::new(vec![BiquadState::default(); num_bands])),
             sample_rate,
             work_buffers,
@@ -357,36 +373,37 @@ impl ParallelEqProcessor {
     /// Process audio through EQ bands in parallel - using separate buffers
     pub fn process_parallel(&mut self, input: &[f32], output: &mut [f32]) {
         assert_eq!(input.len(), output.len());
-        
+
         // First copy input to output
         output.copy_from_slice(input);
-        
+
         // Create temporary buffers for each band
         let mut band_outputs: Vec<Vec<f32>> = Vec::with_capacity(self.coefficients.len());
         for _ in 0..self.coefficients.len() {
             band_outputs.push(vec![0.0; input.len()]);
         }
-        
+
         // Process each band into its own buffer
         let coeffs = &self.coefficients;
         let states_arc = Arc::clone(&self.states);
-        
+
         self.thread_pool.install(|| {
-            band_outputs.par_iter_mut()
+            band_outputs
+                .par_iter_mut()
                 .enumerate()
                 .for_each(|(band_idx, band_output)| {
                     // Copy input to band buffer
                     band_output.copy_from_slice(input);
-                    
+
                     // Process this band
                     let mut states = states_arc.write();
                     let state = &mut states[band_idx];
                     let coeff = &coeffs[band_idx];
-                    
+
                     Self::process_band_simd(band_output, coeff, state);
                 });
         });
-        
+
         // Mix all bands back to output (simplified - in reality you'd want proper mixing)
         // For now, we just use the last band's output
         if let Some(last_band) = band_outputs.last() {
@@ -415,79 +432,87 @@ impl ParallelEqProcessor {
     // DESKTOP-ONLY: AVX2 SIMD optimization for biquad filter
     #[cfg(all(target_arch = "x86_64", not(target_arch = "wasm32")))]
     #[target_feature(enable = "avx2")]
-    unsafe fn process_band_avx2(samples: &mut [f32], coeff: &BiquadCoefficients, state: &mut BiquadState) {
+    unsafe fn process_band_avx2(
+        samples: &mut [f32],
+        coeff: &BiquadCoefficients,
+        state: &mut BiquadState,
+    ) {
         let len = samples.len();
         let simd_len = len - (len % 8);
-        
+
         // Normalize coefficients
         let b0 = coeff.b0 / coeff.a0;
         let b1 = coeff.b1 / coeff.a0;
         let b2 = coeff.b2 / coeff.a0;
         let a1 = coeff.a1 / coeff.a0;
         let a2 = coeff.a2 / coeff.a0;
-        
+
         let mut x1 = state.x1;
         let mut x2 = state.x2;
         let mut y1 = state.y1;
         let mut y2 = state.y2;
-        
+
         // Process 8 samples at a time
         for i in (0..simd_len).step_by(8) {
             let mut temp = [0.0f32; 8];
             std::ptr::copy_nonoverlapping(samples.as_ptr().add(i), temp.as_mut_ptr(), 8);
-            
+
             // Process each sample (simplified for clarity)
             for j in 0..8 {
                 let x0 = temp[j];
                 let y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
-                
+
                 x2 = x1;
                 x1 = x0;
                 y2 = y1;
                 y1 = y0;
-                
+
                 temp[j] = y0;
             }
-            
+
             std::ptr::copy_nonoverlapping(temp.as_ptr(), samples.as_mut_ptr().add(i), 8);
         }
-        
+
         // Update state
         state.x1 = x1;
         state.x2 = x2;
         state.y1 = y1;
         state.y2 = y2;
-        
+
         // Process remaining samples
         if simd_len < len {
             Self::process_band_scalar(&mut samples[simd_len..], coeff, state);
         }
     }
 
-    fn process_band_scalar(samples: &mut [f32], coeff: &BiquadCoefficients, state: &mut BiquadState) {
+    fn process_band_scalar(
+        samples: &mut [f32],
+        coeff: &BiquadCoefficients,
+        state: &mut BiquadState,
+    ) {
         let b0 = coeff.b0 / coeff.a0;
         let b1 = coeff.b1 / coeff.a0;
         let b2 = coeff.b2 / coeff.a0;
         let a1 = coeff.a1 / coeff.a0;
         let a2 = coeff.a2 / coeff.a0;
-        
+
         let mut x1 = state.x1;
         let mut x2 = state.x2;
         let mut y1 = state.y1;
         let mut y2 = state.y2;
-        
+
         for sample in samples.iter_mut() {
             let x0 = *sample;
             let y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
-            
+
             x2 = x1;
             x1 = x0;
             y2 = y1;
             y1 = y0;
-            
+
             *sample = y0;
         }
-        
+
         state.x1 = x1;
         state.x2 = x2;
         state.y1 = y1;
@@ -499,13 +524,13 @@ impl ParallelEqProcessor {
         if band_idx >= self.coefficients.len() {
             return;
         }
-        
+
         let omega = 2.0 * std::f32::consts::PI * frequency / self.sample_rate;
         let sin_omega = omega.sin();
         let cos_omega = omega.cos();
         let alpha = sin_omega / (2.0 * q.max(0.001));
         let a = 10.0_f32.powf(gain_db / 40.0);
-        
+
         let coeff = &mut self.coefficients[band_idx];
         coeff.b0 = 1.0 + alpha * a;
         coeff.b1 = -2.0 * cos_omega;
@@ -531,9 +556,14 @@ pub struct ZeroCopyAudioPipeline {
 
 impl ZeroCopyAudioPipeline {
     /// Create a new zero-copy audio pipeline
-    pub fn new(max_block_size: usize, num_eq_bands: usize, sample_rate: f32, fft_size: usize) -> Self {
+    pub fn new(
+        max_block_size: usize,
+        num_eq_bands: usize,
+        sample_rate: f32,
+        fft_size: usize,
+    ) -> Self {
         let buffer_pool = Arc::new(OptimizedBufferPoolV2::new(16, max_block_size));
-        
+
         Self {
             working_buffer: AlignedBuffer::new(max_block_size),
             eq_processor: ParallelEqProcessor::new(num_eq_bands, sample_rate, max_block_size),
@@ -553,10 +583,10 @@ impl ZeroCopyAudioPipeline {
     ) -> &[f32] {
         assert_eq!(input.len(), output.len());
         assert!(input.len() <= self.working_buffer.capacity);
-        
+
         // Process EQ bands (parallel) - directly from input to output
         self.eq_processor.process_parallel(input, output);
-        
+
         // Process spectrum (no allocation due to pooling)
         self.spectrum_processor.process_spectrum_pooled(analyser)
     }
@@ -579,27 +609,31 @@ mod tests {
     fn test_aligned_buffer_creation() {
         let buffer = AlignedBuffer::new(1024);
         assert_eq!(buffer.capacity, 1024);
-        
+
         // Check alignment
         let ptr_addr = buffer.data as usize;
-        assert_eq!(ptr_addr % CACHE_LINE_SIZE, 0, "Buffer not cache-line aligned");
+        assert_eq!(
+            ptr_addr % CACHE_LINE_SIZE,
+            0,
+            "Buffer not cache-line aligned"
+        );
     }
 
     #[test]
     fn test_buffer_pool_acquire_release() {
         let pool = OptimizedBufferPoolV2::new(4, 512);
-        
+
         // Acquire buffers
         let b1 = pool.acquire().unwrap();
         let b2 = pool.acquire().unwrap();
-        
+
         let (available, _, _) = pool.stats();
         assert_eq!(available, 2);
-        
+
         // Release buffers
         pool.release(b1);
         pool.release(b2);
-        
+
         let (available, saved, _) = pool.stats();
         assert_eq!(available, 4);
         assert_eq!(saved, 2);
@@ -608,12 +642,12 @@ mod tests {
     #[test]
     fn test_parallel_eq_processor() {
         let mut processor = ParallelEqProcessor::new(8, 44100.0, 1024);
-        
+
         let input = vec![0.5; 1024];
         let mut output = vec![0.0; 1024];
-        
+
         processor.process_parallel(&input, &mut output);
-        
+
         // Basic sanity check - output should be populated
         assert!(output.iter().any(|&x| x != 0.0));
     }
@@ -624,7 +658,7 @@ mod tests {
         // This test would require mocking web_audio_api::node::AnalyserNode
         // For now, we just test pipeline creation
         let pipeline = ZeroCopyAudioPipeline::new(1024, 8, 44100.0, 2048);
-        
+
         let stats = pipeline.stats();
         assert!(stats.contains("Pipeline Stats"));
     }

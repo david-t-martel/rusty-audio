@@ -7,10 +7,10 @@ use crate::error::{AudioError, ErrorContext, Result};
 use std::any::Any;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 use web_audio_api::context::{AudioContext, BaseAudioContext};
 use web_audio_api::node::{
-    AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType, AnalyserNode,
+    AnalyserNode, AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType,
 };
 
 /// Represents the current state of audio playback
@@ -173,12 +173,13 @@ impl AudioEngineInterface for WebAudioEngine {
     fn load_audio_file(&mut self, path: &str) -> Result<Duration> {
         info!("Loading audio file: {}", path);
 
-        let file = std::fs::File::open(path)
-            .map_err(|e| AudioError::PlaybackFailed {
-                reason: format!("Failed to open file: {}", e)
-            })?;
+        let file = std::fs::File::open(path).map_err(|e| AudioError::PlaybackFailed {
+            reason: format!("Failed to open file: {}", e),
+        })?;
 
-        let buffer = self.audio_context.decode_audio_data_sync(file)
+        let buffer = self
+            .audio_context
+            .decode_audio_data_sync(file)
             .map_err(|_| AudioError::DecodeFailed)?;
 
         self.total_duration = Duration::from_secs_f64(buffer.duration());
@@ -189,7 +190,10 @@ impl AudioEngineInterface for WebAudioEngine {
         self.source_node = Some(source_node);
         self.connect_audio_chain()?;
 
-        info!("Audio file loaded successfully. Duration: {:?}", self.total_duration);
+        info!(
+            "Audio file loaded successfully. Duration: {:?}",
+            self.total_duration
+        );
         Ok(self.total_duration)
     }
 
@@ -213,8 +217,9 @@ impl AudioEngineInterface for WebAudioEngine {
                 } else {
                     warn!("No audio source loaded");
                     return Err(AudioError::PlaybackFailed {
-                        reason: "No audio source loaded".to_string()
-                    }.into());
+                        reason: "No audio source loaded".to_string(),
+                    }
+                    .into());
                 }
             }
         }
@@ -280,8 +285,9 @@ impl AudioEngineInterface for WebAudioEngine {
     fn set_eq_gain(&mut self, band: usize, gain: f32) -> Result<()> {
         if band >= self.eq_bands.len() {
             return Err(AudioError::InvalidParameters {
-                details: format!("Invalid EQ band: {}", band)
-            }.into());
+                details: format!("Invalid EQ band: {}", band),
+            }
+            .into());
         }
 
         let clamped_gain = gain.clamp(-40.0, 40.0);

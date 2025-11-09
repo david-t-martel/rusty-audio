@@ -85,8 +85,7 @@ impl InputValidator {
     /// Validate sample rate
     pub fn validate_sample_rate(rate: u32) -> Result<u32, ValidationError> {
         const VALID_RATES: &[u32] = &[
-            8000, 11025, 16000, 22050, 32000,
-            44100, 48000, 88200, 96000, 176400, 192000,
+            8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000,
         ];
 
         if !VALID_RATES.contains(&rate) {
@@ -171,13 +170,13 @@ impl InputValidator {
             .chars()
             .filter(|c| {
                 c.is_alphanumeric()
-                || c.is_whitespace()
-                || *c == '-'
-                || *c == '_'
-                || *c == '.'
-                || *c == ','
-                || *c == '!'
-                || *c == '?'
+                    || c.is_whitespace()
+                    || *c == '-'
+                    || *c == '_'
+                    || *c == '.'
+                    || *c == ','
+                    || *c == '!'
+                    || *c == '?'
             })
             .take(max_length)
             .collect::<String>()
@@ -207,8 +206,8 @@ impl InputValidator {
 
     /// Validate playback speed/rate
     pub fn validate_playback_rate(rate: f32) -> Result<f32, ValidationError> {
-        const MIN_RATE: f32 = 0.25;  // 1/4 speed
-        const MAX_RATE: f32 = 4.0;   // 4x speed
+        const MIN_RATE: f32 = 0.25; // 1/4 speed
+        const MAX_RATE: f32 = 4.0; // 4x speed
 
         if !rate.is_finite() || rate <= 0.0 {
             return Err(ValidationError::InvalidPlaybackRate {
@@ -284,46 +283,25 @@ pub enum ValidationError {
     },
 
     #[error("Non-finite value for {parameter}: {value}")]
-    NonFiniteValue {
-        parameter: String,
-        value: String,
-    },
+    NonFiniteValue { parameter: String, value: String },
 
     #[error("Invalid sample rate: {rate}Hz, valid rates: {valid_rates:?}")]
-    InvalidSampleRate {
-        rate: u32,
-        valid_rates: Vec<u32>,
-    },
+    InvalidSampleRate { rate: u32, valid_rates: Vec<u32> },
 
     #[error("Invalid buffer size: {size} ({reason})")]
-    InvalidBufferSize {
-        size: usize,
-        reason: String,
-    },
+    InvalidBufferSize { size: usize, reason: String },
 
     #[error("Invalid channel count: {count} ({reason})")]
-    InvalidChannelCount {
-        count: usize,
-        reason: String,
-    },
+    InvalidChannelCount { count: usize, reason: String },
 
     #[error("Invalid duration: {value} ({reason})")]
-    InvalidDuration {
-        value: f32,
-        reason: String,
-    },
+    InvalidDuration { value: f32, reason: String },
 
     #[error("Invalid metadata for key '{key}': {reason}")]
-    InvalidMetadata {
-        key: String,
-        reason: String,
-    },
+    InvalidMetadata { key: String, reason: String },
 
     #[error("Invalid playback rate: {rate} ({reason})")]
-    InvalidPlaybackRate {
-        rate: f32,
-        reason: String,
-    },
+    InvalidPlaybackRate { rate: f32, reason: String },
 
     #[error("Invalid seek position: {position}/{duration} ({reason})")]
     InvalidSeekPosition {
@@ -375,7 +353,7 @@ mod tests {
 
         // Invalid values
         assert!(InputValidator::validate_buffer_size(100).is_err()); // Not power of 2
-        assert!(InputValidator::validate_buffer_size(32).is_err());  // Too small
+        assert!(InputValidator::validate_buffer_size(32).is_err()); // Too small
         assert!(InputValidator::validate_buffer_size(32768).is_err()); // Too large
     }
 
@@ -446,10 +424,8 @@ mod tests {
 
         // Invalid parameters (should fail on first invalid)
         let result = InputValidator::validate_audio_parameters(
-            1.5,   // invalid volume
-            44100,
-            2,
-            1024,
+            1.5, // invalid volume
+            44100, 2, 1024,
         );
         assert!(result.is_err());
     }

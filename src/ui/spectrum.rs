@@ -1,6 +1,6 @@
-use egui::{Color32, Pos2, Rect, Stroke, Vec2, Ui, Response, Sense};
-use super::utils::{AnimationState, ColorUtils, DrawUtils};
 use super::theme::ThemeColors;
+use super::utils::{AnimationState, ColorUtils, DrawUtils};
+use egui::{Color32, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 use std::time::Instant;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -32,7 +32,7 @@ pub struct SpectrumVisualizerConfig {
     pub mirror_enabled: bool,
     pub num_bars: usize,
     pub db_range: (f32, f32), // (min_db, max_db)
-    pub update_rate: f32, // Hz
+    pub update_rate: f32,     // Hz
     pub show_labels: bool,
     pub show_db_scale: bool,
     pub show_frequency_labels: bool,
@@ -101,19 +101,25 @@ impl SpectrumVisualizer {
             peak_data: vec![PeakData::default(); num_bars],
             last_update: Instant::now(),
             frame_time: 0.0,
-            bars_animation: (0..num_bars).map(|_| AnimationState::new(0.0, 15.0)).collect(),
+            bars_animation: (0..num_bars)
+                .map(|_| AnimationState::new(0.0, 15.0))
+                .collect(),
             frequency_bins: Self::calculate_frequency_bins(num_bars, FrequencyScale::Logarithmic),
         }
     }
 
     pub fn set_config(&mut self, config: SpectrumVisualizerConfig) {
         if config.num_bars != self.config.num_bars
-            || config.frequency_scale != self.config.frequency_scale {
+            || config.frequency_scale != self.config.frequency_scale
+        {
             let num_bars = config.num_bars;
             self.smoothed_data.resize(num_bars, 0.0);
             self.peak_data.resize(num_bars, PeakData::default());
-            self.bars_animation = (0..num_bars).map(|_| AnimationState::new(0.0, 15.0)).collect();
-            self.frequency_bins = Self::calculate_frequency_bins(num_bars, config.frequency_scale.clone());
+            self.bars_animation = (0..num_bars)
+                .map(|_| AnimationState::new(0.0, 15.0))
+                .collect();
+            self.frequency_bins =
+                Self::calculate_frequency_bins(num_bars, config.frequency_scale.clone());
         }
         self.config = config;
     }
@@ -144,17 +150,15 @@ impl SpectrumVisualizer {
 
     pub fn draw(&mut self, ui: &mut Ui, rect: Rect, colors: &ThemeColors) -> Response {
         let response = ui.allocate_rect(rect, Sense::hover());
-        
+
         // Reserve space for labels if enabled
         let (spectrum_rect, label_rect) = if self.config.show_labels {
             let spectrum_height = rect.height() - 25.0;
-            let spectrum_rect = Rect::from_min_size(
-                rect.min,
-                Vec2::new(rect.width(), spectrum_height)
-            );
+            let spectrum_rect =
+                Rect::from_min_size(rect.min, Vec2::new(rect.width(), spectrum_height));
             let label_rect = Rect::from_min_size(
                 Pos2::new(rect.min.x, rect.min.y + spectrum_height),
-                Vec2::new(rect.width(), 25.0)
+                Vec2::new(rect.width(), 25.0),
             );
             (spectrum_rect, Some(label_rect))
         } else {
@@ -167,14 +171,14 @@ impl SpectrumVisualizer {
             SpectrumMode::Filled => self.draw_filled(ui, spectrum_rect, colors),
             SpectrumMode::Circular => self.draw_circular(ui, spectrum_rect, colors),
         }
-        
+
         // Draw labels and scales
         if let Some(label_rect) = label_rect {
             if self.config.show_frequency_labels {
                 self.draw_frequency_labels(ui, label_rect, colors);
             }
         }
-        
+
         if self.config.show_db_scale {
             self.draw_db_scale(ui, spectrum_rect, colors);
         }
@@ -205,8 +209,13 @@ impl SpectrumVisualizer {
             let average = if count > 0 { sum / count as f32 } else { 0.0 };
 
             // Convert from linear to dB scale and normalize
-            let db_value = if average > 0.0 { 20.0 * average.log10() } else { self.config.db_range.0 };
-            let normalized = ((db_value - self.config.db_range.0) / (self.config.db_range.1 - self.config.db_range.0))
+            let db_value = if average > 0.0 {
+                20.0 * average.log10()
+            } else {
+                self.config.db_range.0
+            };
+            let normalized = ((db_value - self.config.db_range.0)
+                / (self.config.db_range.1 - self.config.db_range.0))
                 .clamp(0.0, 1.0);
 
             processed.push(normalized);
@@ -219,7 +228,8 @@ impl SpectrumVisualizer {
         for (i, &new_value) in new_data.iter().enumerate() {
             if i < self.smoothed_data.len() {
                 let current = self.smoothed_data[i];
-                self.smoothed_data[i] = current * self.config.smoothing + new_value * (1.0 - self.config.smoothing);
+                self.smoothed_data[i] =
+                    current * self.config.smoothing + new_value * (1.0 - self.config.smoothing);
 
                 // Set animation target
                 self.bars_animation[i].set_target(self.smoothed_data[i]);
@@ -241,7 +251,8 @@ impl SpectrumVisualizer {
                     self.peak_data[i].hold_time -= self.frame_time;
                     if self.peak_data[i].hold_time <= 0.0 {
                         let decay = self.config.peak_decay_rate * self.frame_time;
-                        self.peak_data[i].value = (self.peak_data[i].value - decay).max(current_value);
+                        self.peak_data[i].value =
+                            (self.peak_data[i].value - decay).max(current_value);
                     }
                 }
             }
@@ -282,7 +293,9 @@ impl SpectrumVisualizer {
 
             // Get color for this bar
             let color_index = (i * colors.spectrum_colors.len()) / num_bars;
-            let bar_color = colors.spectrum_colors.get(color_index)
+            let bar_color = colors
+                .spectrum_colors
+                .get(color_index)
                 .copied()
                 .unwrap_or(colors.primary);
 
@@ -393,11 +406,7 @@ impl SpectrumVisualizer {
             let fill_color = ColorUtils::with_alpha(colors.primary, 0.6);
             let stroke = Stroke::new(1.0, colors.primary);
 
-            painter.add(egui::Shape::convex_polygon(
-                points,
-                fill_color,
-                stroke,
-            ));
+            painter.add(egui::Shape::convex_polygon(points, fill_color, stroke));
         }
     }
 
@@ -418,19 +427,17 @@ impl SpectrumVisualizer {
             let inner_radius = radius * 0.3;
             let outer_radius = inner_radius + height;
 
-            let inner_pos = center + Vec2::new(
-                inner_radius * angle.cos(),
-                inner_radius * angle.sin(),
-            );
+            let inner_pos =
+                center + Vec2::new(inner_radius * angle.cos(), inner_radius * angle.sin());
 
-            let outer_pos = center + Vec2::new(
-                outer_radius * angle.cos(),
-                outer_radius * angle.sin(),
-            );
+            let outer_pos =
+                center + Vec2::new(outer_radius * angle.cos(), outer_radius * angle.sin());
 
             // Get color for this bar
             let color_index = (i * colors.spectrum_colors.len()) / num_bars;
-            let bar_color = colors.spectrum_colors.get(color_index)
+            let bar_color = colors
+                .spectrum_colors
+                .get(color_index)
                 .copied()
                 .unwrap_or(colors.primary);
 
@@ -490,15 +497,15 @@ impl SpectrumVisualizer {
 
         bins
     }
-    
+
     fn draw_frequency_labels(&self, ui: &Ui, rect: Rect, colors: &ThemeColors) {
         let painter = ui.painter();
         let font_id = egui::FontId::proportional(9.0);
-        
+
         // Draw frequency labels at key positions (20Hz, 100Hz, 1kHz, 10kHz, 20kHz)
         let frequencies = [20.0, 100.0, 1000.0, 10000.0, 20000.0];
         let sample_rate = 44100.0; // Assume standard sample rate
-        
+
         for &freq in &frequencies {
             // Map frequency to position (logarithmic)
             let nyquist = sample_rate / 2.0_f32;
@@ -508,24 +515,24 @@ impl SpectrumVisualizer {
             } else {
                 0.0
             };
-            let x = rect.min.x + (normalized + 1.0) * rect.width() * 0.5;  // Adjust for log scale
-            
+            let x = rect.min.x + (normalized + 1.0) * rect.width() * 0.5; // Adjust for log scale
+
             if x >= rect.min.x && x <= rect.max.x {
                 // Draw tick mark
                 let tick_start = Pos2::new(x, rect.min.y);
                 let tick_end = Pos2::new(x, rect.min.y + 4.0);
                 painter.line_segment(
                     [tick_start, tick_end],
-                    Stroke::new(1.0, colors.text_secondary)
+                    Stroke::new(1.0, colors.text_secondary),
                 );
-                
+
                 // Draw label
                 let label = if freq >= 1000.0 {
                     format!("{:.0}k", freq / 1000.0)
                 } else {
                     format!("{:.0}", freq)
                 };
-                
+
                 let text_pos = Pos2::new(x, rect.min.y + 6.0);
                 painter.text(
                     text_pos,
@@ -537,29 +544,30 @@ impl SpectrumVisualizer {
             }
         }
     }
-    
+
     fn draw_db_scale(&self, ui: &Ui, rect: Rect, colors: &ThemeColors) {
         let painter = ui.painter();
         let font_id = egui::FontId::proportional(9.0);
-        
+
         // Draw dB scale on the left side
         let db_marks = [-60.0, -40.0, -20.0, -10.0, -3.0, 0.0];
-        
+
         for &db in &db_marks {
             // Map dB to y position
-            let normalized = ((db - self.config.db_range.0) / (self.config.db_range.1 - self.config.db_range.0))
+            let normalized = ((db - self.config.db_range.0)
+                / (self.config.db_range.1 - self.config.db_range.0))
                 .clamp(0.0, 1.0);
             let y = rect.max.y - normalized * rect.height();
-            
+
             // Draw horizontal grid line
             let line_start = Pos2::new(rect.min.x, y);
             let line_end = Pos2::new(rect.max.x, y);
             let alpha = if db == 0.0 { 0.3 } else { 0.1 };
             painter.line_segment(
                 [line_start, line_end],
-                Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, alpha))
+                Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, alpha)),
             );
-            
+
             // Draw dB label on the left
             let label = format!("{:.0}", db);
             let text_pos = Pos2::new(rect.min.x + 3.0, y);
@@ -576,12 +584,7 @@ impl SpectrumVisualizer {
 
 impl SpectrumMode {
     pub fn all() -> Vec<Self> {
-        vec![
-            Self::Bars,
-            Self::Line,
-            Self::Filled,
-            Self::Circular,
-        ]
+        vec![Self::Bars, Self::Line, Self::Filled, Self::Circular]
     }
 
     pub fn display_name(&self) -> &'static str {
@@ -596,11 +599,7 @@ impl SpectrumMode {
 
 impl FrequencyScale {
     pub fn all() -> Vec<Self> {
-        vec![
-            Self::Linear,
-            Self::Logarithmic,
-            Self::Mel,
-        ]
+        vec![Self::Linear, Self::Logarithmic, Self::Mel]
     }
 
     pub fn display_name(&self) -> &'static str {

@@ -1,10 +1,9 @@
 // Integration test for Rusty Audio Mathematical Testing Framework
 
 use rusty_audio::testing::{
-    signal_generators::{SineGenerator, SignalGenerator},
-    calculate_rms, calculate_peak,
-    TestSuite, TestResult,
-    SAMPLE_RATE, TOLERANCE
+    calculate_peak, calculate_rms,
+    signal_generators::{SignalGenerator, SineGenerator},
+    TestResult, TestSuite, SAMPLE_RATE, TOLERANCE,
 };
 
 #[test]

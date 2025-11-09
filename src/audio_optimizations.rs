@@ -1,8 +1,8 @@
 // Advanced audio performance optimizations
 
-use std::sync::Arc;
 use parking_lot::RwLock;
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 /// Lock-free audio buffer for real-time processing
 pub struct LockFreeAudioBuffer {
@@ -39,7 +39,8 @@ impl LockFreeAudioBuffer {
 
         let bits = sample.to_bits();
         self.buffer[write].store(bits, std::sync::atomic::Ordering::Release);
-        self.write_pos.store(next_write, std::sync::atomic::Ordering::Release);
+        self.write_pos
+            .store(next_write, std::sync::atomic::Ordering::Release);
         true
     }
 
@@ -56,7 +57,8 @@ impl LockFreeAudioBuffer {
         let sample = f32::from_bits(bits);
 
         let next_read = (read + 1) % self.size;
-        self.read_pos.store(next_read, std::sync::atomic::Ordering::Release);
+        self.read_pos
+            .store(next_read, std::sync::atomic::Ordering::Release);
 
         Some(sample)
     }
@@ -196,7 +198,7 @@ impl CachedAudioLoader {
     pub fn new(max_cache_entries: usize) -> Self {
         Self {
             cache: Arc::new(RwLock::new(lru::LruCache::new(
-                std::num::NonZeroUsize::new(max_cache_entries).unwrap()
+                std::num::NonZeroUsize::new(max_cache_entries).unwrap(),
             ))),
             max_cache_size: max_cache_entries,
         }
@@ -317,7 +319,13 @@ impl OptimizedFFT {
         }
     }
 
-    pub fn process_stereo(&mut self, left: &[f32], right: &[f32], output_left: &mut [f32], output_right: &mut [f32]) {
+    pub fn process_stereo(
+        &mut self,
+        left: &[f32],
+        right: &[f32],
+        output_left: &mut [f32],
+        output_right: &mut [f32],
+    ) {
         // Process left channel
         self.process(left, output_left);
 
@@ -362,36 +370,48 @@ impl AdaptiveBufferManager {
     }
 
     pub fn record_underrun(&self) {
-        let count = self.underrun_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let count = self
+            .underrun_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         if count >= self.adjustment_threshold {
             self.increase_buffer_size();
-            self.underrun_count.store(0, std::sync::atomic::Ordering::Relaxed);
+            self.underrun_count
+                .store(0, std::sync::atomic::Ordering::Relaxed);
         }
     }
 
     pub fn record_successful_callback(&self) {
         // Gradually decrease buffer size if no underruns
-        let count = self.underrun_count.load(std::sync::atomic::Ordering::Relaxed);
+        let count = self
+            .underrun_count
+            .load(std::sync::atomic::Ordering::Relaxed);
         if count == 0 {
             self.decrease_buffer_size();
         }
     }
 
     fn increase_buffer_size(&self) {
-        let current = self.current_buffer_size.load(std::sync::atomic::Ordering::Relaxed);
+        let current = self
+            .current_buffer_size
+            .load(std::sync::atomic::Ordering::Relaxed);
         let new_size = (current * 2).min(self.max_buffer_size);
-        self.current_buffer_size.store(new_size, std::sync::atomic::Ordering::Relaxed);
+        self.current_buffer_size
+            .store(new_size, std::sync::atomic::Ordering::Relaxed);
     }
 
     fn decrease_buffer_size(&self) {
-        let current = self.current_buffer_size.load(std::sync::atomic::Ordering::Relaxed);
+        let current = self
+            .current_buffer_size
+            .load(std::sync::atomic::Ordering::Relaxed);
         let new_size = ((current * 3) / 4).max(self.min_buffer_size);
-        self.current_buffer_size.store(new_size, std::sync::atomic::Ordering::Relaxed);
+        self.current_buffer_size
+            .store(new_size, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn get_buffer_size(&self) -> usize {
-        self.current_buffer_size.load(std::sync::atomic::Ordering::Relaxed)
+        self.current_buffer_size
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 
@@ -403,8 +423,8 @@ impl AudioThreadPriority {
     pub fn set_realtime() -> Result<(), String> {
         #[cfg(target_os = "windows")]
         {
-            use windows::Win32::System::Threading::*;
             use windows::Win32::Foundation::*;
+            use windows::Win32::System::Threading::*;
 
             unsafe {
                 let thread = GetCurrentThread();
@@ -421,9 +441,7 @@ impl AudioThreadPriority {
             use libc::{pthread_self, sched_param, sched_setscheduler, SCHED_FIFO};
 
             unsafe {
-                let param = sched_param {
-                    sched_priority: 99,
-                };
+                let param = sched_param { sched_priority: 99 };
 
                 if sched_setscheduler(0, SCHED_FIFO, &param) == 0 {
                     Ok(())
@@ -443,8 +461,8 @@ impl AudioThreadPriority {
     pub fn pin_to_core(core_id: usize) -> Result<(), String> {
         #[cfg(target_os = "windows")]
         {
-            use windows::Win32::System::Threading::*;
             use windows::Win32::Foundation::*;
+            use windows::Win32::System::Threading::*;
 
             unsafe {
                 let thread = GetCurrentThread();
@@ -459,18 +477,16 @@ impl AudioThreadPriority {
 
         #[cfg(target_os = "linux")]
         {
-            use libc::{cpu_set_t, pthread_self, CPU_SET, CPU_ZERO, pthread_setaffinity_np};
+            use libc::{cpu_set_t, pthread_self, pthread_setaffinity_np, CPU_SET, CPU_ZERO};
 
             unsafe {
                 let mut cpuset: cpu_set_t = std::mem::zeroed();
                 CPU_ZERO(&mut cpuset);
                 CPU_SET(core_id, &mut cpuset);
 
-                if pthread_setaffinity_np(
-                    pthread_self(),
-                    std::mem::size_of::<cpu_set_t>(),
-                    &cpuset
-                ) == 0 {
+                if pthread_setaffinity_np(pthread_self(), std::mem::size_of::<cpu_set_t>(), &cpuset)
+                    == 0
+                {
                     Ok(())
                 } else {
                     Err("Failed to set thread affinity".to_string())

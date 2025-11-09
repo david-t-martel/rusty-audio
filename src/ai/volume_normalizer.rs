@@ -3,9 +3,9 @@
 //! Implements intelligent volume normalization using LUFS/LKFS standards,
 //! adaptive dynamics processing, and content-aware level adjustment.
 
-use anyhow::{Result, Context};
-use std::collections::VecDeque;
 use crate::ai::feature_extractor::AudioFeatures;
+use anyhow::{Context, Result};
+use std::collections::VecDeque;
 
 /// Smart volume normalizer with AI-based content awareness
 pub struct VolumeNormalizer {
@@ -78,16 +78,16 @@ impl VolumeNormalizer {
     /// Adjust target LUFS based on content type
     fn adjust_target_for_content(&self, content_type: &ContentType) -> f32 {
         match content_type {
-            ContentType::Speech => -18.0,      // Clearer for speech
+            ContentType::Speech => -18.0, // Clearer for speech
             ContentType::Music(genre) => match genre {
-                MusicGenre::Classical => -20.0, // More dynamic range
+                MusicGenre::Classical => -20.0,  // More dynamic range
                 MusicGenre::Electronic => -14.0, // Louder for club music
-                MusicGenre::Rock => -15.0,      // Standard rock loudness
-                MusicGenre::Jazz => -18.0,      // Preserve dynamics
-                _ => -16.0,                     // Default
+                MusicGenre::Rock => -15.0,       // Standard rock loudness
+                MusicGenre::Jazz => -18.0,       // Preserve dynamics
+                _ => -16.0,                      // Default
             },
-            ContentType::Podcast => -16.0,     // Standard podcast level
-            ContentType::Mixed => -17.0,       // Balanced for mixed content
+            ContentType::Podcast => -16.0, // Standard podcast level
+            ContentType::Mixed => -17.0,   // Balanced for mixed content
         }
     }
 
@@ -153,7 +153,8 @@ impl VolumeNormalizer {
                 let delayed_sample = self.lookahead_buffer.pop_front().unwrap();
 
                 // Find the maximum in the lookahead window
-                let peak = self.lookahead_buffer
+                let peak = self
+                    .lookahead_buffer
                     .iter()
                     .map(|x| x.abs())
                     .fold(0.0f32, f32::max);
@@ -206,16 +207,12 @@ impl VolumeNormalizer {
         for i in 0..buffer.len() - 1 {
             for j in 0..oversample_factor {
                 let t = j as f32 / oversample_factor as f32;
-                oversampled[i * oversample_factor + j] =
-                    buffer[i] * (1.0 - t) + buffer[i + 1] * t;
+                oversampled[i * oversample_factor + j] = buffer[i] * (1.0 - t) + buffer[i + 1] * t;
             }
         }
 
         // Find true peaks
-        let true_peak = oversampled
-            .iter()
-            .map(|x| x.abs())
-            .fold(0.0f32, f32::max);
+        let true_peak = oversampled.iter().map(|x| x.abs()).fold(0.0f32, f32::max);
 
         // Apply limiting if needed
         if true_peak > true_peak_limit {

@@ -3,9 +3,9 @@
 //! Uses AI to analyze audio characteristics and suggest optimal EQ settings
 //! based on genre detection, frequency balance, and masking analysis.
 
-use anyhow::{Result, Context};
+use super::{EQBand, EQSettings};
 use crate::ai::feature_extractor::AudioFeatures;
-use super::{EQSettings, EQBand};
+use anyhow::{Context, Result};
 
 /// EQ optimizer using AI-based analysis
 pub struct EQOptimizer {
@@ -35,12 +35,8 @@ impl EQOptimizer {
         let masking_correction = self.calculate_masking_correction(features)?;
 
         // Generate optimized EQ settings
-        let bands = self.generate_eq_bands(
-            &genre,
-            &frequency_balance,
-            &masking_correction,
-            features,
-        )?;
+        let bands =
+            self.generate_eq_bands(&genre, &frequency_balance, &masking_correction, features)?;
 
         Ok(EQSettings {
             bands,
@@ -66,7 +62,11 @@ impl EQOptimizer {
     }
 
     /// Calculate similarity between audio features and genre profile
-    fn calculate_genre_similarity(&self, features: &AudioFeatures, profile: &GenreProfile) -> Result<f32> {
+    fn calculate_genre_similarity(
+        &self,
+        features: &AudioFeatures,
+        profile: &GenreProfile,
+    ) -> Result<f32> {
         let mut score = 0.0;
 
         // Compare spectral centroid
@@ -156,7 +156,9 @@ impl EQOptimizer {
 
                 if magnitude < masking_threshold * 0.5 {
                     correction.masked_frequencies.push(freq);
-                    correction.boost_amounts.push((masking_threshold - magnitude).min(6.0));
+                    correction
+                        .boost_amounts
+                        .push((masking_threshold - magnitude).min(6.0));
                 }
             }
         }
@@ -334,7 +336,12 @@ impl EQOptimizer {
     }
 
     /// Learn from user adjustments (for future adaptive learning)
-    pub fn learn_from_adjustment(&mut self, original: &EQSettings, adjusted: &EQSettings, features: &AudioFeatures) {
+    pub fn learn_from_adjustment(
+        &mut self,
+        original: &EQSettings,
+        adjusted: &EQSettings,
+        features: &AudioFeatures,
+    ) {
         // Calculate adjustment deltas
         for (orig, adj) in original.bands.iter().zip(adjusted.bands.iter()) {
             let delta = adj.gain - orig.gain;

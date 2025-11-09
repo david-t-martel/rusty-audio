@@ -4,7 +4,9 @@
 [build]
 jobs = 8
 incremental = true
-rustc-wrapper = "sccache"
+# rustc-wrapper = "sccache"  # ❌ Removed: Causes CI failures when sccache is not installed
+# To enable sccache for faster builds, set environment variable: export RUSTC_WRAPPER=sccache
+# GitHub Actions workflows using sccache already set this via mozilla-actions/sccache-action
 target-dir = "target"
 
 # ============================================================================
@@ -62,7 +64,7 @@ panic = "abort"
 [profile.wasm-release]
 inherits = "release"
 opt-level = "z"           # Maximum size reduction for WASM
-lto = "fat"               # Fat LTO for web deployment
+lto = false               # LTO must be disabled for cdylib targets (WASM)
 codegen-units = 1
 
 [profile.release-with-debug]

@@ -1,5 +1,5 @@
 //! WebAssembly entry point and browser integration
-//! 
+//!
 //! This module provides the WASM-specific initialization and runtime
 //! for running rusty-audio in a web browser environment.
 
@@ -35,7 +35,7 @@ impl eframe::App for WasmAudioApp {
             ui.add_space(20.0);
             ui.label("WASM Version - UI Framework Active");
             ui.label("Audio functionality coming soon...");
-            
+
             if ui.button("Click me!").clicked() {
                 self.message = format!("Button clicked at {:?}!", std::time::Instant::now());
                 log::info!("Button clicked in WASM app");
@@ -60,28 +60,28 @@ impl WebHandle {
     pub fn new() -> Self {
         // Set up panic hook for better error messages in browser console
         console_error_panic_hook::set_once();
-        
+
         // Initialize logging to browser console
         console_log::init_with_level(log::Level::Debug)
             .expect("Failed to initialize console logging");
-        
+
         log::info!("Rusty Audio WASM initializing...");
-        
+
         Self {
             runner: eframe::WebRunner::new(),
         }
     }
-    
+
     /// Start the application on the specified canvas element
-    /// 
+    ///
     /// # Arguments
     /// * `canvas` - The HTML canvas element to render into
     #[wasm_bindgen]
     pub async fn start(&self, canvas: web_sys::HtmlCanvasElement) -> Result<(), JsValue> {
         log::info!("Starting Rusty Audio on canvas: {:?}", canvas.id());
-        
+
         let web_options = eframe::WebOptions::default();
-        
+
         self.runner
             .start(
                 canvas,
@@ -90,34 +90,39 @@ impl WebHandle {
                     // Configure for web
                     cc.egui_ctx.set_pixels_per_point(1.0);
                     cc.egui_ctx.set_zoom_factor(1.0);
-                    
+
                     log::info!("Creating WasmAudioApp instance");
-                    
+
                     Ok(Box::new(WasmAudioApp::default()))
                 }),
             )
             .await
             .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
     }
-    
+
     /// Destroy the web runner and clean up resources
     #[wasm_bindgen]
     pub fn destroy(&self) {
         log::info!("Destroying Rusty Audio WASM instance");
         self.runner.destroy();
     }
-    
+
     /// Check if the application has panicked
     #[wasm_bindgen]
     pub fn has_panicked(&self) -> bool {
         self.runner.has_panicked()
     }
-    
+
     /// Get panic message if the application has panicked
     #[wasm_bindgen]
     pub fn panic_message(&self) -> Option<String> {
         if self.runner.has_panicked() {
-            Some(self.runner.panic_summary().map(|s| s.message()).unwrap_or_default())
+            Some(
+                self.runner
+                    .panic_summary()
+                    .map(|s| s.message())
+                    .unwrap_or_default(),
+            )
         } else {
             None
         }

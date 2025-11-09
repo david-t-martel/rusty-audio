@@ -4,15 +4,15 @@
 // components, including layout responsiveness, HiDPI scaling, and user interaction testing.
 
 use crate::ui::{
-    theme::{Theme, ThemeManager, ThemeColors},
-    components::{AlbumArtDisplay, ProgressBar, MetadataDisplay},
-    controls::{EnhancedSlider, CircularKnob, EnhancedButton},
-    enhanced_controls::{AccessibleSlider, AccessibleKnob},
-    enhanced_button::{AccessibleButton, ProgressIndicator},
     accessibility::AccessibilityManager,
-    utils::{ScreenSize, ResponsiveSize},
+    components::{AlbumArtDisplay, MetadataDisplay, ProgressBar},
+    controls::{CircularKnob, EnhancedButton, EnhancedSlider},
+    enhanced_button::{AccessibleButton, ProgressIndicator},
+    enhanced_controls::{AccessibleKnob, AccessibleSlider},
+    theme::{Theme, ThemeColors, ThemeManager},
+    utils::{ResponsiveSize, ScreenSize},
 };
-use egui::{Vec2, Rect, Pos2, Color32, Context, Response};
+use egui::{Color32, Context, Pos2, Rect, Response, Vec2};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -41,7 +41,13 @@ impl UiTestResult {
         }
     }
 
-    pub fn failure(component: &str, test: &str, expected: &str, actual: &str, duration: Duration) -> Self {
+    pub fn failure(
+        component: &str,
+        test: &str,
+        expected: &str,
+        actual: &str,
+        duration: Duration,
+    ) -> Self {
         Self {
             component_name: component.to_string(),
             test_name: test.to_string(),
@@ -115,18 +121,27 @@ impl UiTestSuite {
         println!("Passed: {}", self.passed_count());
         println!("Failed: {}", self.failed_count());
         println!("Success rate: {:.1}%", self.success_rate() * 100.0);
-        println!("Total execution time: {:.2}s", self.total_duration.as_secs_f32());
+        println!(
+            "Total execution time: {:.2}s",
+            self.total_duration.as_secs_f32()
+        );
 
         // Group results by component
         let mut by_component: HashMap<String, Vec<&UiTestResult>> = HashMap::new();
         for result in &self.results {
-            by_component.entry(result.component_name.clone()).or_default().push(result);
+            by_component
+                .entry(result.component_name.clone())
+                .or_default()
+                .push(result);
         }
 
         for (component, tests) in by_component {
             let passed = tests.iter().filter(|t| t.passed).count();
             let total = tests.len();
-            println!("\n📱 Component: {} ({}/{} passed)", component, passed, total);
+            println!(
+                "\n📱 Component: {} ({}/{} passed)",
+                component, passed, total
+            );
 
             for test in tests {
                 let status = if test.passed { "✅" } else { "❌" };
@@ -149,7 +164,11 @@ impl UiTestSuite {
 
         // Performance summary
         let avg_time = if !self.results.is_empty() {
-            self.results.iter().map(|r| r.execution_time.as_secs_f32()).sum::<f32>() / self.results.len() as f32
+            self.results
+                .iter()
+                .map(|r| r.execution_time.as_secs_f32())
+                .sum::<f32>()
+                / self.results.len() as f32
         } else {
             0.0
         };
@@ -157,15 +176,19 @@ impl UiTestSuite {
         println!("\n⚡ Performance Summary:");
         println!("   Average test execution: {:.1}ms", avg_time * 1000.0);
 
-        let slow_tests: Vec<_> = self.results.iter()
+        let slow_tests: Vec<_> = self
+            .results
+            .iter()
             .filter(|r| r.execution_time.as_millis() > 100)
             .collect();
 
         if !slow_tests.is_empty() {
             println!("   Slow tests (>100ms): {}", slow_tests.len());
             for test in slow_tests {
-                println!("     - {}.{}: {:.0}ms",
-                    test.component_name, test.test_name,
+                println!(
+                    "     - {}.{}: {:.0}ms",
+                    test.component_name,
+                    test.test_name,
                     test.execution_time.as_secs_f32() * 1000.0
                 );
             }
@@ -199,13 +222,9 @@ impl MockEguiContext {
     }
 
     pub fn create_test_ui(&self) -> egui::Ui {
-        let ui_builder = egui::UiBuilder::new()
-            .max_rect(Rect::from_min_size(Pos2::ZERO, self.screen_size));
-        egui::Ui::new(
-            self.ctx.clone(),
-            egui::Id::new("test_ui"),
-            ui_builder,
-        )
+        let ui_builder =
+            egui::UiBuilder::new().max_rect(Rect::from_min_size(Pos2::ZERO, self.screen_size));
+        egui::Ui::new(self.ctx.clone(), egui::Id::new("test_ui"), ui_builder)
     }
 }
 
@@ -225,7 +244,7 @@ impl ResponsiveLayoutTester {
     pub fn test_component_responsiveness<F>(
         &mut self,
         component_name: &str,
-        test_function: F
+        test_function: F,
     ) -> &mut Self
     where
         F: Fn(&mut egui::Ui, &ThemeColors, Vec2) -> bool,
@@ -254,7 +273,7 @@ impl ResponsiveLayoutTester {
                 UiTestResult::success(
                     component_name,
                     &format!("Responsive layout - {}", size_name),
-                    duration
+                    duration,
                 )
             } else {
                 UiTestResult::failure(
@@ -262,7 +281,7 @@ impl ResponsiveLayoutTester {
                     &format!("Responsive layout - {}", size_name),
                     "Component should adapt to screen size",
                     "Component failed to adapt properly",
-                    duration
+                    duration,
                 )
             };
 
@@ -273,11 +292,7 @@ impl ResponsiveLayoutTester {
     }
 
     /// Test HiDPI scaling at different pixel densities
-    pub fn test_hidpi_scaling<F>(
-        &mut self,
-        component_name: &str,
-        test_function: F
-    ) -> &mut Self
+    pub fn test_hidpi_scaling<F>(&mut self, component_name: &str, test_function: F) -> &mut Self
     where
         F: Fn(&mut egui::Ui, &ThemeColors, f32) -> bool,
     {
@@ -303,7 +318,7 @@ impl ResponsiveLayoutTester {
                 UiTestResult::success(
                     component_name,
                     &format!("HiDPI scaling - {}", scale_name),
-                    duration
+                    duration,
                 )
             } else {
                 UiTestResult::failure(
@@ -311,7 +326,7 @@ impl ResponsiveLayoutTester {
                     &format!("HiDPI scaling - {}", scale_name),
                     "Component should scale properly at different DPI",
                     "Component failed to scale correctly",
-                    duration
+                    duration,
                 )
             };
 
@@ -360,8 +375,12 @@ impl ComponentInteractionTester {
                 "EnhancedButton",
                 "Button rendering",
                 "Button should have positive dimensions",
-                &format!("Button dimensions: {}x{}", response.rect.width(), response.rect.height()),
-                duration
+                &format!(
+                    "Button dimensions: {}x{}",
+                    response.rect.width(),
+                    response.rect.height()
+                ),
+                duration,
             )
         };
 
@@ -378,18 +397,13 @@ impl ComponentInteractionTester {
         let mut accessibility_manager = AccessibilityManager::new();
 
         // Test accessible slider
-        let mut slider = AccessibleSlider::new(
-            egui::Id::new("test_slider"),
-            0.5,
-            0.0..=1.0,
-            "Test Slider"
-        );
+        let mut slider =
+            AccessibleSlider::new(egui::Id::new("test_slider"), 0.5, 0.0..=1.0, "Test Slider");
 
         let response = slider.show(&mut ui, &mock_ctx.theme_colors, &mut accessibility_manager);
 
-        let test_passed = response.rect.width() > 0.0 &&
-                         slider.value() >= 0.0 &&
-                         slider.value() <= 1.0;
+        let test_passed =
+            response.rect.width() > 0.0 && slider.value() >= 0.0 && slider.value() <= 1.0;
         let duration = start_time.elapsed();
 
         let result = if test_passed {
@@ -400,7 +414,7 @@ impl ComponentInteractionTester {
                 "Slider value bounds",
                 "Slider value should be within bounds [0.0, 1.0]",
                 &format!("Slider value: {}", slider.value()),
-                duration
+                duration,
             )
         };
 
@@ -420,10 +434,10 @@ impl ComponentInteractionTester {
 
         let response = progress_bar.show(&mut ui, &mock_ctx.theme_colors);
 
-        let test_passed = response.rect.width() > 0.0 &&
-                         response.rect.height() > 0.0 &&
-                         progress_bar.progress >= 0.0 &&
-                         progress_bar.progress <= 1.0;
+        let test_passed = response.rect.width() > 0.0
+            && response.rect.height() > 0.0
+            && progress_bar.progress >= 0.0
+            && progress_bar.progress <= 1.0;
         let duration = start_time.elapsed();
 
         let result = if test_passed {
@@ -433,9 +447,13 @@ impl ComponentInteractionTester {
                 "ProgressBar",
                 "Progress bar rendering",
                 "Progress bar should render with valid dimensions and progress",
-                &format!("Dimensions: {}x{}, Progress: {}",
-                    response.rect.width(), response.rect.height(), progress_bar.progress),
-                duration
+                &format!(
+                    "Dimensions: {}x{}, Progress: {}",
+                    response.rect.width(),
+                    response.rect.height(),
+                    progress_bar.progress
+                ),
+                duration,
             )
         };
 
@@ -482,7 +500,7 @@ impl AccessibilityTester {
                 "AccessibilityManager",
                 "Keyboard navigation",
                 "Keyboard navigation handler failed",
-                duration
+                duration,
             )
         };
 
@@ -511,8 +529,11 @@ impl AccessibilityTester {
                 "AccessibilityManager",
                 "High contrast toggle",
                 "High contrast mode should toggle",
-                &format!("Initial: {}, After toggle: {}", initial_state, toggled_state),
-                duration
+                &format!(
+                    "Initial: {}, After toggle: {}",
+                    initial_state, toggled_state
+                ),
+                duration,
             )
         };
 
@@ -541,7 +562,7 @@ impl AccessibilityTester {
                 "Volume safety checks",
                 "50% volume should be safe, 95% should be unsafe",
                 &format!("50% safe: {}, 95% safe: {}", safe_volume, unsafe_volume),
-                duration
+                duration,
             )
         };
 
@@ -605,11 +626,12 @@ impl UiPerformanceTester {
                 "HiDPI Rendering",
                 "Frame time performance",
                 "Average frame time should be <20ms, max <33ms",
-                &format!("Average: {:.1}ms, Max: {:.1}ms",
+                &format!(
+                    "Average: {:.1}ms, Max: {:.1}ms",
                     avg_frame_time.as_secs_f32() * 1000.0,
                     max_frame_time.as_secs_f32() * 1000.0
                 ),
-                duration
+                duration,
             )
         };
 
@@ -642,7 +664,7 @@ impl UiPerformanceTester {
                 "Memory Usage",
                 "Component creation/destruction",
                 "Memory leak detected during component lifecycle",
-                duration
+                duration,
             )
         };
 
@@ -825,7 +847,7 @@ pub fn run_quick_ui_tests() -> UiTestSuite {
             "Basic UI rendering",
             "UI should render successfully",
             "UI failed to render",
-            duration
+            duration,
         )
     };
 
@@ -853,7 +875,13 @@ mod tests {
         let mut suite = UiTestSuite::new();
 
         let result1 = UiTestResult::success("Component1", "Test1", Duration::from_millis(5));
-        let result2 = UiTestResult::failure("Component2", "Test2", "expected", "actual", Duration::from_millis(10));
+        let result2 = UiTestResult::failure(
+            "Component2",
+            "Test2",
+            "expected",
+            "actual",
+            Duration::from_millis(10),
+        );
 
         suite.add_result(result1);
         suite.add_result(result2);

@@ -1,8 +1,8 @@
-use egui::{Ui, Vec2, Rect, Color32, Stroke, Pos2, Response, Sense, RichText};
 use super::{
     theme::ThemeColors,
     utils::{AnimationState, ColorUtils},
 };
+use egui::{Color32, Pos2, Rect, Response, RichText, Sense, Stroke, Ui, Vec2};
 use std::time::Duration;
 
 /// Album art display component with loading states and animations
@@ -31,7 +31,8 @@ impl AlbumArtDisplay {
         let has_texture = texture.is_some();
         self.texture = texture;
         self.loading = false;
-        self.fade_animation.set_target(if has_texture { 1.0 } else { 0.0 });
+        self.fade_animation
+            .set_target(if has_texture { 1.0 } else { 0.0 });
     }
 
     pub fn set_loading(&mut self, loading: bool) {
@@ -75,11 +76,9 @@ impl AlbumArtDisplay {
                 .tint(image_color);
 
             image.paint_at(ui, rect);
-
         } else if self.loading {
             // Draw loading spinner
             self.draw_loading_spinner(ui, rect, colors);
-
         } else if self.show_placeholder {
             // Draw placeholder
             self.draw_placeholder(ui, rect, colors);
@@ -88,9 +87,19 @@ impl AlbumArtDisplay {
         // Draw border
         let border_color = ColorUtils::with_alpha(colors.text_secondary, 0.3);
         if self.rounded_corners {
-            painter.rect_stroke(rect, 8.0, Stroke::new(1.0, border_color), egui::epaint::StrokeKind::Outside);
+            painter.rect_stroke(
+                rect,
+                8.0,
+                Stroke::new(1.0, border_color),
+                egui::epaint::StrokeKind::Outside,
+            );
         } else {
-            painter.rect_stroke(rect, 0.0, Stroke::new(1.0, border_color), egui::epaint::StrokeKind::Outside);
+            painter.rect_stroke(
+                rect,
+                0.0,
+                Stroke::new(1.0, border_color),
+                egui::epaint::StrokeKind::Outside,
+            );
         }
     }
 
@@ -108,10 +117,8 @@ impl AlbumArtDisplay {
             let alpha = ((i as f32 / 8.0) + time).sin().abs();
             let color = ColorUtils::with_alpha(colors.primary, alpha);
 
-            ui.painter().line_segment(
-                [start_pos, end_pos],
-                Stroke::new(3.0, color),
-            );
+            ui.painter()
+                .line_segment([start_pos, end_pos], Stroke::new(3.0, color));
         }
     }
 
@@ -125,14 +132,12 @@ impl AlbumArtDisplay {
         // Draw note stem
         let stem_start = center + Vec2::new(size * 0.2, -size * 0.4);
         let stem_end = center + Vec2::new(size * 0.2, size * 0.3);
-        ui.painter().line_segment([stem_start, stem_end], Stroke::new(3.0, icon_color));
+        ui.painter()
+            .line_segment([stem_start, stem_end], Stroke::new(3.0, icon_color));
 
         // Draw note head
-        ui.painter().circle_filled(
-            center + Vec2::new(0.0, size * 0.3),
-            size * 0.15,
-            icon_color,
-        );
+        ui.painter()
+            .circle_filled(center + Vec2::new(0.0, size * 0.3), size * 0.15, icon_color);
 
         // Draw beam
         let beam_points = vec![
@@ -224,7 +229,8 @@ impl ProgressBar {
         if response.clicked() || response.dragged() {
             if let Some(pointer_pos) = response.interact_pointer_pos() {
                 let progress_rect = self.get_progress_rect(rect);
-                let seek_t = ((pointer_pos.x - progress_rect.min.x) / progress_rect.width()).clamp(0.0, 1.0);
+                let seek_t =
+                    ((pointer_pos.x - progress_rect.min.x) / progress_rect.width()).clamp(0.0, 1.0);
                 let new_progress = seek_t * self.total;
 
                 if (new_progress - self.progress).abs() > 0.1 {
@@ -236,10 +242,12 @@ impl ProgressBar {
 
         // Update animations
         let dt = ui.ctx().input(|i| i.stable_dt);
-        self.hover_animation.set_target(if response.hovered() { 1.0 } else { 0.0 });
+        self.hover_animation
+            .set_target(if response.hovered() { 1.0 } else { 0.0 });
         self.hover_animation.update(dt);
 
-        self.drag_animation.set_target(if response.dragged() { 1.0 } else { 0.0 });
+        self.drag_animation
+            .set_target(if response.dragged() { 1.0 } else { 0.0 });
         self.drag_animation.update(dt);
 
         self.draw(ui, rect, colors);
@@ -317,7 +325,8 @@ impl ProgressBar {
 
         // Draw playhead
         if self.progress > 0.0 {
-            let playhead_x = enhanced_rect.min.x + (self.progress / self.total) * enhanced_rect.width();
+            let playhead_x =
+                enhanced_rect.min.x + (self.progress / self.total) * enhanced_rect.width();
             let playhead_rect = Rect::from_center_size(
                 Pos2::new(playhead_x, enhanced_rect.center().y),
                 Vec2::splat(enhanced_height + 4.0),
@@ -329,7 +338,11 @@ impl ProgressBar {
                 hover_factor * 0.5 + drag_factor * 0.5,
             );
 
-            painter.circle_filled(playhead_rect.center(), playhead_rect.width() * 0.5, playhead_color);
+            painter.circle_filled(
+                playhead_rect.center(),
+                playhead_rect.width() * 0.5,
+                playhead_color,
+            );
         }
 
         // Draw time labels if enabled
@@ -427,11 +440,9 @@ impl MetadataDisplay {
             .font(title_font.clone())
             .color(colors.text);
 
-        let title_size = painter.layout_no_wrap(
-            self.title.clone(),
-            title_font,
-            colors.text,
-        ).size();
+        let title_size = painter
+            .layout_no_wrap(self.title.clone(), title_font, colors.text)
+            .size();
 
         if title_size.x > rect.width() {
             // Scroll long titles
@@ -483,13 +494,25 @@ impl MetadataDisplay {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.label(RichText::new(&self.title).size(14.0).color(colors.text));
-                    ui.label(RichText::new(&self.artist).size(12.0).color(colors.text_secondary));
+                    ui.label(
+                        RichText::new(&self.artist)
+                            .size(12.0)
+                            .color(colors.text_secondary),
+                    );
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.vertical(|ui| {
-                        ui.label(RichText::new(&self.year).size(10.0).color(colors.text_secondary));
-                        ui.label(RichText::new(&self.album).size(11.0).color(colors.text_secondary));
+                        ui.label(
+                            RichText::new(&self.year)
+                                .size(10.0)
+                                .color(colors.text_secondary),
+                        );
+                        ui.label(
+                            RichText::new(&self.album)
+                                .size(11.0)
+                                .color(colors.text_secondary),
+                        );
                     });
                 });
             });

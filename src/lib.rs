@@ -52,16 +52,16 @@ impl TestResult {
 // UI modules for enhanced interface components
 pub mod ui;
 // Performance optimization modules
-pub mod audio_performance;
 pub mod audio_optimizations;
+pub mod audio_performance;
 pub mod performance_monitor;
 // Security modules for safe audio processing
 pub mod security;
 // Audio engine and metadata modules (native only - uses web_audio_api)
 #[cfg(not(target_arch = "wasm32"))]
 pub mod audio_engine;
-pub mod metadata;
 pub mod error;
+pub mod metadata;
 // AI-enhanced audio processing modules
 pub mod ai;
 // Native audio backend (Phase 3) - native only

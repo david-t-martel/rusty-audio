@@ -2,8 +2,8 @@
 //!
 //! Extracts comprehensive audio features for AI analysis and processing.
 
-use anyhow::{Result, Context};
-use rustfft::{FftPlanner, num_complex::Complex};
+use anyhow::{Context, Result};
+use rustfft::{num_complex::Complex, FftPlanner};
 
 /// Comprehensive audio features for AI processing
 #[derive(Debug, Clone)]
@@ -100,7 +100,12 @@ impl FeatureExtractor {
     }
 
     /// Extract spectral features
-    fn extract_spectral_features(&mut self, features: &mut AudioFeatures, buffer: &[f32], sample_rate: u32) -> Result<()> {
+    fn extract_spectral_features(
+        &mut self,
+        features: &mut AudioFeatures,
+        buffer: &[f32],
+        sample_rate: u32,
+    ) -> Result<()> {
         let spectrum = self.compute_spectrum(buffer)?;
 
         features.spectral_centroid = Some(self.calculate_spectral_centroid(&spectrum, sample_rate));
@@ -113,8 +118,15 @@ impl FeatureExtractor {
     }
 
     /// Extract energy features
-    fn extract_energy_features(&mut self, features: &mut AudioFeatures, buffer: &[f32], sample_rate: u32) -> Result<()> {
-        let spectrum = features.spectrum.as_ref()
+    fn extract_energy_features(
+        &mut self,
+        features: &mut AudioFeatures,
+        buffer: &[f32],
+        sample_rate: u32,
+    ) -> Result<()> {
+        let spectrum = features
+            .spectrum
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Spectrum not computed"))?;
 
         let total_energy: f32 = spectrum.iter().sum();
@@ -124,15 +136,28 @@ impl FeatureExtractor {
         let bass_end = 250 * spectrum.len() / (sample_rate as usize / 2);
         let mid_end = 4000 * spectrum.len() / (sample_rate as usize / 2);
 
-        features.bass_energy = Some(spectrum[..bass_end.min(spectrum.len())].iter().sum::<f32>() / total_energy.max(0.001));
-        features.mid_energy = Some(spectrum[bass_end.min(spectrum.len())..mid_end.min(spectrum.len())].iter().sum::<f32>() / total_energy.max(0.001));
-        features.treble_energy = Some(spectrum[mid_end.min(spectrum.len())..].iter().sum::<f32>() / total_energy.max(0.001));
+        features.bass_energy = Some(
+            spectrum[..bass_end.min(spectrum.len())].iter().sum::<f32>() / total_energy.max(0.001),
+        );
+        features.mid_energy = Some(
+            spectrum[bass_end.min(spectrum.len())..mid_end.min(spectrum.len())]
+                .iter()
+                .sum::<f32>()
+                / total_energy.max(0.001),
+        );
+        features.treble_energy = Some(
+            spectrum[mid_end.min(spectrum.len())..].iter().sum::<f32>() / total_energy.max(0.001),
+        );
 
         Ok(())
     }
 
     /// Extract temporal features
-    fn extract_temporal_features(&mut self, features: &mut AudioFeatures, buffer: &[f32]) -> Result<()> {
+    fn extract_temporal_features(
+        &mut self,
+        features: &mut AudioFeatures,
+        buffer: &[f32],
+    ) -> Result<()> {
         features.zero_crossing_rate = Some(self.calculate_zero_crossing_rate(buffer));
         features.rms = Some(self.calculate_rms(buffer));
         features.peak_amplitude = Some(buffer.iter().map(|x| x.abs()).fold(0.0f32, f32::max));
@@ -145,7 +170,11 @@ impl FeatureExtractor {
     }
 
     /// Extract statistical features
-    fn extract_statistical_features(&mut self, features: &mut AudioFeatures, buffer: &[f32]) -> Result<()> {
+    fn extract_statistical_features(
+        &mut self,
+        features: &mut AudioFeatures,
+        buffer: &[f32],
+    ) -> Result<()> {
         let mean = buffer.iter().sum::<f32>() / buffer.len() as f32;
         let variance = buffer.iter().map(|x| (x - mean).powi(2)).sum::<f32>() / buffer.len() as f32;
         let std_dev = variance.sqrt();
@@ -159,7 +188,12 @@ impl FeatureExtractor {
     }
 
     /// Extract rhythm features
-    fn extract_rhythm_features(&mut self, features: &mut AudioFeatures, buffer: &[f32], sample_rate: u32) -> Result<()> {
+    fn extract_rhythm_features(
+        &mut self,
+        features: &mut AudioFeatures,
+        buffer: &[f32],
+        sample_rate: u32,
+    ) -> Result<()> {
         features.tempo = Some(self.estimate_tempo(buffer, sample_rate)?);
         features.beat_strength = Some(self.calculate_beat_strength(buffer)?);
         features.onset_density = Some(self.calculate_onset_density(buffer, sample_rate)?);
@@ -168,8 +202,15 @@ impl FeatureExtractor {
     }
 
     /// Extract harmonic features
-    fn extract_harmonic_features(&mut self, features: &mut AudioFeatures, buffer: &[f32], sample_rate: u32) -> Result<()> {
-        let spectrum = features.spectrum.as_ref()
+    fn extract_harmonic_features(
+        &mut self,
+        features: &mut AudioFeatures,
+        buffer: &[f32],
+        sample_rate: u32,
+    ) -> Result<()> {
+        let spectrum = features
+            .spectrum
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Spectrum not computed"))?;
 
         let peaks = self.detect_harmonic_peaks(spectrum);
@@ -185,7 +226,11 @@ impl FeatureExtractor {
     }
 
     /// Extract quality features
-    fn extract_quality_features(&mut self, features: &mut AudioFeatures, buffer: &[f32]) -> Result<()> {
+    fn extract_quality_features(
+        &mut self,
+        features: &mut AudioFeatures,
+        buffer: &[f32],
+    ) -> Result<()> {
         features.dynamic_range = Some(self.calculate_dynamic_range(buffer));
         features.loudness = Some(self.calculate_loudness(buffer));
         features.clarity_index = Some(self.calculate_clarity_index(features));
@@ -194,8 +239,15 @@ impl FeatureExtractor {
     }
 
     /// Extract MFCC features
-    fn extract_mfcc_features(&mut self, features: &mut AudioFeatures, buffer: &[f32], sample_rate: u32) -> Result<()> {
-        let spectrum = features.spectrum.as_ref()
+    fn extract_mfcc_features(
+        &mut self,
+        features: &mut AudioFeatures,
+        buffer: &[f32],
+        sample_rate: u32,
+    ) -> Result<()> {
+        let spectrum = features
+            .spectrum
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Spectrum not computed"))?;
 
         features.mfcc = Some(self.calculate_mfcc(spectrum, sample_rate)?);
@@ -209,14 +261,18 @@ impl FeatureExtractor {
         let mut frame = vec![Complex::new(0.0, 0.0); self.window_size];
 
         for i in 0..self.window_size.min(buffer.len()) {
-            let window = 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / self.window_size as f32).cos());
+            let window = 0.5
+                * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / self.window_size as f32).cos());
             frame[i] = Complex::new(buffer[i] * window, 0.0);
         }
 
         let fft = self.fft_planner.plan_fft_forward(self.window_size);
         fft.process(&mut frame);
 
-        Ok(frame[..self.window_size / 2].iter().map(|c| c.norm()).collect())
+        Ok(frame[..self.window_size / 2]
+            .iter()
+            .map(|c| c.norm())
+            .collect())
     }
 
     fn calculate_spectral_centroid(&self, spectrum: &[f32], sample_rate: u32) -> f32 {
@@ -252,9 +308,11 @@ impl FeatureExtractor {
     }
 
     fn calculate_spectral_flux(&self, spectrum: &[f32]) -> f32 {
-        spectrum.windows(2)
+        spectrum
+            .windows(2)
             .map(|w| (w[1] - w[0]).abs())
-            .sum::<f32>() / spectrum.len() as f32
+            .sum::<f32>()
+            / spectrum.len() as f32
     }
 
     fn calculate_spectral_entropy(&self, spectrum: &[f32]) -> f32 {
@@ -363,7 +421,11 @@ impl FeatureExtractor {
 
     fn calculate_dynamic_range(&self, buffer: &[f32]) -> f32 {
         let max = buffer.iter().map(|x| x.abs()).fold(0.0f32, f32::max);
-        let min = buffer.iter().map(|x| x.abs()).filter(|&x| x > 0.0).fold(1.0f32, f32::min);
+        let min = buffer
+            .iter()
+            .map(|x| x.abs())
+            .filter(|&x| x > 0.0)
+            .fold(1.0f32, f32::min);
 
         if min > 0.0 && max > min {
             20.0 * (max / min).log10()
@@ -410,7 +472,11 @@ impl FeatureExtractor {
             let end_idx = ((i + 1) * spectrum.len() / num_coeffs).min(spectrum.len());
 
             let bin_energy: f32 = spectrum[start_idx..end_idx].iter().sum();
-            mfcc[i] = if bin_energy > 0.0 { bin_energy.ln() } else { 0.0 };
+            mfcc[i] = if bin_energy > 0.0 {
+                bin_energy.ln()
+            } else {
+                0.0
+            };
         }
 
         Ok(mfcc)

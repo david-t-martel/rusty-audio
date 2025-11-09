@@ -1,10 +1,10 @@
-use egui::{Color32, Visuals, Style, Rounding, Vec2};
+use egui::{Color32, Rounding, Style, Vec2, Visuals};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum Theme {
     #[default]
-    StudioDark,  // Professional DAW-style dark theme
+    StudioDark, // Professional DAW-style dark theme
     Mocha,
     Macchiato,
     Frappe,
@@ -162,16 +162,16 @@ impl ThemeManager {
         style.spacing.indent = styling.indent;
         style.spacing.button_padding = Vec2::new(16.0, 8.0);
         style.spacing.slider_width = 200.0;
-        style.spacing.interact_size = Vec2::new(40.0, 20.0);  // Larger touch targets
+        style.spacing.interact_size = Vec2::new(40.0, 20.0); // Larger touch targets
         style.spacing.combo_width = 120.0;
-        
+
         // Enhanced interaction feel
         style.interaction.selectable_labels = true;
         style.interaction.multi_widget_text_select = true;
-        
+
         // Smooth animations (egui will handle interpolation)
-        style.animation_time = 0.12;  // 120ms for smooth transitions
-        
+        style.animation_time = 0.12; // 120ms for smooth transitions
+
         if styling.window_shadow {
             style.visuals.window_shadow = egui::epaint::Shadow {
                 offset: [4, 4],
@@ -201,43 +201,43 @@ impl ThemeManager {
     fn create_studio_dark_visuals(&self) -> Visuals {
         let mut visuals = Visuals::dark();
         let colors = self.get_default_colors_for_theme(&Theme::StudioDark);
-        
+
         // Professional DAW-style background
         visuals.window_fill = colors.background;
         visuals.panel_fill = colors.surface;
-        visuals.extreme_bg_color = Color32::from_rgb(18, 18, 20);  // Even darker for depth
+        visuals.extreme_bg_color = Color32::from_rgb(18, 18, 20); // Even darker for depth
         visuals.code_bg_color = Color32::from_rgb(32, 32, 36);
-        
+
         // Subtle stripes for tables/lists
         visuals.faint_bg_color = Color32::from_rgb(32, 32, 36);
         visuals.striped = true;
-        
+
         // Widget styling with professional look
         visuals.widgets.noninteractive.bg_fill = colors.surface;
         visuals.widgets.noninteractive.fg_stroke.color = colors.text_secondary;
-        
+
         visuals.widgets.inactive.bg_fill = Color32::from_rgb(45, 45, 50);
         visuals.widgets.inactive.fg_stroke.color = colors.text_secondary;
         visuals.widgets.inactive.weak_bg_fill = Color32::from_rgb(40, 40, 45);
-        
+
         visuals.widgets.hovered.bg_fill = Color32::from_rgb(55, 55, 62);
         visuals.widgets.hovered.fg_stroke.color = colors.text;
         visuals.widgets.hovered.weak_bg_fill = Color32::from_rgb(50, 50, 58);
-        visuals.widgets.hovered.expansion = 1.0;  // Subtle expansion on hover
-        
+        visuals.widgets.hovered.expansion = 1.0; // Subtle expansion on hover
+
         visuals.widgets.active.bg_fill = colors.primary;
         visuals.widgets.active.fg_stroke.color = colors.text;
         visuals.widgets.active.weak_bg_fill = colors.primary.linear_multiply(0.8);
-        
+
         visuals.widgets.open.bg_fill = colors.surface;
         visuals.widgets.open.fg_stroke.color = colors.text;
         visuals.widgets.open.weak_bg_fill = colors.surface;
-        
+
         // Professional selection and highlighting
         visuals.selection.bg_fill = colors.primary.linear_multiply(0.7);
         visuals.selection.stroke.color = colors.primary;
         visuals.hyperlink_color = colors.accent;
-        
+
         // Subtle shadows for depth
         visuals.window_shadow = egui::epaint::Shadow {
             offset: [0, 4],
@@ -245,36 +245,36 @@ impl ThemeManager {
             spread: 0,
             color: Color32::from_black_alpha(100),
         };
-        
+
         visuals.popup_shadow = egui::epaint::Shadow {
             offset: [0, 2],
             blur: 8,
             spread: 0,
             color: Color32::from_black_alpha(80),
         };
-        
+
         // Override text color for consistent readability
         visuals.override_text_color = Some(colors.text);
-        
+
         // Window stroke styling
         visuals.window_stroke.color = Color32::from_rgb(50, 50, 55);
         visuals.window_stroke.width = 1.0;
-        
+
         // Resize handle
         visuals.resize_corner_size = 12.0;
-        
+
         // Collapsing headers
         visuals.collapsing_header_frame = true;
-        
+
         // Indent guide
         visuals.indent_has_left_vline = true;
-        
+
         // Slider styling
         visuals.slider_trailing_fill = true;
-        
+
         visuals
     }
-    
+
     fn create_custom_visuals(&self, custom: &CustomTheme) -> Visuals {
         let mut visuals = Visuals::dark();
 
@@ -348,25 +348,25 @@ impl ThemeManager {
                 ],
             },
             Theme::StudioDark => ThemeColors {
-                primary: Color32::from_rgb(90, 160, 230),      // Professional blue
-                secondary: Color32::from_rgb(180, 130, 210),    // Subtle purple
-                accent: Color32::from_rgb(255, 170, 100),       // Warm orange accent
-                background: Color32::from_rgb(24, 24, 27),      // Deep dark background
-                surface: Color32::from_rgb(38, 38, 42),         // Slightly lighter panels
-                text: Color32::from_rgb(220, 222, 228),         // Soft white text
+                primary: Color32::from_rgb(90, 160, 230), // Professional blue
+                secondary: Color32::from_rgb(180, 130, 210), // Subtle purple
+                accent: Color32::from_rgb(255, 170, 100), // Warm orange accent
+                background: Color32::from_rgb(24, 24, 27), // Deep dark background
+                surface: Color32::from_rgb(38, 38, 42),   // Slightly lighter panels
+                text: Color32::from_rgb(220, 222, 228),   // Soft white text
                 text_secondary: Color32::from_rgb(140, 145, 160), // Muted gray
-                success: Color32::from_rgb(100, 200, 120),      // Soft green
-                warning: Color32::from_rgb(240, 190, 90),       // Warm yellow
-                error: Color32::from_rgb(230, 100, 110),        // Soft red
+                success: Color32::from_rgb(100, 200, 120), // Soft green
+                warning: Color32::from_rgb(240, 190, 90), // Warm yellow
+                error: Color32::from_rgb(230, 100, 110),  // Soft red
                 spectrum_colors: vec![
-                    Color32::from_rgb(80, 150, 255),    // Bright blue
-                    Color32::from_rgb(150, 100, 255),   // Violet
-                    Color32::from_rgb(255, 100, 150),   // Pink
-                    Color32::from_rgb(255, 120, 100),   // Coral
-                    Color32::from_rgb(255, 170, 100),   // Orange
-                    Color32::from_rgb(240, 200, 100),   // Gold
-                    Color32::from_rgb(120, 220, 140),   // Mint green
-                    Color32::from_rgb(100, 200, 200),   // Cyan
+                    Color32::from_rgb(80, 150, 255),  // Bright blue
+                    Color32::from_rgb(150, 100, 255), // Violet
+                    Color32::from_rgb(255, 100, 150), // Pink
+                    Color32::from_rgb(255, 120, 100), // Coral
+                    Color32::from_rgb(255, 170, 100), // Orange
+                    Color32::from_rgb(240, 200, 100), // Gold
+                    Color32::from_rgb(120, 220, 140), // Mint green
+                    Color32::from_rgb(100, 200, 200), // Cyan
                 ],
             },
             _ => ThemeColors::default(),

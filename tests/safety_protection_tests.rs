@@ -1,37 +1,58 @@
 // Automated Safety Testing for Volume Limiting and Audio Protection
 // Critical safety tests for hearing protection and equipment safety
 
-use std::time::{Duration, Instant};
-use std::sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU32, Ordering}};
-use std::thread;
+use approx::{assert_abs_diff_eq, assert_relative_eq};
+use rustfft::{num_complex::Complex32, FftPlanner};
+use serial_test::serial;
 use std::f32::consts::PI;
+use std::sync::{
+    atomic::{AtomicBool, AtomicU32, Ordering},
+    Arc, Mutex,
+};
+use std::thread;
+use std::time::{Duration, Instant};
 use web_audio_api::context::{AudioContext, BaseAudioContext, OfflineAudioContext};
 use web_audio_api::node::{AudioNode, AudioScheduledSourceNode};
 use web_audio_api::AudioBuffer;
-use rustfft::{FftPlanner, num_complex::Complex32};
-use approx::{assert_relative_eq, assert_abs_diff_eq};
-use serial_test::serial;
 
 // Safety constants - NEVER exceed these values
-const ABSOLUTE_MAX_PEAK_DB: f32 = 0.0;      // 0 dBFS peak limit
+const ABSOLUTE_MAX_PEAK_DB: f32 = 0.0; // 0 dBFS peak limit
 const SAFE_CONTINUOUS_LEVEL_DB: f32 = -20.0; // -20 dBFS for continuous playback
 const HEARING_DAMAGE_THRESHOLD_DB: f32 = -6.0; // -6 dBFS sustained level warning
-const EMERGENCY_SHUTDOWN_LEVEL_DB: f32 = 3.0;  // +3 dBFS triggers emergency shutdown
-const MAX_RESPONSE_TIME_MS: u64 = 10;      // Maximum 10ms response time for safety systems
-const MAX_ATTACK_TIME_MS: u64 = 1;         // 1ms maximum attack time for limiters
-const SAFETY_MARGIN_DB: f32 = 3.0;         // 3dB safety margin
+const EMERGENCY_SHUTDOWN_LEVEL_DB: f32 = 3.0; // +3 dBFS triggers emergency shutdown
+const MAX_RESPONSE_TIME_MS: u64 = 10; // Maximum 10ms response time for safety systems
+const MAX_ATTACK_TIME_MS: u64 = 1; // 1ms maximum attack time for limiters
+const SAFETY_MARGIN_DB: f32 = 3.0; // 3dB safety margin
 const SAMPLE_RATE: f32 = 48000.0;
 
 /// Safety violation types
 #[derive(Debug, Clone, PartialEq)]
 enum SafetyViolation {
-    PeakOverload { level_db: f32, duration_ms: f32 },
-    SustainedOverload { level_db: f32, duration_ms: f32 },
-    SlowResponse { response_time_ms: u64, max_allowed_ms: u64 },
-    LimiterFailure { bypass_detected: bool },
-    EmergencyShutdownTriggered { trigger_level_db: f32 },
-    HearingDamageRisk { exposure_time_ms: f32, level_db: f32 },
-    EquipmentDamageRisk { peak_level_db: f32 },
+    PeakOverload {
+        level_db: f32,
+        duration_ms: f32,
+    },
+    SustainedOverload {
+        level_db: f32,
+        duration_ms: f32,
+    },
+    SlowResponse {
+        response_time_ms: u64,
+        max_allowed_ms: u64,
+    },
+    LimiterFailure {
+        bypass_detected: bool,
+    },
+    EmergencyShutdownTriggered {
+        trigger_level_db: f32,
+    },
+    HearingDamageRisk {
+        exposure_time_ms: f32,
+        level_db: f32,
+    },
+    EquipmentDamageRisk {
+        peak_level_db: f32,
+    },
 }
 
 /// Safety test results
@@ -87,7 +108,7 @@ impl AudioSafetyLimiter {
     fn new(threshold_db: f32, sample_rate: f32) -> Self {
         Self {
             threshold_db,
-            attack_time_ms: 0.5, // Very fast attack for safety
+            attack_time_ms: 0.5,    // Very fast attack for safety
             release_time_ms: 100.0, // Slow release to prevent pumping
             sample_rate,
             reduction_db: Arc::new(Mutex::new(0.0)),
@@ -126,10 +147,12 @@ impl AudioSafetyLimiter {
             let mut current_reduction = self.reduction_db.lock().unwrap();
             if overshoot_db > *current_reduction {
                 // Attack: fast reduction
-                *current_reduction = overshoot_db + (*current_reduction - overshoot_db) * attack_coeff;
+                *current_reduction =
+                    overshoot_db + (*current_reduction - overshoot_db) * attack_coeff;
             } else {
                 // Release: slow recovery
-                *current_reduction = overshoot_db + (*current_reduction - overshoot_db) * release_coeff;
+                *current_reduction =
+                    overshoot_db + (*current_reduction - overshoot_db) * release_coeff;
             }
 
             // Apply gain reduction
@@ -460,15 +483,24 @@ mod tests {
         let output_peak = calculate_peak(&output);
         let output_peak_db = linear_to_db(output_peak);
 
-        assert!(output_peak_db <= ABSOLUTE_MAX_PEAK_DB,
+        assert!(
+            output_peak_db <= ABSOLUTE_MAX_PEAK_DB,
             "Peak limiter failed: output peak {:.2} dB exceeds limit {:.2} dB",
-            output_peak_db, ABSOLUTE_MAX_PEAK_DB);
+            output_peak_db,
+            ABSOLUTE_MAX_PEAK_DB
+        );
 
-        assert!(limiter.get_current_reduction_db() > 0.0,
-            "Limiter should be applying gain reduction");
+        assert!(
+            limiter.get_current_reduction_db() > 0.0,
+            "Limiter should be applying gain reduction"
+        );
 
-        println!("Peak limiting test: input {:.1} dB -> output {:.1} dB, reduction {:.1} dB",
-            linear_to_db(dangerous_level), output_peak_db, limiter.get_current_reduction_db());
+        println!(
+            "Peak limiting test: input {:.1} dB -> output {:.1} dB, reduction {:.1} dB",
+            linear_to_db(dangerous_level),
+            output_peak_db,
+            limiter.get_current_reduction_db()
+        );
     }
 
     #[test]
@@ -483,20 +515,29 @@ mod tests {
         let output = limiter.process(&input);
 
         // Verify emergency shutdown triggered
-        assert!(limiter.is_emergency_shutdown(),
+        assert!(
+            limiter.is_emergency_shutdown(),
             "Emergency shutdown should have triggered for +{:.1} dB signal",
-            linear_to_db(emergency_level));
+            linear_to_db(emergency_level)
+        );
 
         // Verify output is muted
         let output_peak = calculate_peak(&output);
-        assert_eq!(output_peak, 0.0,
-            "Output should be completely muted during emergency shutdown");
+        assert_eq!(
+            output_peak, 0.0,
+            "Output should be completely muted during emergency shutdown"
+        );
 
-        assert!(limiter.get_violation_count() > 0,
-            "Violation count should increase during emergency");
+        assert!(
+            limiter.get_violation_count() > 0,
+            "Violation count should increase during emergency"
+        );
 
-        println!("Emergency shutdown test: triggered at {:.1} dB, {} violations",
-            linear_to_db(emergency_level), limiter.get_violation_count());
+        println!(
+            "Emergency shutdown test: triggered at {:.1} dB, {} violations",
+            linear_to_db(emergency_level),
+            limiter.get_violation_count()
+        );
     }
 
     #[test]
@@ -518,7 +559,8 @@ mod tests {
         // Check response time by finding when limiting kicks in
         let mut response_sample = 0;
         for (i, &sample) in output.iter().enumerate() {
-            if sample.abs() < dangerous_level * 0.9 { // Detected reduction
+            if sample.abs() < dangerous_level * 0.9 {
+                // Detected reduction
                 response_sample = i;
                 break;
             }
@@ -526,16 +568,23 @@ mod tests {
 
         let response_time_ms = (response_sample as f32 / SAMPLE_RATE * 1000.0) as u64;
 
-        assert!(response_time_ms <= MAX_RESPONSE_TIME_MS,
+        assert!(
+            response_time_ms <= MAX_RESPONSE_TIME_MS,
             "Limiter response time {:.1} ms exceeds maximum {:.1} ms",
-            response_time_ms, MAX_RESPONSE_TIME_MS);
+            response_time_ms,
+            MAX_RESPONSE_TIME_MS
+        );
 
-        assert!(processing_time <= MAX_RESPONSE_TIME_MS * 2,
+        assert!(
+            processing_time <= MAX_RESPONSE_TIME_MS * 2,
             "Processing time {} ms too slow for real-time safety",
-            processing_time);
+            processing_time
+        );
 
-        println!("Response time test: limiting activated in {:.1} ms, processed in {} ms",
-            response_time_ms, processing_time);
+        println!(
+            "Response time test: limiting activated in {:.1} ms, processed in {} ms",
+            response_time_ms, processing_time
+        );
     }
 
     #[test]
@@ -551,20 +600,34 @@ mod tests {
 
         let result = monitor.analyze(&long_signal);
 
-        assert!(!result.is_safe(),
+        assert!(
+            !result.is_safe(),
             "Monitor should detect hearing damage risk for {:.1} dB sustained level",
-            linear_to_db(sustained_level));
+            linear_to_db(sustained_level)
+        );
 
-        let has_hearing_damage_violation = result.violations.iter().any(|v| {
-            matches!(v, SafetyViolation::HearingDamageRisk { .. })
-        });
+        let has_hearing_damage_violation = result
+            .violations
+            .iter()
+            .any(|v| matches!(v, SafetyViolation::HearingDamageRisk { .. }));
 
-        assert!(has_hearing_damage_violation,
-            "Should detect hearing damage risk violation");
+        assert!(
+            has_hearing_damage_violation,
+            "Should detect hearing damage risk violation"
+        );
 
-        if let Some(SafetyViolation::HearingDamageRisk { exposure_time_ms, level_db }) =
-            result.violations.iter().find(|v| matches!(v, SafetyViolation::HearingDamageRisk { .. })) {
-            println!("Hearing damage risk detected: {:.1} dB for {:.0} ms", level_db, exposure_time_ms);
+        if let Some(SafetyViolation::HearingDamageRisk {
+            exposure_time_ms,
+            level_db,
+        }) = result
+            .violations
+            .iter()
+            .find(|v| matches!(v, SafetyViolation::HearingDamageRisk { .. }))
+        {
+            println!(
+                "Hearing damage risk detected: {:.1} dB for {:.0} ms",
+                level_db, exposure_time_ms
+            );
         }
     }
 
@@ -591,14 +654,22 @@ mod tests {
 
             let result = monitor.analyze(&test_signal);
 
-            assert_eq!(result.is_safe(), should_be_safe,
+            assert_eq!(
+                result.is_safe(),
+                should_be_safe,
                 "Safety check failed for {}: {:.1} dB should be {}",
-                description, level_db, if should_be_safe { "safe" } else { "unsafe" });
+                description,
+                level_db,
+                if should_be_safe { "safe" } else { "unsafe" }
+            );
 
-            println!("Safety test {}: {:.1} dB -> {} ({} violations)",
-                description, level_db,
+            println!(
+                "Safety test {}: {:.1} dB -> {} ({} violations)",
+                description,
+                level_db,
                 if result.is_safe() { "SAFE" } else { "UNSAFE" },
-                result.violations.len());
+                result.violations.len()
+            );
         }
     }
 
@@ -619,15 +690,22 @@ mod tests {
         let output_peak_db = linear_to_db(output_peak);
 
         // Attack should be fast enough to catch the impulse
-        assert!(output_peak_db <= 0.0,
+        assert!(
+            output_peak_db <= 0.0,
             "Fast attack should limit impulse: output peak {:.2} dB",
-            output_peak_db);
+            output_peak_db
+        );
 
         // Verify attack time is within specification
-        assert!(limiter.get_current_reduction_db() > 0.0,
-            "Limiter should be reducing gain after impulse");
+        assert!(
+            limiter.get_current_reduction_db() > 0.0,
+            "Limiter should be reducing gain after impulse"
+        );
 
-        println!("Attack time test: impulse peak reduced to {:.1} dB", output_peak_db);
+        println!(
+            "Attack time test: impulse peak reduced to {:.1} dB",
+            output_peak_db
+        );
     }
 
     #[test]
@@ -641,16 +719,24 @@ mod tests {
             let input = vec![violation_level; 100];
             let _output = limiter.process(&input);
 
-            println!("Violation {}: count = {}, emergency = {}",
-                i + 1, limiter.get_violation_count(), limiter.is_emergency_shutdown());
+            println!(
+                "Violation {}: count = {}, emergency = {}",
+                i + 1,
+                limiter.get_violation_count(),
+                limiter.is_emergency_shutdown()
+            );
         }
 
-        assert!(limiter.get_violation_count() >= 5,
+        assert!(
+            limiter.get_violation_count() >= 5,
             "Should track multiple violations: count = {}",
-            limiter.get_violation_count());
+            limiter.get_violation_count()
+        );
 
-        assert!(limiter.is_emergency_shutdown(),
-            "Multiple severe violations should trigger emergency shutdown");
+        assert!(
+            limiter.is_emergency_shutdown(),
+            "Multiple severe violations should trigger emergency shutdown"
+        );
     }
 
     #[test]
@@ -669,21 +755,37 @@ mod tests {
         let result = monitor.analyze(&output);
 
         // Should pass through unmodified at safe levels
-        assert!(result.is_safe(), "Safe levels should not trigger violations");
-        assert_eq!(limiter.get_violation_count(), 0, "No violations should occur at safe levels");
-        assert!(!limiter.is_emergency_shutdown(), "No emergency shutdown at safe levels");
+        assert!(
+            result.is_safe(),
+            "Safe levels should not trigger violations"
+        );
+        assert_eq!(
+            limiter.get_violation_count(),
+            0,
+            "No violations should occur at safe levels"
+        );
+        assert!(
+            !limiter.is_emergency_shutdown(),
+            "No emergency shutdown at safe levels"
+        );
 
         // Output should be nearly identical to input
         let input_rms = calculate_rms(&input);
         let output_rms = calculate_rms(&output);
         let rms_error = (input_rms - output_rms).abs() / input_rms;
 
-        assert!(rms_error < 0.01,
+        assert!(
+            rms_error < 0.01,
             "Safe signal should pass through with minimal change: error = {:.3}%",
-            rms_error * 100.0);
+            rms_error * 100.0
+        );
 
-        println!("Safe operation test: {:.1} dB in -> {:.1} dB out, error = {:.2}%",
-            linear_to_db(input_rms), linear_to_db(output_rms), rms_error * 100.0);
+        println!(
+            "Safe operation test: {:.1} dB in -> {:.1} dB out, error = {:.2}%",
+            linear_to_db(input_rms),
+            linear_to_db(output_rms),
+            rms_error * 100.0
+        );
     }
 
     #[test]
@@ -704,15 +806,21 @@ mod tests {
             let result = monitor.analyze(&chunk_signal);
             total_exposure_ms += 100.0; // 100ms per chunk
 
-            if chunk >= 5 { // After 500ms of exposure
-                assert!(!result.is_safe(),
+            if chunk >= 5 {
+                // After 500ms of exposure
+                assert!(
+                    !result.is_safe(),
                     "Extended exposure should trigger safety warning after {}ms",
-                    total_exposure_ms);
+                    total_exposure_ms
+                );
             }
         }
 
-        println!("Exposure tracking test: {:.0}ms total exposure at {:.1} dB",
-            total_exposure_ms, linear_to_db(exposure_level));
+        println!(
+            "Exposure tracking test: {:.0}ms total exposure at {:.1} dB",
+            total_exposure_ms,
+            linear_to_db(exposure_level)
+        );
     }
 
     #[test]
@@ -733,8 +841,15 @@ mod tests {
         let safe_signal = vec![db_to_linear(-20.0); 1000];
         let _output2 = limiter.process(&safe_signal);
 
-        assert_eq!(limiter.get_violation_count(), 0, "Violations should be cleared after reset");
-        assert!(!limiter.is_emergency_shutdown(), "Emergency shutdown should be cleared");
+        assert_eq!(
+            limiter.get_violation_count(),
+            0,
+            "Violations should be cleared after reset"
+        );
+        assert!(
+            !limiter.is_emergency_shutdown(),
+            "Emergency shutdown should be cleared"
+        );
 
         println!("Recovery test: limiter successfully reset and operating normally");
     }
@@ -753,7 +868,8 @@ mod tests {
             let quantum_size = 128; // Typical audio quantum
             let dangerous_level = db_to_linear(6.0);
 
-            for _ in 0..100 { // 100 audio quanta
+            for _ in 0..100 {
+                // 100 audio quanta
                 let start_time = Instant::now();
 
                 let input: Vec<f32> = (0..quantum_size)
@@ -763,12 +879,16 @@ mod tests {
                 let _output = limiter_clone.process(&input);
 
                 let processing_time = start_time.elapsed().as_micros() as u64;
-                let quantum_time_us = (quantum_size as f64 / SAMPLE_RATE as f64 * 1_000_000.0) as u64;
+                let quantum_time_us =
+                    (quantum_size as f64 / SAMPLE_RATE as f64 * 1_000_000.0) as u64;
 
                 // Verify real-time performance
-                assert!(processing_time < quantum_time_us,
+                assert!(
+                    processing_time < quantum_time_us,
                     "Processing too slow: {} μs > {} μs quantum time",
-                    processing_time, quantum_time_us);
+                    processing_time,
+                    quantum_time_us
+                );
 
                 thread::sleep(Duration::from_micros(quantum_time_us));
             }
@@ -786,13 +906,19 @@ mod tests {
 
         audio_thread.join().unwrap();
 
-        assert!(processing_complete.load(Ordering::SeqCst),
-            "Real-time processing test did not complete in time");
+        assert!(
+            processing_complete.load(Ordering::SeqCst),
+            "Real-time processing test did not complete in time"
+        );
 
-        assert!(limiter.get_current_reduction_db() > 0.0,
-            "Limiter should be active during real-time processing");
+        assert!(
+            limiter.get_current_reduction_db() > 0.0,
+            "Limiter should be active during real-time processing"
+        );
 
-        println!("Real-time processing test: completed successfully with {} violations",
-            limiter.get_violation_count());
+        println!(
+            "Real-time processing test: completed successfully with {} violations",
+            limiter.get_violation_count()
+        );
     }
 }

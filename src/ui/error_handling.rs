@@ -1,8 +1,8 @@
-use egui::{Ui, Vec2, Color32, RichText, Button};
-use std::time::{Duration, Instant};
+use super::accessibility::{AccessibilityManager, AnnouncementPriority};
 use super::theme::ThemeColors;
 use super::utils::{AnimationState, ColorUtils};
-use super::accessibility::{AccessibilityManager, AnnouncementPriority};
+use egui::{Button, Color32, RichText, Ui, Vec2};
+use std::time::{Duration, Instant};
 
 /// Enhanced error handling system with user-friendly messages and recovery options
 #[derive(Debug, Clone)]
@@ -73,7 +73,12 @@ impl ErrorManager {
         }
     }
 
-    pub fn add_error(&mut self, error_type: ErrorType, title: impl Into<String>, message: impl Into<String>) {
+    pub fn add_error(
+        &mut self,
+        error_type: ErrorType,
+        title: impl Into<String>,
+        message: impl Into<String>,
+    ) {
         let error_info = ErrorInfo {
             id: format!("error_{}", self.errors.len()),
             error_type: error_type.clone(),
@@ -107,8 +112,10 @@ impl ErrorManager {
         // Auto-dismiss errors that have expired
         let now = Instant::now();
         for error in &mut self.errors {
-            if error.auto_dismiss && !error.dismissed &&
-               error.timestamp.elapsed() > self.auto_dismiss_timeout {
+            if error.auto_dismiss
+                && !error.dismissed
+                && error.timestamp.elapsed() > self.auto_dismiss_timeout
+            {
                 error.dismissed = true;
             }
         }
@@ -124,10 +131,20 @@ impl ErrorManager {
         }
     }
 
-    pub fn show_errors(&mut self, ui: &mut Ui, colors: &ThemeColors, accessibility: &mut AccessibilityManager) -> Vec<RecoveryActionType> {
+    pub fn show_errors(
+        &mut self,
+        ui: &mut Ui,
+        colors: &ThemeColors,
+        accessibility: &mut AccessibilityManager,
+    ) -> Vec<RecoveryActionType> {
         let mut actions_to_execute = Vec::new();
 
-        let active_errors: Vec<_> = self.errors.iter().filter(|e| !e.dismissed).cloned().collect();
+        let active_errors: Vec<_> = self
+            .errors
+            .iter()
+            .filter(|e| !e.dismissed)
+            .cloned()
+            .collect();
         if active_errors.is_empty() {
             return actions_to_execute;
         }
@@ -142,7 +159,10 @@ impl ErrorManager {
 
             egui::Window::new(&error.title)
                 .id(egui::Id::new(&error_id))
-                .anchor(egui::Align2::CENTER_CENTER, Vec2::new(0.0, index as f32 * 50.0))
+                .anchor(
+                    egui::Align2::CENTER_CENTER,
+                    Vec2::new(0.0, index as f32 * 50.0),
+                )
                 .collapsible(false)
                 .resizable(false)
                 .show(ui.ctx(), |ui| {
@@ -162,7 +182,7 @@ impl ErrorManager {
                             RichText::new(&error.title)
                                 .strong()
                                 .size(16.0)
-                                .color(icon_color)
+                                .color(icon_color),
                         );
                     });
 
@@ -193,7 +213,9 @@ impl ErrorManager {
                                     actions_to_execute.push(action.action_type.clone());
 
                                     // Mark error as dismissed
-                                    if let Some(error_mut) = self.errors.iter_mut().find(|e| e.id == error.id) {
+                                    if let Some(error_mut) =
+                                        self.errors.iter_mut().find(|e| e.id == error.id)
+                                    {
                                         error_mut.dismissed = true;
                                     }
 
@@ -205,7 +227,10 @@ impl ErrorManager {
                                 }
 
                                 if !action.description.is_empty() {
-                                    ui.label(RichText::new(&action.description).color(colors.text_secondary));
+                                    ui.label(
+                                        RichText::new(&action.description)
+                                            .color(colors.text_secondary),
+                                    );
                                 }
                             });
                         }
@@ -216,18 +241,25 @@ impl ErrorManager {
                     // Dismiss button
                     ui.horizontal(|ui| {
                         if ui.button("Dismiss").clicked() {
-                            if let Some(error_mut) = self.errors.iter_mut().find(|e| e.id == error.id) {
+                            if let Some(error_mut) =
+                                self.errors.iter_mut().find(|e| e.id == error.id)
+                            {
                                 error_mut.dismissed = true;
                             }
                         }
 
                         // Auto-dismiss indicator
                         if error.auto_dismiss {
-                            let remaining = self.auto_dismiss_timeout.saturating_sub(error.timestamp.elapsed());
+                            let remaining = self
+                                .auto_dismiss_timeout
+                                .saturating_sub(error.timestamp.elapsed());
                             ui.label(
-                                RichText::new(format!("Auto-dismiss in {:.0}s", remaining.as_secs_f32()))
-                                    .size(10.0)
-                                    .color(colors.text_secondary)
+                                RichText::new(format!(
+                                    "Auto-dismiss in {:.0}s",
+                                    remaining.as_secs_f32()
+                                ))
+                                .size(10.0)
+                                .color(colors.text_secondary),
                             );
                         }
                     });
@@ -300,27 +332,21 @@ impl ErrorManager {
                     action_type: RecoveryActionType::SelectDifferentFile,
                 },
             ],
-            ErrorType::Network => vec![
-                RecoveryAction {
-                    label: "Retry".to_string(),
-                    description: "Try the network operation again".to_string(),
-                    action_type: RecoveryActionType::Retry,
-                },
-            ],
-            ErrorType::Configuration => vec![
-                RecoveryAction {
-                    label: "Reset Settings".to_string(),
-                    description: "Reset all settings to defaults".to_string(),
-                    action_type: RecoveryActionType::ResetSettings,
-                },
-            ],
-            ErrorType::General => vec![
-                RecoveryAction {
-                    label: "Retry".to_string(),
-                    description: "Try the operation again".to_string(),
-                    action_type: RecoveryActionType::Retry,
-                },
-            ],
+            ErrorType::Network => vec![RecoveryAction {
+                label: "Retry".to_string(),
+                description: "Try the network operation again".to_string(),
+                action_type: RecoveryActionType::Retry,
+            }],
+            ErrorType::Configuration => vec![RecoveryAction {
+                label: "Reset Settings".to_string(),
+                description: "Reset all settings to defaults".to_string(),
+                action_type: RecoveryActionType::ResetSettings,
+            }],
+            ErrorType::General => vec![RecoveryAction {
+                label: "Retry".to_string(),
+                description: "Try the operation again".to_string(),
+                action_type: RecoveryActionType::Retry,
+            }],
         }
     }
 
@@ -366,7 +392,9 @@ impl ErrorManager {
         };
 
         if has_details {
-            error.message.push_str(" Check the technical details below for more information.");
+            error
+                .message
+                .push_str(" Check the technical details below for more information.");
         }
 
         self.add_detailed_error(error);
@@ -384,7 +412,10 @@ impl ErrorManager {
             error_type: ErrorType::AudioDecode,
             title: "Audio Format Not Supported".to_string(),
             message,
-            details: Some(format!("Supported formats: MP3, WAV, FLAC, OGG, M4A\nFile: {}", filename)),
+            details: Some(format!(
+                "Supported formats: MP3, WAV, FLAC, OGG, M4A\nFile: {}",
+                filename
+            )),
             recovery_actions: vec![
                 RecoveryAction {
                     label: "📁 Choose Different File".to_string(),
@@ -411,7 +442,9 @@ impl ErrorManager {
             id: String::new(),
             error_type: ErrorType::AudioPlayback,
             title: "Audio Playback Error".to_string(),
-            message: "An error occurred during audio playback. The audio may have stopped unexpectedly.".to_string(),
+            message:
+                "An error occurred during audio playback. The audio may have stopped unexpectedly."
+                    .to_string(),
             details,
             recovery_actions: vec![
                 RecoveryAction {

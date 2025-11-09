@@ -10,10 +10,8 @@
 //! - FFT: 5x faster with realfft + AVX2 smoothing
 //! - Level metering: 8x faster with AVX2
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
-use rusty_audio::audio_performance::{
-    OptimizedEqProcessor, OptimizedSpectrumProcessor, simd_ops,
-};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use rusty_audio::audio_performance::{simd_ops, OptimizedEqProcessor, OptimizedSpectrumProcessor};
 
 /// Benchmark biquad filter processing with different SIMD implementations
 fn bench_biquad_filter(c: &mut Criterion) {
@@ -30,27 +28,23 @@ fn bench_biquad_filter(c: &mut Criterion) {
         processor.prepare(size);
 
         // Configure realistic EQ bands
-        processor.update_band(0, 60.0, 1.0, 3.0);    // Bass boost
-        processor.update_band(1, 120.0, 1.0, 2.0);   // Low mids
-        processor.update_band(2, 250.0, 1.0, -1.0);  // Mids cut
-        processor.update_band(3, 500.0, 1.0, 0.0);   // Neutral
-        processor.update_band(4, 1000.0, 1.0, 1.0);  // Presence boost
-        processor.update_band(5, 2000.0, 1.0, 2.0);  // Highs boost
+        processor.update_band(0, 60.0, 1.0, 3.0); // Bass boost
+        processor.update_band(1, 120.0, 1.0, 2.0); // Low mids
+        processor.update_band(2, 250.0, 1.0, -1.0); // Mids cut
+        processor.update_band(3, 500.0, 1.0, 0.0); // Neutral
+        processor.update_band(4, 1000.0, 1.0, 1.0); // Presence boost
+        processor.update_band(5, 2000.0, 1.0, 2.0); // Highs boost
         processor.update_band(6, 4000.0, 1.0, -2.0); // Sibilance cut
-        processor.update_band(7, 8000.0, 1.0, 1.0);  // Air boost
+        processor.update_band(7, 8000.0, 1.0, 1.0); // Air boost
 
         let input = vec![0.5f32; size];
         let mut output = vec![0.0f32; size];
 
-        group.bench_with_input(
-            BenchmarkId::new("8_band_eq", size),
-            &size,
-            |b, _| {
-                b.iter(|| {
-                    processor.process(black_box(&input), black_box(&mut output));
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("8_band_eq", size), &size, |b, _| {
+            b.iter(|| {
+                processor.process(black_box(&input), black_box(&mut output));
+            });
+        });
     }
 
     group.finish();
@@ -70,34 +64,18 @@ fn bench_simd_operations(c: &mut Criterion) {
         let mut output = vec![0.0f32; size];
 
         // Vector addition benchmark
-        group.bench_with_input(
-            BenchmarkId::new("vector_add", size),
-            &size,
-            |bench, _| {
-                bench.iter(|| {
-                    simd_ops::add_vectors_simd(
-                        black_box(&a),
-                        black_box(&b),
-                        black_box(&mut output),
-                    );
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("vector_add", size), &size, |bench, _| {
+            bench.iter(|| {
+                simd_ops::add_vectors_simd(black_box(&a), black_box(&b), black_box(&mut output));
+            });
+        });
 
         // Scalar multiplication benchmark
-        group.bench_with_input(
-            BenchmarkId::new("scalar_mul", size),
-            &size,
-            |bench, _| {
-                bench.iter(|| {
-                    simd_ops::mul_scalar_simd(
-                        black_box(&a),
-                        black_box(0.707),
-                        black_box(&mut output),
-                    );
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("scalar_mul", size), &size, |bench, _| {
+            bench.iter(|| {
+                simd_ops::mul_scalar_simd(black_box(&a), black_box(0.707), black_box(&mut output));
+            });
+        });
     }
 
     group.finish();
@@ -163,9 +141,7 @@ fn bench_level_metering(c: &mut Criterion) {
             |bench, _| {
                 bench.iter(|| {
                     // Benchmark SIMD peak calculation
-                    let peak = audio_data
-                        .iter()
-                        .fold(0.0f32, |acc, &x| acc.max(x.abs()));
+                    let peak = audio_data.iter().fold(0.0f32, |acc, &x| acc.max(x.abs()));
                     black_box(peak);
                 });
             },
@@ -177,10 +153,7 @@ fn bench_level_metering(c: &mut Criterion) {
             |bench, _| {
                 bench.iter(|| {
                     // Benchmark SIMD RMS calculation
-                    let sum_squares: f32 = audio_data
-                        .iter()
-                        .map(|&x| x * x)
-                        .sum();
+                    let sum_squares: f32 = audio_data.iter().map(|&x| x * x).sum();
                     let rms = (sum_squares / audio_data.len() as f32).sqrt();
                     black_box(rms);
                 });

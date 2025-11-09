@@ -3,12 +3,12 @@
 //! Manages loading, caching, and inference for machine learning models
 //! used throughout the AI-enhanced audio processing pipeline.
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
+use ndarray::{Array1, Array2, ArrayD};
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use parking_lot::RwLock;
-use ndarray::{Array1, Array2, ArrayD};
 
 /// Central ML model manager
 pub struct ModelManager {
@@ -37,21 +37,11 @@ impl ModelManager {
 
         // Load model based on type
         let model: Box<dyn Model> = match model_type {
-            ModelType::GenreClassifier => {
-                Box::new(GenreClassifierModel::load(&model_path)?)
-            }
-            ModelType::NoiseDetector => {
-                Box::new(NoiseDetectorModel::load(&model_path)?)
-            }
-            ModelType::QualityPredictor => {
-                Box::new(QualityPredictorModel::load(&model_path)?)
-            }
-            ModelType::SpeechDetector => {
-                Box::new(SpeechDetectorModel::load(&model_path)?)
-            }
-            ModelType::MoodClassifier => {
-                Box::new(MoodClassifierModel::load(&model_path)?)
-            }
+            ModelType::GenreClassifier => Box::new(GenreClassifierModel::load(&model_path)?),
+            ModelType::NoiseDetector => Box::new(NoiseDetectorModel::load(&model_path)?),
+            ModelType::QualityPredictor => Box::new(QualityPredictorModel::load(&model_path)?),
+            ModelType::SpeechDetector => Box::new(SpeechDetectorModel::load(&model_path)?),
+            ModelType::MoodClassifier => Box::new(MoodClassifierModel::load(&model_path)?),
         };
 
         self.models.insert(model_type, Arc::new(RwLock::new(model)));
@@ -60,7 +50,8 @@ impl ModelManager {
 
     /// Run inference on a model
     pub fn predict(&self, model_type: ModelType, input: &ModelInput) -> Result<ModelOutput> {
-        let model = self.models
+        let model = self
+            .models
             .get(&model_type)
             .ok_or_else(|| anyhow::anyhow!("Model {:?} not loaded", model_type))?;
 
@@ -111,7 +102,8 @@ impl ModelManager {
 
     /// Update model weights (for online learning)
     pub fn update_model(&mut self, model_type: ModelType, update: &ModelUpdate) -> Result<()> {
-        let model = self.models
+        let model = self
+            .models
             .get(&model_type)
             .ok_or_else(|| anyhow::anyhow!("Model {:?} not loaded", model_type))?;
 
@@ -216,9 +208,7 @@ struct NoiseDetectorModel {
 
 impl NoiseDetectorModel {
     fn load(_path: &Path) -> Result<Self> {
-        Ok(Self {
-            threshold: 0.5,
-        })
+        Ok(Self { threshold: 0.5 })
     }
 }
 
@@ -227,7 +217,8 @@ impl Model for NoiseDetectorModel {
         match input {
             ModelInput::Spectrum(spectrum) => {
                 // Simple spectral flatness-based noise detection
-                let geometric_mean = spectrum.iter()
+                let geometric_mean = spectrum
+                    .iter()
                     .filter(|&&x| x > 0.0)
                     .map(|x| x.ln())
                     .sum::<f32>()
@@ -284,7 +275,8 @@ impl Model for QualityPredictorModel {
         match input {
             ModelInput::Features(features) => {
                 // Simple weighted sum
-                let score = features.iter()
+                let score = features
+                    .iter()
                     .zip(self.feature_weights.iter())
                     .map(|(f, w)| f * w)
                     .sum::<f32>()
@@ -322,9 +314,7 @@ struct SpeechDetectorModel {
 
 impl SpeechDetectorModel {
     fn load(_path: &Path) -> Result<Self> {
-        Ok(Self {
-            vad_threshold: 0.3,
-        })
+        Ok(Self { vad_threshold: 0.3 })
     }
 }
 
@@ -433,7 +423,9 @@ struct ModelCache {
 impl ModelCache {
     fn new(max_size: usize) -> Self {
         Self {
-            cache: RwLock::new(lru::LruCache::new(std::num::NonZeroUsize::new(1000).unwrap())),
+            cache: RwLock::new(lru::LruCache::new(
+                std::num::NonZeroUsize::new(1000).unwrap(),
+            )),
             max_size,
         }
     }

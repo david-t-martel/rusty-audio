@@ -3,18 +3,24 @@
 // This module provides mathematical verification of equalizer frequency response,
 // filter accuracy, and audio processing correctness.
 
-use web_audio_api::context::{AudioContext, BaseAudioContext};
-use web_audio_api::node::{AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType};
-use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
 use super::signal_generators::*;
 use super::spectrum_analysis::FftAnalyzer;
+use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
 use std::f32::consts::PI;
+use web_audio_api::context::{AudioContext, BaseAudioContext};
+use web_audio_api::node::{
+    AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType,
+};
 
 /// Biquad filter coefficients for mathematical verification
 #[derive(Debug, Clone)]
 pub struct BiquadCoefficients {
-    pub b0: f32, pub b1: f32, pub b2: f32, // Numerator coefficients
-    pub a0: f32, pub a1: f32, pub a2: f32, // Denominator coefficients
+    pub b0: f32,
+    pub b1: f32,
+    pub b2: f32, // Numerator coefficients
+    pub a0: f32,
+    pub a1: f32,
+    pub a2: f32, // Denominator coefficients
 }
 
 impl BiquadCoefficients {
@@ -25,10 +31,12 @@ impl BiquadCoefficients {
         let sin_omega = omega.sin();
 
         // Calculate complex numerator and denominator
-        let num_real = self.b0 + self.b1 * cos_omega + self.b2 * (2.0 * cos_omega * cos_omega - 1.0);
+        let num_real =
+            self.b0 + self.b1 * cos_omega + self.b2 * (2.0 * cos_omega * cos_omega - 1.0);
         let num_imag = -self.b1 * sin_omega - self.b2 * 2.0 * cos_omega * sin_omega;
 
-        let den_real = self.a0 + self.a1 * cos_omega + self.a2 * (2.0 * cos_omega * cos_omega - 1.0);
+        let den_real =
+            self.a0 + self.a1 * cos_omega + self.a2 * (2.0 * cos_omega * cos_omega - 1.0);
         let den_imag = -self.a1 * sin_omega - self.a2 * 2.0 * cos_omega * sin_omega;
 
         let num_mag_squared = num_real * num_real + num_imag * num_imag;
@@ -52,7 +60,14 @@ impl BiquadCoefficients {
         let a1 = -2.0 * cos_omega;
         let a2 = 1.0 - alpha / a;
 
-        Self { b0, b1, b2, a0, a1, a2 }
+        Self {
+            b0,
+            b1,
+            b2,
+            a0,
+            a1,
+            a2,
+        }
     }
 
     /// Calculate theoretical low-pass filter coefficients
@@ -69,7 +84,14 @@ impl BiquadCoefficients {
         let a1 = -2.0 * cos_omega;
         let a2 = 1.0 - alpha;
 
-        Self { b0, b1, b2, a0, a1, a2 }
+        Self {
+            b0,
+            b1,
+            b2,
+            a0,
+            a1,
+            a2,
+        }
     }
 
     /// Calculate theoretical high-pass filter coefficients
@@ -86,7 +108,14 @@ impl BiquadCoefficients {
         let a1 = -2.0 * cos_omega;
         let a2 = 1.0 - alpha;
 
-        Self { b0, b1, b2, a0, a1, a2 }
+        Self {
+            b0,
+            b1,
+            b2,
+            a0,
+            a1,
+            a2,
+        }
     }
 }
 
@@ -101,15 +130,17 @@ impl EqualizerVerification {
         let context = AudioContext::default();
         let analyzer = FftAnalyzer::new(fft_size);
 
-        Self {
-            context,
-            analyzer,
-        }
+        Self { context, analyzer }
     }
 
     /// Test individual biquad filter frequency response
-    pub fn test_biquad_response(&self, filter_type: BiquadFilterType,
-                                frequency: f32, q: f32, gain: f32) -> TestSuite {
+    pub fn test_biquad_response(
+        &self,
+        filter_type: BiquadFilterType,
+        frequency: f32,
+        q: f32,
+        gain: f32,
+    ) -> TestSuite {
         let mut suite = TestSuite::new();
 
         // Create biquad filter
@@ -121,12 +152,11 @@ impl EqualizerVerification {
 
         // Calculate theoretical coefficients for comparison
         let theoretical_coeffs = match filter_type {
-            BiquadFilterType::Peaking =>
-                BiquadCoefficients::peaking_eq(frequency, q, gain, SAMPLE_RATE),
-            BiquadFilterType::Lowpass =>
-                BiquadCoefficients::lowpass(frequency, q, SAMPLE_RATE),
-            BiquadFilterType::Highpass =>
-                BiquadCoefficients::highpass(frequency, q, SAMPLE_RATE),
+            BiquadFilterType::Peaking => {
+                BiquadCoefficients::peaking_eq(frequency, q, gain, SAMPLE_RATE)
+            }
+            BiquadFilterType::Lowpass => BiquadCoefficients::lowpass(frequency, q, SAMPLE_RATE),
+            BiquadFilterType::Highpass => BiquadCoefficients::highpass(frequency, q, SAMPLE_RATE),
             _ => {
                 // For other filter types, we'll test empirically
                 return self.test_filter_empirically(&filter, filter_type, frequency, q, gain);
@@ -176,7 +206,9 @@ impl EqualizerVerification {
         let input_samples = generator.generate(1.0, SAMPLE_RATE);
 
         // Create audio buffer
-        let mut input_buffer = self.context.create_buffer(1, input_samples.len(), SAMPLE_RATE);
+        let mut input_buffer = self
+            .context
+            .create_buffer(1, input_samples.len(), SAMPLE_RATE);
         input_buffer.copy_to_channel(&input_samples, 0);
 
         // Set up audio graph: source -> filter -> destination
@@ -206,7 +238,7 @@ impl EqualizerVerification {
             let response = if (freq_ratio - 1.0).abs() < 0.1 {
                 gain_linear // At center frequency
             } else {
-                1.0 + (gain_linear - 1.0) / (1.0 + q * q * (freq_ratio - 1.0/freq_ratio).powi(2))
+                1.0 + (gain_linear - 1.0) / (1.0 + q * q * (freq_ratio - 1.0 / freq_ratio).powi(2))
             };
 
             return response;
@@ -216,9 +248,14 @@ impl EqualizerVerification {
     }
 
     /// Test filter empirically using frequency sweep
-    fn test_filter_empirically(&self, filter: &BiquadFilterNode,
-                              filter_type: BiquadFilterType,
-                              frequency: f32, q: f32, gain: f32) -> TestSuite {
+    fn test_filter_empirically(
+        &self,
+        filter: &BiquadFilterNode,
+        filter_type: BiquadFilterType,
+        frequency: f32,
+        q: f32,
+        gain: f32,
+    ) -> TestSuite {
         let mut suite = TestSuite::new();
 
         // Generate frequency sweep
@@ -323,7 +360,8 @@ impl EqualizerVerification {
         // In flat response, output should match input
         // (This is a simplified test - real implementation would process through EQ chain)
         for (i, &input_mag) in input_analysis.magnitudes.iter().enumerate() {
-            if i > 0 && i < input_analysis.magnitudes.len() - 1 { // Skip DC and Nyquist
+            if i > 0 && i < input_analysis.magnitudes.len() - 1 {
+                // Skip DC and Nyquist
                 let frequency = input_analysis.frequencies[i];
                 let result = TestResult::new(
                     &format!("Flat response at {:.1} Hz", frequency),
@@ -392,7 +430,7 @@ impl EqualizerVerification {
 
         // Test phase continuity (no large jumps)
         for i in 1..analysis.phases.len() {
-            let phase_diff = (analysis.phases[i] - analysis.phases[i-1]).abs();
+            let phase_diff = (analysis.phases[i] - analysis.phases[i - 1]).abs();
 
             if phase_diff > PI {
                 // Account for phase wrapping
@@ -517,8 +555,12 @@ mod tests {
     fn test_frequency_response_calculation() {
         // Test simple unity gain filter
         let coeffs = BiquadCoefficients {
-            b0: 1.0, b1: 0.0, b2: 0.0,
-            a0: 1.0, a1: 0.0, a2: 0.0,
+            b0: 1.0,
+            b1: 0.0,
+            b2: 0.0,
+            a0: 1.0,
+            a1: 0.0,
+            a2: 0.0,
         };
 
         let response = coeffs.frequency_response(1000.0, 44100.0);

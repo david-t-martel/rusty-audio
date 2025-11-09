@@ -1,8 +1,8 @@
 //! Intelligent Preset Recommendation Module
 
-use anyhow::Result;
-use crate::ai::feature_extractor::AudioFeatures;
 use super::AudioPreset;
+use crate::ai::feature_extractor::AudioFeatures;
+use anyhow::Result;
 
 pub struct PresetRecommender;
 

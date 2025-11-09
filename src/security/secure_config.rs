@@ -4,8 +4,8 @@
 //! with encryption support for sensitive values.
 
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 /// Main secure configuration structure
@@ -153,17 +153,15 @@ impl SecureConfig {
 
     /// Load configuration from a specific file
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
-        let contents = fs::read_to_string(path)
-            .map_err(|e| ConfigError::LoadFailed {
-                path: path.to_path_buf(),
-                reason: e.to_string(),
-            })?;
+        let contents = fs::read_to_string(path).map_err(|e| ConfigError::LoadFailed {
+            path: path.to_path_buf(),
+            reason: e.to_string(),
+        })?;
 
-        let config: Self = toml::from_str(&contents)
-            .map_err(|e| ConfigError::ParseFailed {
-                path: path.to_path_buf(),
-                reason: e.to_string(),
-            })?;
+        let config: Self = toml::from_str(&contents).map_err(|e| ConfigError::ParseFailed {
+            path: path.to_path_buf(),
+            reason: e.to_string(),
+        })?;
 
         config.validate()?;
         Ok(config)
@@ -176,34 +174,30 @@ impl SecureConfig {
 
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| ConfigError::SaveFailed {
-                    path: path.to_path_buf(),
-                    reason: format!("Failed to create directory: {}", e),
-                })?;
+            fs::create_dir_all(parent).map_err(|e| ConfigError::SaveFailed {
+                path: path.to_path_buf(),
+                reason: format!("Failed to create directory: {}", e),
+            })?;
         }
 
-        let contents = toml::to_string_pretty(self)
-            .map_err(|e| ConfigError::SerializeFailed {
-                reason: e.to_string(),
-            })?;
+        let contents = toml::to_string_pretty(self).map_err(|e| ConfigError::SerializeFailed {
+            reason: e.to_string(),
+        })?;
 
-        fs::write(path, contents)
-            .map_err(|e| ConfigError::SaveFailed {
-                path: path.to_path_buf(),
-                reason: e.to_string(),
-            })?;
+        fs::write(path, contents).map_err(|e| ConfigError::SaveFailed {
+            path: path.to_path_buf(),
+            reason: e.to_string(),
+        })?;
 
         // Set restrictive permissions on Unix systems
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let permissions = fs::Permissions::from_mode(0o600);
-            fs::set_permissions(path, permissions)
-                .map_err(|e| ConfigError::PermissionError {
-                    path: path.to_path_buf(),
-                    reason: e.to_string(),
-                })?;
+            fs::set_permissions(path, permissions).map_err(|e| ConfigError::PermissionError {
+                path: path.to_path_buf(),
+                reason: e.to_string(),
+            })?;
         }
 
         Ok(())

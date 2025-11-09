@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::time::Duration;
 use web_audio_api::context::{AudioContext, BaseAudioContext, OfflineAudioContext};
 use web_audio_api::node::{AudioNode, AudioScheduledSourceNode};
@@ -15,7 +15,9 @@ fn generate_test_buffer(ctx: &OfflineAudioContext, duration: f64, frequency: f64
     for channel in 0..2 {
         let mut data = vec![0.0; length];
         for (i, sample) in data.iter_mut().enumerate() {
-            *sample = ((i as f64 * frequency * 2.0 * std::f64::consts::PI / SAMPLE_RATE as f64).sin() * 0.5) as f32;
+            *sample = ((i as f64 * frequency * 2.0 * std::f64::consts::PI / SAMPLE_RATE as f64)
+                .sin()
+                * 0.5) as f32;
         }
         buffer.copy_to_channel(&data, channel).unwrap();
     }
@@ -65,7 +67,8 @@ fn bench_buffer_playback(c: &mut Criterion) {
             &buffer_size,
             |b, &buffer_size| {
                 let ctx = OfflineAudioContext::new(2, buffer_size * 2, SAMPLE_RATE);
-                let buffer = generate_test_buffer(&ctx, buffer_size as f64 / SAMPLE_RATE as f64, 440.0);
+                let buffer =
+                    generate_test_buffer(&ctx, buffer_size as f64 / SAMPLE_RATE as f64, 440.0);
 
                 b.iter(|| {
                     let mut source = ctx.create_buffer_source();
