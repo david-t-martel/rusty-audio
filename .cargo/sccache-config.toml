@@ -1,0 +1,52 @@
+# sccache configuration for rusty-audio
+# Optimized for Windows development
+#
+# Place this file at: ~/.config/sccache/config (Linux/WSL)
+#                  or: %LOCALAPPDATA%\Mozilla\sccache\config (Windows)
+#
+# Or set SCCACHE_CONF environment variable to point to this file
+
+[cache.disk]
+# Cache location - adjust for your system
+# Windows: C:\Users\david\.cache\sccache
+# WSL: /home/david/.cache/sccache
+dir = "C:\\Users\\david\\.cache\\sccache"
+
+# Maximum cache size (10GB for large Rust projects)
+size = 10737418240  # 10 GB in bytes
+
+[cache.disk.preprocessor_cache_mode]
+# Use preprocessor cache mode for better cache hits
+use_preprocessor_cache_mode = true
+
+[dist]
+# Distributed compilation disabled (local builds only)
+# Enable this if you have a distributed sccache server
+# scheduler_url = "http://localhost:10600"
+
+[server]
+# Server settings for local sccache daemon
+# Idle timeout: shutdown after 10 minutes of inactivity
+idle_timeout = 600
+
+# Log level: error, warn, info, debug, trace
+log_level = "info"
+
+# Cache stats
+# Show cache stats periodically
+show_stats = true
+
+[misc]
+# Log to stderr (useful for debugging)
+log_stderr = true
+
+# Number of compiler processes to run in parallel (limited to prevent system slowdown)
+max_concurrent_processes = 8
+
+# Windows-specific optimizations
+[windows]
+# Use named pipes for IPC (faster than TCP on Windows)
+use_named_pipes = true
+
+# Optimize for NTFS filesystem
+optimize_for_ntfs = true
