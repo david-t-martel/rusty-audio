@@ -41,7 +41,8 @@
       "Bash(cat:*)",
       "mcp__rust-memory__add_observations",
       "Bash(RUSTC_WRAPPER=\"\" RUSTFLAGS=\"\" cargo check:*)",
-      "mcp__rust-fs__write"
+      "mcp__rust-fs__write",
+      "mcp__rust-memory__create_relations"
     ],
     "deny": [],
     "ask": []

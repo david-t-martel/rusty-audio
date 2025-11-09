@@ -8,6 +8,15 @@ version = "0.1.0"
 edition = "2021"
 description = "A car-stereo-style audio player built with Rust and egui."
 
+# Library configuration for WASM builds
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# Binary configuration for native desktop builds
+[[bin]]
+name = "rusty-audio_native"
+path = "src/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
@@ -15,12 +24,12 @@ default = ["audio-optimizations"]
 audio-optimizations = []  # Enable real-time audio thread priority and CPU pinning
 
 [dependencies]
-eframe = "0.33.0"
+eframe = { version = "0.33.0", default-features = false, features = ["wgpu"] }
 egui = "0.33.0"
 egui_dock = "0.18"
 serde = { version = "1.0", features = ["derive"] }
-rfd = "0.14.1"
-web-audio-api = { version = "1.2.0", features = ["default"] }
+cfg-if = "1.0"
+log = "0.4"
 parking_lot = "0.12.3"
 lofty = "0.22.4"
 image = "0.25.8"
@@ -55,14 +64,6 @@ ndarray = "0.15"
 realfft = "3.3"        # Faster FFT for spectrum analysis
 memmap2 = "0.9"        # Memory-mapped file I/O
 
-# Phase 3: Native audio backend dependencies
-cpal = { version = "0.15", features = [] }           # Cross-platform audio I/O
-rodio = { version = "0.17", default-features = false, features = ["wav", "vorbis", "flac", "mp3"] }
-symphonia = { version = "0.5", features = ["all", "opt-simd"] }  # Professional audio decoding
-rubato = "0.15"                                      # Sample rate conversion
-midir = "0.9"                                        # Cross-platform MIDI I/O
-wmidi = "4.0"                                        # MIDI message parsing
-hound = "3.5"                                         # WAV file I/O for recording
 
 # Additional utilities for AI
 statrs = "0.16"
@@ -126,8 +127,43 @@ name = "mathematical_testing_demo"
 path = "examples/mathematical_testing_demo.rs"
 
 
+# Native-only dependencies (desktop builds)
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rfd = "0.14.1"                                       # File dialogs
+web-audio-api = { version = "1.2.0", features = ["default"] }  # Audio processing
+cpal = { version = "0.15", features = [] }           # Cross-platform audio I/O
+rodio = { version = "0.17", default-features = false, features = ["wav", "vorbis", "flac", "mp3"] }
+symphonia = { version = "0.5", features = ["all", "opt-simd"] }  # Professional audio decoding
+rubato = "0.15"                                      # Sample rate conversion
+midir = "0.9"                                        # Cross-platform MIDI I/O
+wmidi = "4.0"                                        # MIDI message parsing
+hound = "3.5"                                         # WAV file I/O for recording
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.58", features = ["Win32_System_Threading", "Win32_Foundation"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+# WASM-only dependencies (web builds)
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "AudioContext",
+    "AudioDestinationNode",
+    "AudioNode",
+    "AudioParam",
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "BaseAudioContext",
+    "Window",
+    "Document",
+    "HtmlCanvasElement",
+    "Navigator",
+    "Performance",
+    "console",
+] }
+console_error_panic_hook = "0.1"
+console_log = { version = "1", features = ["max_level_debug"] }
