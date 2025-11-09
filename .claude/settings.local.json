@@ -59,7 +59,9 @@
       "Bash(rustfmt:*)",
       "Bash(RUSTC_WRAPPER=\"\" cargo build:*)",
       "Bash(find:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git config:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
