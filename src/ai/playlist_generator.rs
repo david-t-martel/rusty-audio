@@ -1,7 +1,7 @@
 //! Intelligent Playlist Generation Module
 
-use anyhow::Result;
 use crate::ai::feature_extractor::AudioFeatures;
+use anyhow::Result;
 
 pub struct PlaylistGenerator;
 

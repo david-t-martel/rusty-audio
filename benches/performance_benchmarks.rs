@@ -1,6 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
-use rusty_audio::audio_performance::*;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rusty_audio::audio_optimizations::*;
+use rusty_audio::audio_performance::*;
 use std::time::Duration;
 
 /// Benchmark spectrum processing performance
@@ -94,11 +94,9 @@ fn bench_lock_free_buffer(c: &mut Criterion) {
         let buffer_clone = Arc::clone(&buffer);
 
         // Spawn writer thread
-        std::thread::spawn(move || {
-            loop {
-                buffer_clone.write_sample(0.5);
-                std::thread::yield_now();
-            }
+        std::thread::spawn(move || loop {
+            buffer_clone.write_sample(0.5);
+            std::thread::yield_now();
         });
 
         b.iter(|| {
@@ -198,7 +196,7 @@ fn bench_simd_operations(c: &mut Criterion) {
                     simd::mix_buffers_sse(
                         black_box(&mut output),
                         black_box(&input),
-                        black_box(gain)
+                        black_box(gain),
                     );
                 });
             },
@@ -294,7 +292,7 @@ fn bench_fft_operations(c: &mut Criterion) {
                         black_box(&left),
                         black_box(&right),
                         black_box(&mut output_left),
-                        black_box(&mut output_right)
+                        black_box(&mut output_right),
                     );
                 });
             },
@@ -396,9 +394,7 @@ fn bench_audio_pipeline(c: &mut Criterion) {
     group.bench_function("parallel_processing", |b| {
         use rayon::prelude::*;
 
-        let chunks: Vec<Vec<f32>> = (0..4)
-            .map(|_| vec![0.5f32; 256])
-            .collect();
+        let chunks: Vec<Vec<f32>> = (0..4).map(|_| vec![0.5f32; 256]).collect();
 
         b.iter(|| {
             chunks.par_iter().for_each(|chunk| {

@@ -1,0 +1,21 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: autoplay=(self), microphone=(self)
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; media-src 'self' blob:; worker-src 'self'; object-src 'none'; frame-ancestors 'none'
+
+/service-worker.js
+  Cache-Control: no-store
+
+/manifest.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8
+
+/rusty-audio_bg.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=31536000
+
+/icons/*
+  Cache-Control: public, max-age=31536000, immutable

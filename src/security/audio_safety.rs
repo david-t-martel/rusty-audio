@@ -3,9 +3,9 @@
 //! Implements volume limiting, peak detection, and emergency stop mechanisms
 //! to protect users' hearing and audio equipment.
 
-use std::sync::Arc;
 use parking_lot::RwLock;
 use std::collections::VecDeque;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// Audio safety limiter with peak detection and emergency stop
@@ -111,7 +111,10 @@ impl AudioSafetyLimiter {
 
         for sample in samples.iter_mut() {
             *sample *= protected_volume;
-            *sample = sample.clamp(-self.config.limiter_threshold, self.config.limiter_threshold);
+            *sample = sample.clamp(
+                -self.config.limiter_threshold,
+                self.config.limiter_threshold,
+            );
         }
     }
 
@@ -122,7 +125,8 @@ impl AudioSafetyLimiter {
         }
 
         let high_volume_threshold = 0.8;
-        let high_count = self.volume_history
+        let high_count = self
+            .volume_history
             .iter()
             .filter(|&&v| v > high_volume_threshold)
             .count();
@@ -207,7 +211,7 @@ impl PeakDetector {
             release_time: 0.100, // 100ms release
             envelope: 0.0,
             current_peak: 0.0,
-            hold_time: 100,      // Hold peak for 100 samples
+            hold_time: 100, // Hold peak for 100 samples
             hold_counter: 0,
         }
     }
@@ -217,7 +221,8 @@ impl PeakDetector {
 
         // Update envelope follower
         if abs_sample > self.envelope {
-            self.envelope = abs_sample * self.attack_time + self.envelope * (1.0 - self.attack_time);
+            self.envelope =
+                abs_sample * self.attack_time + self.envelope * (1.0 - self.attack_time);
         } else {
             self.envelope *= 1.0 - self.release_time;
         }
@@ -292,8 +297,8 @@ pub struct AudioConfig {
 impl Default for AudioConfig {
     fn default() -> Self {
         Self {
-            max_volume: 0.85,      // -1.4 dB headroom
-            default_volume: 0.5,   // 50% default
+            max_volume: 0.85,    // -1.4 dB headroom
+            default_volume: 0.5, // 50% default
             enable_limiter: true,
             limiter_threshold: 0.95,
         }
@@ -351,7 +356,10 @@ mod tests {
         limiter.process_audio(&mut samples, 0.5).unwrap();
 
         // All samples should be zero
-        assert!(samples.iter().all(|&s| s == 0.0), "Audio not muted during emergency stop");
+        assert!(
+            samples.iter().all(|&s| s == 0.0),
+            "Audio not muted during emergency stop"
+        );
 
         // Reset and test again
         limiter.reset_emergency_stop();
@@ -359,7 +367,10 @@ mod tests {
         limiter.process_audio(&mut samples, 0.5).unwrap();
 
         // Samples should not be zero after reset
-        assert!(!samples.iter().all(|&s| s == 0.0), "Audio still muted after reset");
+        assert!(
+            !samples.iter().all(|&s| s == 0.0),
+            "Audio still muted after reset"
+        );
     }
 
     #[test]
@@ -367,10 +378,10 @@ mod tests {
         let mut detector = PeakDetector::new();
 
         // Test peak detection
-        assert!(!detector.detect(0.5));  // Below threshold
-        assert!(!detector.detect(0.9));  // Still below
-        assert!(detector.detect(0.98));  // Above threshold
-        assert!(detector.detect(1.0));   // Peak
+        assert!(!detector.detect(0.5)); // Below threshold
+        assert!(!detector.detect(0.9)); // Still below
+        assert!(detector.detect(0.98)); // Above threshold
+        assert!(detector.detect(1.0)); // Peak
 
         // Check peak value is retained
         assert!(detector.get_current_peak() >= 0.98);
@@ -385,7 +396,11 @@ mod tests {
         calculator.update(&samples);
 
         let rms = calculator.get_rms();
-        assert!((rms - 0.5).abs() < 0.01, "RMS calculation incorrect: {}", rms);
+        assert!(
+            (rms - 0.5).abs() < 0.01,
+            "RMS calculation incorrect: {}",
+            rms
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
-use egui::{Ui, Vec2, Rect, Stroke, Pos2, Sense, Id};
-use super::utils::{ScreenSize, AnimationState, LayoutUtils};
+use super::utils::{AnimationState, LayoutUtils, ScreenSize};
+use egui::{Id, Pos2, Rect, Sense, Stroke, Ui, Vec2};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -128,10 +128,7 @@ impl LayoutManager {
 
     pub fn add_panel(&mut self, id: String, config: PanelConfig) {
         self.state.panels.insert(id.clone(), config);
-        self.animations.insert(
-            id,
-            AnimationState::new(1.0, 8.0),
-        );
+        self.animations.insert(id, AnimationState::new(1.0, 8.0));
     }
 
     pub fn remove_panel(&mut self, id: &str) -> Option<PanelConfig> {
@@ -193,10 +190,8 @@ impl LayoutManager {
             // Rebuild animations for all panels
             self.animations.clear();
             for id in self.state.panels.keys() {
-                self.animations.insert(
-                    id.clone(),
-                    AnimationState::new(1.0, 8.0),
-                );
+                self.animations
+                    .insert(id.clone(), AnimationState::new(1.0, 8.0));
             }
 
             true
@@ -255,7 +250,13 @@ impl LayoutManager {
         let dock_areas = self.calculate_dock_areas(available_rect);
 
         // Draw docked panels
-        for dock_side in [DockSide::Left, DockSide::Top, DockSide::Right, DockSide::Bottom, DockSide::Center] {
+        for dock_side in [
+            DockSide::Left,
+            DockSide::Top,
+            DockSide::Right,
+            DockSide::Bottom,
+            DockSide::Center,
+        ] {
             if let Some(area) = dock_areas.get(&dock_side) {
                 let dock_rects = self.draw_docked_panels(ui, *area, dock_side);
                 panel_rects.extend(dock_rects);
@@ -287,10 +288,8 @@ impl LayoutManager {
 
         // Left dock
         if left_size > 0.0 {
-            let left_area = Rect::from_min_size(
-                remaining.min,
-                Vec2::new(left_size, remaining.height()),
-            );
+            let left_area =
+                Rect::from_min_size(remaining.min, Vec2::new(left_size, remaining.height()));
             areas.insert(DockSide::Left, left_area);
             remaining.min.x += left_size;
         }
@@ -307,10 +306,8 @@ impl LayoutManager {
 
         // Top dock
         if top_size > 0.0 {
-            let top_area = Rect::from_min_size(
-                remaining.min,
-                Vec2::new(remaining.width(), top_size),
-            );
+            let top_area =
+                Rect::from_min_size(remaining.min, Vec2::new(remaining.width(), top_size));
             areas.insert(DockSide::Top, top_area);
             remaining.min.y += top_size;
         }
@@ -333,9 +330,16 @@ impl LayoutManager {
         areas
     }
 
-    fn draw_docked_panels(&mut self, ui: &mut Ui, area: Rect, dock_side: DockSide) -> HashMap<String, Rect> {
+    fn draw_docked_panels(
+        &mut self,
+        ui: &mut Ui,
+        area: Rect,
+        dock_side: DockSide,
+    ) -> HashMap<String, Rect> {
         let mut panel_rects = HashMap::new();
-        let panels: Vec<_> = self.state.panels
+        let panels: Vec<_> = self
+            .state
+            .panels
             .iter()
             .filter(|(_, panel)| panel.dock_side == dock_side && panel.visible)
             .map(|(id, _)| id.clone())
@@ -347,7 +351,8 @@ impl LayoutManager {
 
         // Calculate layout for panels in this dock area
         let is_horizontal = matches!(dock_side, DockSide::Top | DockSide::Bottom);
-        let weights: Vec<f32> = panels.iter()
+        let weights: Vec<f32> = panels
+            .iter()
             .filter_map(|id| self.state.panels.get(id).map(|p| p.weight))
             .collect();
 
@@ -360,10 +365,14 @@ impl LayoutManager {
         let mut current_pos = area.min;
 
         // Clone panel data to avoid borrow checker issues
-        let panel_data: Vec<_> = panels.iter()
+        let panel_data: Vec<_> = panels
+            .iter()
             .enumerate()
             .filter_map(|(i, panel_id)| {
-                self.state.panels.get(panel_id).map(|panel| (i, panel_id.clone(), panel.clone()))
+                self.state
+                    .panels
+                    .get(panel_id)
+                    .map(|panel| (i, panel_id.clone(), panel.clone()))
             })
             .collect();
 
@@ -429,7 +438,9 @@ impl LayoutManager {
     }
 
     fn draw_panel(&mut self, ui: &mut Ui, rect: Rect, panel_id: &str, panel: &PanelConfig) -> Rect {
-        let animation_factor = self.animations.get(panel_id)
+        let animation_factor = self
+            .animations
+            .get(panel_id)
             .map(|a| a.value())
             .unwrap_or(1.0);
 
@@ -444,7 +455,10 @@ impl LayoutManager {
         ui.allocate_ui_at_rect(actual_rect, |ui| {
             egui::Frame::none()
                 .fill(ui.visuals().panel_fill)
-                .stroke(Stroke::new(1.0, ui.visuals().widgets.noninteractive.bg_stroke.color))
+                .stroke(Stroke::new(
+                    1.0,
+                    ui.visuals().widgets.noninteractive.bg_stroke.color,
+                ))
                 .rounding(ui.visuals().widgets.noninteractive.rounding())
                 .inner_margin(egui::Margin::same(4))
                 .show(ui, |ui| {
@@ -460,7 +474,8 @@ impl LayoutManager {
                             }
 
                             if panel.collapsible {
-                                let collapse_button_text = if panel.collapsed { "▼" } else { "▲" };
+                                let collapse_button_text =
+                                    if panel.collapsed { "▼" } else { "▲" };
                                 if ui.small_button(collapse_button_text).clicked() {
                                     // This would need to be handled by the caller
                                 }
@@ -485,7 +500,13 @@ impl LayoutManager {
         actual_rect
     }
 
-    fn draw_resize_handle(&mut self, ui: &mut Ui, rect: Rect, panel_id: &str, resize_dir: ResizeDirection) {
+    fn draw_resize_handle(
+        &mut self,
+        ui: &mut Ui,
+        rect: Rect,
+        panel_id: &str,
+        resize_dir: ResizeDirection,
+    ) {
         let handle_size = 8.0;
         let handle_rect = match resize_dir {
             ResizeDirection::Horizontal => Rect::from_min_size(
@@ -541,7 +562,9 @@ impl LayoutManager {
     }
 
     fn get_dock_size(&self, dock_side: DockSide) -> f32 {
-        let panels_in_dock: Vec<_> = self.state.panels
+        let panels_in_dock: Vec<_> = self
+            .state
+            .panels
             .values()
             .filter(|panel| panel.dock_side == dock_side && panel.visible && !panel.collapsed)
             .collect();

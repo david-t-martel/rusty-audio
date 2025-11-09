@@ -2,12 +2,16 @@
 //
 // This module uses QuickCheck and Proptest to verify mathematical properties
 // of audio processing functions that should hold for all valid inputs.
+//
+// Only available with the "property-testing" feature
 
-use proptest::prelude::*;
-use quickcheck::{quickcheck, TestResult};
-use super::{TestSuite, SAMPLE_RATE, TOLERANCE};
 use super::signal_generators::*;
 use super::spectrum_analysis::FftAnalyzer;
+use super::{TestSuite, SAMPLE_RATE, TOLERANCE};
+#[cfg(feature = "property-testing")]
+use proptest::prelude::*;
+#[cfg(feature = "property-testing")]
+use quickcheck::{quickcheck, TestResult};
 
 /// Property: Signal generation should preserve mathematical properties
 pub fn prop_sine_wave_properties() -> TestSuite {
@@ -37,9 +41,7 @@ fn prop_sine_rms(frequency: f32, amplitude: f32) -> TestResult {
     let rms = super::calculate_rms(&samples);
     let expected_rms = amplitude / 2.0f32.sqrt();
 
-    TestResult::from_bool(
-        (rms - expected_rms).abs() < TOLERANCE * 10.0
-    )
+    TestResult::from_bool((rms - expected_rms).abs() < TOLERANCE * 10.0)
 }
 
 /// Property test: Sine wave peak amplitude
@@ -53,9 +55,7 @@ fn prop_sine_peak(frequency: f32, amplitude: f32) -> TestResult {
 
     let peak = super::calculate_peak(&samples);
 
-    TestResult::from_bool(
-        (peak - amplitude).abs() < TOLERANCE * 10.0
-    )
+    TestResult::from_bool((peak - amplitude).abs() < TOLERANCE * 10.0)
 }
 
 /// Property test: Sine wave frequency content
@@ -72,7 +72,7 @@ fn prop_sine_frequency_content(frequency: f32) -> TestResult {
 
     if let Some((peak_freq, _)) = analysis.find_peak() {
         TestResult::from_bool(
-            (peak_freq - frequency).abs() < 50.0 // 50 Hz tolerance
+            (peak_freq - frequency).abs() < 50.0, // 50 Hz tolerance
         )
     } else {
         TestResult::failed()
@@ -101,11 +101,15 @@ fn prop_white_noise_spectrum(seed: u64) -> TestResult {
     let analysis = analyzer.analyze(&samples, SAMPLE_RATE);
 
     // Calculate spectrum variance - should be relatively low for white noise
-    let mean_magnitude: f32 = analysis.magnitudes.iter().sum::<f32>() / analysis.magnitudes.len() as f32;
+    let mean_magnitude: f32 =
+        analysis.magnitudes.iter().sum::<f32>() / analysis.magnitudes.len() as f32;
 
-    let variance: f32 = analysis.magnitudes.iter()
+    let variance: f32 = analysis
+        .magnitudes
+        .iter()
         .map(|&mag| (mag - mean_magnitude).powi(2))
-        .sum::<f32>() / analysis.magnitudes.len() as f32;
+        .sum::<f32>()
+        / analysis.magnitudes.len() as f32;
 
     let coefficient_of_variation = variance.sqrt() / mean_magnitude;
 
@@ -191,14 +195,17 @@ fn prop_parsevals_theorem(seed: u64) -> TestResult {
     let analyzer = FftAnalyzer::new(samples.len().next_power_of_two());
     let analysis = analyzer.analyze(&samples, SAMPLE_RATE);
 
-    let freq_energy: f32 = analysis.magnitudes.iter()
+    let freq_energy: f32 = analysis
+        .magnitudes
+        .iter()
         .map(|&mag| mag * mag)
-        .sum::<f32>() * 2.0; // Factor of 2 for positive frequencies only
+        .sum::<f32>()
+        * 2.0; // Factor of 2 for positive frequencies only
 
     let energy_ratio = freq_energy / time_energy;
 
     TestResult::from_bool(
-        (energy_ratio - 1.0).abs() < 0.1 // 10% tolerance for Parseval's theorem
+        (energy_ratio - 1.0).abs() < 0.1, // 10% tolerance for Parseval's theorem
     )
 }
 
@@ -265,9 +272,7 @@ fn prop_flat_eq_unity(frequency: f32) -> TestResult {
     // With flat EQ (all gains = 0dB), output RMS should equal input RMS
     let output_rms = input_rms; // Placeholder - would process through flat EQ
 
-    TestResult::from_bool(
-        (output_rms - input_rms).abs() < TOLERANCE
-    )
+    TestResult::from_bool((output_rms - input_rms).abs() < TOLERANCE)
 }
 
 /// Property test: EQ boost should increase energy
@@ -289,7 +294,7 @@ fn prop_eq_boost_increases_energy(frequency: f32, boost_db: f32) -> TestResult {
     let actual_output_energy = expected_output_energy;
 
     TestResult::from_bool(
-        actual_output_energy > input_energy * 0.9 // At least 90% of expected increase
+        actual_output_energy > input_energy * 0.9, // At least 90% of expected increase
     )
 }
 
@@ -320,9 +325,7 @@ fn prop_quiet_signal_detection(frequency: f32) -> TestResult {
     let analysis = analyzer.analyze(&samples, SAMPLE_RATE);
 
     if let Some((detected_freq, magnitude)) = analysis.find_peak() {
-        TestResult::from_bool(
-            (detected_freq - frequency).abs() < 50.0 && magnitude > 0.0
-        )
+        TestResult::from_bool((detected_freq - frequency).abs() < 50.0 && magnitude > 0.0)
     } else {
         TestResult::failed()
     }
@@ -330,8 +333,11 @@ fn prop_quiet_signal_detection(frequency: f32) -> TestResult {
 
 /// Property test: Additive noise increases energy
 fn prop_additive_noise_increases_energy(signal_amplitude: f32, noise_amplitude: f32) -> TestResult {
-    if signal_amplitude <= 0.0 || signal_amplitude > 1.0 ||
-       noise_amplitude <= 0.0 || noise_amplitude > 1.0 {
+    if signal_amplitude <= 0.0
+        || signal_amplitude > 1.0
+        || noise_amplitude <= 0.0
+        || noise_amplitude > 1.0
+    {
         return TestResult::discard();
     }
 
@@ -342,7 +348,8 @@ fn prop_additive_noise_increases_energy(signal_amplitude: f32, noise_amplitude: 
     let noise_samples = noise_gen.generate(1.0, SAMPLE_RATE);
 
     // Combine signal and noise
-    let combined_samples: Vec<f32> = signal_samples.iter()
+    let combined_samples: Vec<f32> = signal_samples
+        .iter()
         .zip(&noise_samples)
         .map(|(&s, &n)| s + n)
         .collect();

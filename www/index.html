@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Rusty Audio - A car-stereo-style audio player built with Rust and WebAssembly">
+    <meta name="theme-color" content="#1a1a1a">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+
+    <title>Rusty Audio - WebAssembly Audio Player</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-logo {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .loading-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .loading-subtitle {
+            font-size: 1rem;
+            color: #999;
+            margin-bottom: 2rem;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #4ecdc4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-status {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: #666;
+            min-height: 20px;
+        }
+
+        .progress-container {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+            max-width: 500px;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #the-canvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+
+        /* Install prompt styling */
+        #install-prompt {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(78, 205, 196, 0.95);
+            color: #1a1a1a;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+        }
+
+        #install-prompt.visible {
+            display: flex;
+        }
+
+        #install-prompt button {
+            background: #1a1a1a;
+            color: #4ecdc4;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        #install-prompt button:hover {
+            background: #2d2d2d;
+            transform: scale(1.05);
+        }
+
+        #install-prompt .close-btn {
+            background: transparent;
+            color: #1a1a1a;
+            padding: 0.25rem 0.5rem;
+            margin-left: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .loading-title {
+                font-size: 1.5rem;
+            }
+            .loading-logo {
+                font-size: 3rem;
+            }
+            #install-prompt {
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                transform: none;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-logo">🎵</div>
+        <h1 class="loading-title">Rusty Audio</h1>
+        <p class="loading-subtitle">WebAssembly-powered audio player</p>
+        <div class="spinner"></div>
+        <div class="loading-status" id="loading-status">Initializing...</div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="error-message" id="error-message"></div>
+    </div>
+
+    <!-- PWA Install Prompt -->
+    <div id="install-prompt">
+        <span>📱 Install Rusty Audio for offline access</span>
+        <button id="install-btn">Install</button>
+        <button class="close-btn" id="close-install">✕</button>
+    </div>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container">
+        <canvas id="the-canvas"></canvas>
+    </div>
+
+    <!-- WASM Bootstrap Script -->
+    <script type="module">
+        // Status update helper
+        const updateStatus = (message, progress = null) => {
+            console.log(`[Rusty Audio] ${message}`);
+            document.getElementById('loading-status').textContent = message;
+            if (progress !== null) {
+                document.getElementById('progress-bar').style.width = `${progress}%`;
+            }
+        };
+
+        // Error display helper
+        const showError = (message) => {
+            console.error(`[Rusty Audio Error] ${message}`);
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = `Error: ${message}`;
+            errorDiv.classList.add('visible');
+        };
+
+        // Hide loading screen
+        const hideLoadingScreen = () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            loadingScreen.classList.add('hidden');
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+            }, 500);
+        };
+
+        // PWA Installation
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-prompt').classList.add('visible');
+        });
+
+        document.getElementById('install-btn').addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`PWA install outcome: ${outcome}`);
+            deferredPrompt = null;
+            document.getElementById('install-prompt').classList.remove('visible');
+        });
+
+        document.getElementById('close-install').addEventListener('click', () => {
+            document.getElementById('install-prompt').classList.remove('visible');
+        });
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            updateStatus('Registering service worker...', 10);
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('Service Worker registered:', registration.scope);
+                    updateStatus('Service worker active', 20);
+                })
+                .catch(error => {
+                    console.warn('Service Worker registration failed:', error);
+                    // Non-critical error, continue loading
+                });
+        }
+
+        // WASM Module Loading
+        async function loadWasm() {
+            try {
+                updateStatus('Loading WebAssembly module...', 30);
+
+                // Import the WASM module
+                const { default: init, WebHandle } = await import('./rusty_audio.js');
+
+                updateStatus('Initializing WASM runtime...', 50);
+
+                // Initialize WASM module
+                await init();
+
+                updateStatus('Creating application instance...', 70);
+
+                // Create web handle
+                const handle = new WebHandle();
+
+                updateStatus('Starting audio player...', 80);
+
+                // Get canvas element
+                const canvas = document.getElementById('the-canvas');
+
+                // Start the application
+                await handle.start(canvas);
+
+                updateStatus('Ready!', 100);
+
+                // Hide loading screen after brief delay
+                setTimeout(hideLoadingScreen, 500);
+
+                // Check for panics periodically
+                setInterval(() => {
+                    if (handle.has_panicked()) {
+                        const message = handle.panic_message();
+                        showError(`Application panic: ${message}`);
+                    }
+                }, 1000);
+
+                // Store handle globally for debugging
+                window.rustyAudioHandle = handle;
+
+            } catch (error) {
+                showError(`Failed to load application: ${error.message}`);
+                console.error('WASM loading error:', error);
+            }
+        }
+
+        // Browser compatibility checks
+        function checkCompatibility() {
+            const required = [
+                { name: 'WebAssembly', check: typeof WebAssembly !== 'undefined' },
+                { name: 'AudioContext', check: typeof (window.AudioContext || window.webkitAudioContext) !== 'undefined' },
+                { name: 'Canvas', check: !!document.createElement('canvas').getContext },
+            ];
+
+            const missing = required.filter(r => !r.check).map(r => r.name);
+
+            if (missing.length > 0) {
+                showError(`Browser missing required features: ${missing.join(', ')}`);
+                return false;
+            }
+            return true;
+        }
+
+        // Performance monitoring
+        if (performance && performance.mark) {
+            performance.mark('wasm-load-start');
+        }
+
+        // Start loading
+        if (checkCompatibility()) {
+            loadWasm().then(() => {
+                if (performance && performance.measure) {
+                    performance.mark('wasm-load-end');
+                    performance.measure('wasm-load', 'wasm-load-start', 'wasm-load-end');
+                    const measure = performance.getEntriesByName('wasm-load')[0];
+                    console.log(`WASM load time: ${measure.duration.toFixed(2)}ms`);
+                }
+            });
+        }
+
+        // Online/offline handling
+        window.addEventListener('online', () => {
+            console.log('Connection restored');
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('Connection lost - running offline');
+        });
+
+        // Prevent accidental page unload
+        window.addEventListener('beforeunload', (e) => {
+            if (window.rustyAudioHandle && !window.rustyAudioHandle.has_panicked()) {
+                // Allow cleanup
+                window.rustyAudioHandle.destroy();
+            }
+        });
+    </script>
+</body>
+</html>

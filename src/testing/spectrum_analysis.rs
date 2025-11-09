@@ -3,12 +3,12 @@
 // This module provides mathematical verification of FFT accuracy and
 // spectrum analysis correctness for the audio processing pipeline.
 
-use rustfft::{FftPlanner, Fft, num_complex::Complex32};
+use super::signal_generators::*;
+use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
+use rustfft::{num_complex::Complex32, Fft, FftPlanner};
+use std::sync::Arc;
 use web_audio_api::context::{AudioContext, BaseAudioContext};
 use web_audio_api::node::{AudioNode, AudioScheduledSourceNode};
-use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
-use super::signal_generators::*;
-use std::sync::Arc;
 
 /// FFT analysis result for verification
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ pub struct SpectrumAnalysis {
 
 impl SpectrumAnalysis {
     pub fn new(fft_size: usize, sample_rate: f32) -> Self {
-        let frequencies = (0..fft_size/2)
+        let frequencies = (0..fft_size / 2)
             .map(|i| (i as f32 * sample_rate) / fft_size as f32)
             .collect();
 
@@ -41,7 +41,8 @@ impl SpectrumAnalysis {
             return None;
         }
 
-        let (max_idx, &max_magnitude) = self.magnitudes
+        let (max_idx, &max_magnitude) = self
+            .magnitudes
             .iter()
             .enumerate()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())?;
@@ -55,9 +56,7 @@ impl SpectrumAnalysis {
 
         for i in 1..self.magnitudes.len() - 1 {
             let mag = self.magnitudes[i];
-            if mag > threshold &&
-               mag > self.magnitudes[i - 1] &&
-               mag > self.magnitudes[i + 1] {
+            if mag > threshold && mag > self.magnitudes[i - 1] && mag > self.magnitudes[i + 1] {
                 peaks.push((self.frequencies[i], mag));
             }
         }
@@ -221,10 +220,7 @@ impl AnalyserVerification {
         let context = AudioContext::default();
         let analyzer = FftAnalyzer::new(fft_size);
 
-        Self {
-            context,
-            analyzer,
-        }
+        Self { context, analyzer }
     }
 
     /// Test AnalyserNode accuracy against reference FFT implementation
@@ -262,11 +258,12 @@ impl AnalyserVerification {
         analyser.get_float_frequency_data(&mut web_audio_data);
 
         // Compare reference vs web audio API results
-        for (i, (&reference_mag, &web_audio_db)) in reference_analysis.magnitudes
+        for (i, (&reference_mag, &web_audio_db)) in reference_analysis
+            .magnitudes
             .iter()
             .zip(&web_audio_data)
-            .enumerate() {
-
+            .enumerate()
+        {
             // Convert web audio dB to linear magnitude
             let web_audio_mag = if web_audio_db == -f32::INFINITY {
                 0.0
@@ -360,7 +357,8 @@ impl AnalyserVerification {
         // Test THD calculation
         if let Some(thd) = analysis.calculate_thd(fundamental, 5) {
             // Expected THD for the harmonic series: sqrt(0.5^2 + 0.33^2 + 0.25^2 + 0.2^2) * 100
-            let expected_thd = (0.5f32*0.5 + 0.33*0.33 + 0.25*0.25 + 0.2*0.2).sqrt() * 100.0;
+            let expected_thd =
+                (0.5f32 * 0.5 + 0.33 * 0.33 + 0.25 * 0.25 + 0.2 * 0.2).sqrt() * 100.0;
 
             let result = TestResult::new(
                 "Total Harmonic Distortion",
@@ -408,7 +406,9 @@ impl AnalyserVerification {
         let silence = vec![0.0; (2.0 * SAMPLE_RATE) as usize];
         let silence_analysis = self.analyzer.analyze(&silence, SAMPLE_RATE);
 
-        let max_noise = silence_analysis.magnitudes.iter()
+        let max_noise = silence_analysis
+            .magnitudes
+            .iter()
             .skip(1) // Skip DC bin
             .fold(0.0f32, |max, &mag| max.max(mag));
 
@@ -515,7 +515,11 @@ mod tests {
         let peaks = analysis.find_peaks(0.1);
 
         // Should detect all three peaks
-        assert!(peaks.len() >= 3, "Expected at least 3 peaks, found {}", peaks.len());
+        assert!(
+            peaks.len() >= 3,
+            "Expected at least 3 peaks, found {}",
+            peaks.len()
+        );
 
         // Check that major peaks are detected
         let peak_frequencies: Vec<f32> = peaks.iter().map(|(f, _)| *f).collect();

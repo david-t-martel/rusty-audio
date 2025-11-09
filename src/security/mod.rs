@@ -7,19 +7,19 @@
 //! - Thread-safe state management
 //! - Security monitoring and alerting
 
-pub mod file_validator;
 pub mod audio_safety;
+pub mod file_validator;
 pub mod input_validator;
 pub mod secure_config;
-pub mod thread_safe_state;
 pub mod security_monitor;
+pub mod thread_safe_state;
 
-pub use file_validator::{FileValidator, SecurityError};
 pub use audio_safety::{AudioSafetyLimiter, SafetyError};
+pub use file_validator::{FileValidator, SecurityError};
 pub use input_validator::{InputValidator, ValidationError};
 pub use secure_config::SecureConfig;
+pub use security_monitor::{SecurityEvent, SecurityMonitor, Severity};
 pub use thread_safe_state::ThreadSafeAudioState;
-pub use security_monitor::{SecurityMonitor, SecurityEvent, Severity};
 
 /// Initialize all security components
 pub fn initialize_security() -> Result<SecurityContext, SecurityError> {

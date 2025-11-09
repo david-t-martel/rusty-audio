@@ -1,7 +1,7 @@
 //! Real-time Audio Classification Module
 
-use anyhow::Result;
 use crate::ai::feature_extractor::AudioFeatures;
+use anyhow::Result;
 
 pub struct AudioClassifier;
 

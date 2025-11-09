@@ -1,9 +1,9 @@
-use egui::{
-    Ui, Vec2, Rect, Color32, Stroke, Pos2, Response, Sense, CursorIcon,
-    emath::remap_clamp, epaint::CircleShape,
-};
-use super::utils::{AnimationState, ColorUtils, DrawUtils};
 use super::theme::ThemeColors;
+use super::utils::{AnimationState, ColorUtils, DrawUtils};
+use egui::{
+    emath::remap_clamp, epaint::CircleShape, Color32, CursorIcon, Pos2, Rect, Response, Sense,
+    Stroke, Ui, Vec2,
+};
 use std::f32::consts::PI;
 
 /// Enhanced slider with custom styling and animations
@@ -75,11 +75,7 @@ impl EnhancedSlider {
         self
     }
 
-    pub fn show(
-        &mut self,
-        ui: &mut Ui,
-        colors: &ThemeColors,
-    ) -> Response {
+    pub fn show(&mut self, ui: &mut Ui, colors: &ThemeColors) -> Response {
         let desired_size = match self.orientation {
             SliderOrientation::Horizontal => Vec2::new(120.0, 24.0),
             SliderOrientation::Vertical => Vec2::new(24.0, 120.0),
@@ -88,7 +84,10 @@ impl EnhancedSlider {
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click_and_drag());
 
         if response.clicked() || response.dragged() {
-            let new_value = self.calculate_value_from_pos(response.interact_pointer_pos().unwrap_or_default(), rect);
+            let new_value = self.calculate_value_from_pos(
+                response.interact_pointer_pos().unwrap_or_default(),
+                rect,
+            );
             if (new_value - self.value).abs() > f32::EPSILON {
                 self.value = new_value;
                 self.animation.set_target(new_value);
@@ -100,10 +99,12 @@ impl EnhancedSlider {
         let dt = ui.ctx().input(|i| i.stable_dt);
         self.animation.update(dt);
 
-        self.hover_animation.set_target(if response.hovered() { 1.0 } else { 0.0 });
+        self.hover_animation
+            .set_target(if response.hovered() { 1.0 } else { 0.0 });
         self.hover_animation.update(dt);
 
-        self.drag_animation.set_target(if response.dragged() { 1.0 } else { 0.0 });
+        self.drag_animation
+            .set_target(if response.dragged() { 1.0 } else { 0.0 });
         self.drag_animation.update(dt);
 
         // Draw the slider
@@ -119,12 +120,8 @@ impl EnhancedSlider {
 
     fn calculate_value_from_pos(&self, pos: Pos2, rect: Rect) -> f32 {
         let t = match self.orientation {
-            SliderOrientation::Horizontal => {
-                (pos.x - rect.min.x) / rect.width()
-            }
-            SliderOrientation::Vertical => {
-                1.0 - (pos.y - rect.min.y) / rect.height()
-            }
+            SliderOrientation::Horizontal => (pos.x - rect.min.x) / rect.width(),
+            SliderOrientation::Vertical => 1.0 - (pos.y - rect.min.y) / rect.height(),
         };
 
         remap_clamp(t.clamp(0.0, 1.0), 0.0..=1.0, self.range.clone())
@@ -166,7 +163,13 @@ impl EnhancedSlider {
         // Draw glow effect if enabled
         if self.style.glow && (hover_factor > 0.0 || drag_factor > 0.0) {
             let glow_intensity = (hover_factor * 0.3 + drag_factor * 0.5).max(0.0);
-            DrawUtils::draw_glow_effect(ui, handle_pos, handle_radius * 1.5, fill_color, glow_intensity);
+            DrawUtils::draw_glow_effect(
+                ui,
+                handle_pos,
+                handle_radius * 1.5,
+                fill_color,
+                glow_intensity,
+            );
         }
 
         // Draw handle
@@ -192,12 +195,8 @@ impl EnhancedSlider {
         if self.style.show_value {
             let value_text = format!("{:.1}", self.value);
             let text_pos = match self.orientation {
-                SliderOrientation::Horizontal => {
-                    Pos2::new(rect.center().x, rect.min.y - 5.0)
-                }
-                SliderOrientation::Vertical => {
-                    Pos2::new(rect.max.x + 10.0, rect.center().y)
-                }
+                SliderOrientation::Horizontal => Pos2::new(rect.center().x, rect.min.y - 5.0),
+                SliderOrientation::Vertical => Pos2::new(rect.max.x + 10.0, rect.center().y),
             };
 
             ui.painter().text(
@@ -216,14 +215,20 @@ impl EnhancedSlider {
                 let center_y = rect.center().y;
                 Rect::from_center_size(
                     Pos2::new(rect.center().x, center_y),
-                    Vec2::new(rect.width() - self.style.handle_radius * 2.0, self.style.track_width),
+                    Vec2::new(
+                        rect.width() - self.style.handle_radius * 2.0,
+                        self.style.track_width,
+                    ),
                 )
             }
             SliderOrientation::Vertical => {
                 let center_x = rect.center().x;
                 Rect::from_center_size(
                     Pos2::new(center_x, rect.center().y),
-                    Vec2::new(self.style.track_width, rect.height() - self.style.handle_radius * 2.0),
+                    Vec2::new(
+                        self.style.track_width,
+                        rect.height() - self.style.handle_radius * 2.0,
+                    ),
                 )
             }
         }
@@ -234,11 +239,15 @@ impl EnhancedSlider {
 
         match self.orientation {
             SliderOrientation::Horizontal => {
-                let x = rect.min.x + self.style.handle_radius + t * (rect.width() - self.style.handle_radius * 2.0);
+                let x = rect.min.x
+                    + self.style.handle_radius
+                    + t * (rect.width() - self.style.handle_radius * 2.0);
                 Pos2::new(x, rect.center().y)
             }
             SliderOrientation::Vertical => {
-                let y = rect.max.y - self.style.handle_radius - t * (rect.height() - self.style.handle_radius * 2.0);
+                let y = rect.max.y
+                    - self.style.handle_radius
+                    - t * (rect.height() - self.style.handle_radius * 2.0);
                 Pos2::new(rect.center().x, y)
             }
         }
@@ -271,14 +280,18 @@ impl EnhancedSlider {
 
             let (tick_start, tick_end) = match self.orientation {
                 SliderOrientation::Horizontal => {
-                    let x = rect.min.x + self.style.handle_radius + t * (rect.width() - self.style.handle_radius * 2.0);
+                    let x = rect.min.x
+                        + self.style.handle_radius
+                        + t * (rect.width() - self.style.handle_radius * 2.0);
                     (
                         Pos2::new(x, rect.center().y + self.style.track_width * 0.5 + 2.0),
                         Pos2::new(x, rect.center().y + self.style.track_width * 0.5 + 8.0),
                     )
                 }
                 SliderOrientation::Vertical => {
-                    let y = rect.max.y - self.style.handle_radius - t * (rect.height() - self.style.handle_radius * 2.0);
+                    let y = rect.max.y
+                        - self.style.handle_radius
+                        - t * (rect.height() - self.style.handle_radius * 2.0);
                     (
                         Pos2::new(rect.center().x + self.style.track_width * 0.5 + 2.0, y),
                         Pos2::new(rect.center().x + self.style.track_width * 0.5 + 8.0, y),
@@ -352,11 +365,7 @@ impl CircularKnob {
         self
     }
 
-    pub fn show(
-        &mut self,
-        ui: &mut Ui,
-        colors: &ThemeColors,
-    ) -> Response {
+    pub fn show(&mut self, ui: &mut Ui, colors: &ThemeColors) -> Response {
         let desired_size = Vec2::splat(self.radius * 2.5);
         let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click_and_drag());
         let center = rect.center();
@@ -369,8 +378,10 @@ impl CircularKnob {
                 // Convert drag delta to value change
                 if let Some(last_pos) = ui.ctx().input(|i| i.pointer.hover_pos()) {
                     let drag_delta = ui.ctx().input(|i| i.pointer.delta());
-                    let value_delta = -drag_delta.y * self.sensitivity * (self.range.end() - self.range.start());
-                    let new_value = (self.value + value_delta).clamp(*self.range.start(), *self.range.end());
+                    let value_delta =
+                        -drag_delta.y * self.sensitivity * (self.range.end() - self.range.start());
+                    let new_value =
+                        (self.value + value_delta).clamp(*self.range.start(), *self.range.end());
 
                     if (new_value - self.value).abs() > f32::EPSILON {
                         self.value = new_value;
@@ -385,10 +396,12 @@ impl CircularKnob {
         let dt = ui.ctx().input(|i| i.stable_dt);
         self.animation.update(dt);
 
-        self.hover_animation.set_target(if response.hovered() { 1.0 } else { 0.0 });
+        self.hover_animation
+            .set_target(if response.hovered() { 1.0 } else { 0.0 });
         self.hover_animation.update(dt);
 
-        self.drag_animation.set_target(if response.dragged() { 1.0 } else { 0.0 });
+        self.drag_animation
+            .set_target(if response.dragged() { 1.0 } else { 0.0 });
         self.drag_animation.update(dt);
 
         // Draw the knob
@@ -414,16 +427,32 @@ impl CircularKnob {
         // Calculate angle for current value
         let value_t = remap_clamp(animated_value, self.range.clone(), 0.0..=1.0);
         let start_angle = -PI * 0.75; // Start at 7:30
-        let end_angle = PI * 0.75;    // End at 4:30
+        let end_angle = PI * 0.75; // End at 4:30
         let current_angle = start_angle + value_t * (end_angle - start_angle);
 
         let knob_radius = self.radius * (1.0 + drag_factor * 0.1);
 
         // Draw background arc if enabled
         if self.show_arc {
-            self.draw_arc(ui, center, self.radius * 1.2, start_angle, end_angle, 4.0, colors.surface);
+            self.draw_arc(
+                ui,
+                center,
+                self.radius * 1.2,
+                start_angle,
+                end_angle,
+                4.0,
+                colors.surface,
+            );
             // Draw value arc
-            self.draw_arc(ui, center, self.radius * 1.2, start_angle, current_angle, 4.0, colors.primary);
+            self.draw_arc(
+                ui,
+                center,
+                self.radius * 1.2,
+                start_angle,
+                current_angle,
+                4.0,
+                colors.primary,
+            );
         }
 
         // Draw knob body with gradient effect
@@ -448,7 +477,10 @@ impl CircularKnob {
         painter.circle_stroke(
             center,
             knob_radius,
-            Stroke::new(2.0, ColorUtils::lerp_color32(colors.text_secondary, colors.primary, hover_factor)),
+            Stroke::new(
+                2.0,
+                ColorUtils::lerp_color32(colors.text_secondary, colors.primary, hover_factor),
+            ),
         );
 
         // Draw indicator line
@@ -475,7 +507,16 @@ impl CircularKnob {
         }
     }
 
-    fn draw_arc(&self, ui: &Ui, center: Pos2, radius: f32, start_angle: f32, end_angle: f32, thickness: f32, color: Color32) {
+    fn draw_arc(
+        &self,
+        ui: &Ui,
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        thickness: f32,
+        color: Color32,
+    ) {
         let painter = ui.painter();
         let segments = ((end_angle - start_angle).abs() * 20.0) as usize;
 
@@ -492,10 +533,7 @@ impl CircularKnob {
         }
 
         for i in 0..points.len() - 1 {
-            painter.line_segment(
-                [points[i], points[i + 1]],
-                Stroke::new(thickness, color),
-            );
+            painter.line_segment([points[i], points[i + 1]], Stroke::new(thickness, color));
         }
     }
 
@@ -563,18 +601,17 @@ impl EnhancedButton {
         self
     }
 
-    pub fn show(
-        &mut self,
-        ui: &mut Ui,
-        colors: &ThemeColors,
-    ) -> Response {
-        let text_size = ui.painter().layout_no_wrap(
-            self.text.clone(),
-            egui::FontId::default(),
-            Color32::WHITE,
-        ).size();
+    pub fn show(&mut self, ui: &mut Ui, colors: &ThemeColors) -> Response {
+        let text_size = ui
+            .painter()
+            .layout_no_wrap(self.text.clone(), egui::FontId::default(), Color32::WHITE)
+            .size();
 
-        let icon_size = if self.icon.is_some() { Vec2::new(16.0, 16.0) } else { Vec2::ZERO };
+        let icon_size = if self.icon.is_some() {
+            Vec2::new(16.0, 16.0)
+        } else {
+            Vec2::ZERO
+        };
         let spacing = if self.icon.is_some() { 8.0 } else { 0.0 };
 
         let content_size = Vec2::new(
@@ -592,10 +629,16 @@ impl EnhancedButton {
         // Update animations
         let dt = ui.ctx().input(|i| i.stable_dt);
 
-        self.hover_animation.set_target(if response.hovered() { 1.0 } else { 0.0 });
+        self.hover_animation
+            .set_target(if response.hovered() { 1.0 } else { 0.0 });
         self.hover_animation.update(dt);
 
-        self.press_animation.set_target(if response.is_pointer_button_down_on() { 1.0 } else { 0.0 });
+        self.press_animation
+            .set_target(if response.is_pointer_button_down_on() {
+                1.0
+            } else {
+                0.0
+            });
         self.press_animation.update(dt);
 
         // Draw the button
@@ -616,10 +659,8 @@ impl EnhancedButton {
         // Draw shadow if enabled
         if self.style.shadow {
             let shadow_offset = Vec2::new(2.0, 2.0) * (1.0 - press_factor * 0.5);
-            let shadow_rect = Rect::from_center_size(
-                scaled_rect.center() + shadow_offset,
-                scaled_rect.size(),
-            );
+            let shadow_rect =
+                Rect::from_center_size(scaled_rect.center() + shadow_offset, scaled_rect.size());
             painter.rect_filled(
                 shadow_rect,
                 self.style.rounding,
@@ -663,7 +704,12 @@ impl EnhancedButton {
             colors.accent,
             hover_factor,
         );
-        painter.rect_stroke(scaled_rect, self.style.rounding, Stroke::new(1.0, border_color), egui::epaint::StrokeKind::Outside);
+        painter.rect_stroke(
+            scaled_rect,
+            self.style.rounding,
+            Stroke::new(1.0, border_color),
+            egui::epaint::StrokeKind::Outside,
+        );
 
         // Draw content
         let content_rect = scaled_rect.shrink2(self.style.padding);
@@ -671,10 +717,7 @@ impl EnhancedButton {
 
         if let Some(icon) = &self.icon {
             // Draw icon
-            let icon_pos = Pos2::new(
-                content_pos.x - 8.0,
-                content_pos.y,
-            );
+            let icon_pos = Pos2::new(content_pos.x - 8.0, content_pos.y);
             painter.text(
                 icon_pos,
                 egui::Align2::CENTER_CENTER,

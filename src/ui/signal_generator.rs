@@ -1,13 +1,14 @@
-use egui::{Ui, Vec2, Rect, Stroke, Pos2, Response, Sense, RichText, ComboBox};
 use super::{
+    controls::{ButtonStyle, EnhancedButton, EnhancedSlider, SliderOrientation, SliderStyle},
     theme::ThemeColors,
-    controls::{EnhancedSlider, EnhancedButton, SliderOrientation, SliderStyle, ButtonStyle},
     utils::{AnimationState, ColorUtils},
 };
 use crate::testing::signal_generators::*;
+use egui::{ComboBox, Pos2, Rect, Response, RichText, Sense, Stroke, Ui, Vec2};
+#[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::{
     context::{AudioContext, BaseAudioContext},
-    node::{AudioScheduledSourceNode, AudioBufferSourceNode},
+    node::{AudioBufferSourceNode, AudioScheduledSourceNode},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,7 +103,9 @@ impl SignalParameters {
 
     pub fn validate_sweep_frequencies(&mut self) {
         self.start_frequency = self.start_frequency.clamp(10.0, 20000.0);
-        self.end_frequency = self.end_frequency.clamp(self.start_frequency + 1.0, 20000.0);
+        self.end_frequency = self
+            .end_frequency
+            .clamp(self.start_frequency + 1.0, 20000.0);
     }
 }
 
@@ -121,7 +124,8 @@ pub struct SignalGeneratorPanel {
     pub preview_enabled: bool,
     pub spectrum_analysis_enabled: bool,
 
-    // Audio nodes
+    // Audio nodes (native only)
+    #[cfg(not(target_arch = "wasm32"))]
     pub source_node: Option<AudioBufferSourceNode>,
 
     // UI controls
@@ -154,6 +158,7 @@ impl SignalGeneratorPanel {
             generated_samples: Vec::new(),
             preview_enabled: true,
             spectrum_analysis_enabled: false,
+            #[cfg(not(target_arch = "wasm32"))]
             source_node: None,
 
             // Initialize sliders with parameter values
@@ -278,7 +283,14 @@ impl SignalGeneratorPanel {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("Parameters").size(16.0).color(colors.text));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.small_button(if self.show_advanced_params { "▼ Advanced" } else { "▶ Advanced" }).clicked() {
+                        if ui
+                            .small_button(if self.show_advanced_params {
+                                "▼ Advanced"
+                            } else {
+                                "▶ Advanced"
+                            })
+                            .clicked()
+                        {
                             self.show_advanced_params = !self.show_advanced_params;
                         }
                     });
@@ -293,7 +305,9 @@ impl SignalGeneratorPanel {
                 // Signal-specific parameters
                 match self.signal_type {
                     SignalType::Sine => self.draw_sine_parameters(ui, colors),
-                    SignalType::WhiteNoise | SignalType::PinkNoise => self.draw_noise_parameters(ui, colors),
+                    SignalType::WhiteNoise | SignalType::PinkNoise => {
+                        self.draw_noise_parameters(ui, colors)
+                    }
                     SignalType::Square => self.draw_square_parameters(ui, colors),
                     SignalType::Sawtooth => self.draw_sawtooth_parameters(ui, colors),
                     SignalType::Sweep => self.draw_sweep_parameters(ui, colors),
@@ -314,7 +328,11 @@ impl SignalGeneratorPanel {
     fn draw_common_parameters(&mut self, ui: &mut Ui, colors: &ThemeColors) {
         // Amplitude control
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Amplitude (dB):").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("Amplitude (dB):")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             let amplitude_response = self.amplitude_slider.show(ui, colors);
@@ -323,14 +341,22 @@ impl SignalGeneratorPanel {
                 self.parameters.validate_amplitude();
             }
 
-            ui.label(format!("{:.1} dB ({:.3})", self.parameters.amplitude_db, self.parameters.amplitude()));
+            ui.label(format!(
+                "{:.1} dB ({:.3})",
+                self.parameters.amplitude_db,
+                self.parameters.amplitude()
+            ));
         });
 
         ui.add_space(6.0);
 
         // Duration control
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Duration (s):").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("Duration (s):")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             let duration_response = self.duration_slider.show(ui, colors);
@@ -347,7 +373,11 @@ impl SignalGeneratorPanel {
 
     fn draw_sine_parameters(&mut self, ui: &mut Ui, colors: &ThemeColors) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Frequency (Hz):").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("Frequency (Hz):")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             let freq_response = self.frequency_slider.show(ui, colors);
@@ -362,7 +392,11 @@ impl SignalGeneratorPanel {
 
     fn draw_noise_parameters(&mut self, ui: &mut Ui, colors: &ThemeColors) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Seed:").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("Seed:")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             let mut seed_text = self.parameters.seed.to_string();
@@ -379,7 +413,11 @@ impl SignalGeneratorPanel {
         ui.add_space(6.0);
 
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Duty Cycle:").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("Duty Cycle:")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             let duty_response = self.duty_cycle_slider.show(ui, colors);
@@ -398,7 +436,11 @@ impl SignalGeneratorPanel {
 
     fn draw_sweep_parameters(&mut self, ui: &mut Ui, colors: &ThemeColors) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Start Frequency (Hz):").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("Start Frequency (Hz):")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             let start_response = self.start_freq_slider.show(ui, colors);
@@ -413,7 +455,11 @@ impl SignalGeneratorPanel {
         ui.add_space(6.0);
 
         ui.horizontal(|ui| {
-            ui.label(RichText::new("End Frequency (Hz):").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("End Frequency (Hz):")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             let end_response = self.end_freq_slider.show(ui, colors);
@@ -428,7 +474,11 @@ impl SignalGeneratorPanel {
 
     fn draw_impulse_parameters(&mut self, ui: &mut Ui, colors: &ThemeColors) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Delay (s):").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("Delay (s):")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             let phase_response = self.phase_slider.show(ui, colors);
@@ -441,16 +491,28 @@ impl SignalGeneratorPanel {
     }
 
     fn draw_multitone_parameters(&mut self, ui: &mut Ui, colors: &ThemeColors) {
-        ui.label(RichText::new("Multi-tone: 1kHz + 2kHz + 3kHz harmonics").size(12.0).color(colors.text_secondary));
+        ui.label(
+            RichText::new("Multi-tone: 1kHz + 2kHz + 3kHz harmonics")
+                .size(12.0)
+                .color(colors.text_secondary),
+        );
     }
 
     fn draw_advanced_parameters(&mut self, ui: &mut Ui, colors: &ThemeColors) {
-        ui.label(RichText::new("Advanced Parameters").size(14.0).color(colors.text));
+        ui.label(
+            RichText::new("Advanced Parameters")
+                .size(14.0)
+                .color(colors.text),
+        );
         ui.add_space(6.0);
 
         // Sample rate selection
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Sample Rate:").size(12.0).color(colors.text_secondary));
+            ui.label(
+                RichText::new("Sample Rate:")
+                    .size(12.0)
+                    .color(colors.text_secondary),
+            );
             ui.add_space(10.0);
 
             ComboBox::from_id_source("sample_rate")
@@ -469,9 +531,16 @@ impl SignalGeneratorPanel {
         ui.add_space(6.0);
 
         // Phase control (for applicable signals)
-        if matches!(self.signal_type, SignalType::Sine | SignalType::Square | SignalType::Sawtooth) {
+        if matches!(
+            self.signal_type,
+            SignalType::Sine | SignalType::Square | SignalType::Sawtooth
+        ) {
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Phase (radians):").size(12.0).color(colors.text_secondary));
+                ui.label(
+                    RichText::new("Phase (radians):")
+                        .size(12.0)
+                        .color(colors.text_secondary),
+                );
                 ui.add_space(10.0);
 
                 let phase_response = self.phase_slider.show(ui, colors);
@@ -479,7 +548,11 @@ impl SignalGeneratorPanel {
                     self.parameters.phase = self.phase_slider.value();
                 }
 
-                ui.label(format!("{:.2} rad ({:.0}°)", self.parameters.phase, self.parameters.phase.to_degrees()));
+                ui.label(format!(
+                    "{:.2} rad ({:.0}°)",
+                    self.parameters.phase,
+                    self.parameters.phase.to_degrees()
+                ));
             });
         }
     }
@@ -492,14 +565,15 @@ impl SignalGeneratorPanel {
                 _ => "🔧 Generate",
             };
 
-            let mut generate_button = EnhancedButton::new(generate_text)
-                .style(ButtonStyle {
-                    gradient: true,
-                    glow: self.state == GeneratorState::Generating,
-                    ..Default::default()
-                });
+            let mut generate_button = EnhancedButton::new(generate_text).style(ButtonStyle {
+                gradient: true,
+                glow: self.state == GeneratorState::Generating,
+                ..Default::default()
+            });
 
-            if generate_button.show(ui, colors).clicked() && self.state != GeneratorState::Generating {
+            if generate_button.show(ui, colors).clicked()
+                && self.state != GeneratorState::Generating
+            {
                 self.generate_signal();
             }
 
@@ -511,12 +585,11 @@ impl SignalGeneratorPanel {
                 _ => "▶️ Play",
             };
 
-            let mut play_button = EnhancedButton::new(play_text)
-                .style(ButtonStyle {
-                    gradient: true,
-                    glow: self.state == GeneratorState::Playing,
-                    ..Default::default()
-                });
+            let mut play_button = EnhancedButton::new(play_text).style(ButtonStyle {
+                gradient: true,
+                glow: self.state == GeneratorState::Playing,
+                ..Default::default()
+            });
 
             if play_button.show(ui, colors).clicked() {
                 self.toggle_playback();
@@ -533,12 +606,15 @@ impl SignalGeneratorPanel {
             ui.add_space(15.0);
 
             // Preview toggle
-            let preview_text = if self.preview_enabled { "👁️ Preview: On" } else { "👁️ Preview: Off" };
-            let mut preview_button = EnhancedButton::new(preview_text)
-                .style(ButtonStyle {
-                    gradient: self.preview_enabled,
-                    ..Default::default()
-                });
+            let preview_text = if self.preview_enabled {
+                "👁️ Preview: On"
+            } else {
+                "👁️ Preview: Off"
+            };
+            let mut preview_button = EnhancedButton::new(preview_text).style(ButtonStyle {
+                gradient: self.preview_enabled,
+                ..Default::default()
+            });
 
             if preview_button.show(ui, colors).clicked() {
                 self.preview_enabled = !self.preview_enabled;
@@ -550,7 +626,11 @@ impl SignalGeneratorPanel {
         ui.group(|ui| {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Waveform Preview").size(14.0).color(colors.text));
+                    ui.label(
+                        RichText::new("Waveform Preview")
+                            .size(14.0)
+                            .color(colors.text),
+                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.small_button("📊 Spectrum").clicked() {
                             self.spectrum_analysis_enabled = !self.spectrum_analysis_enabled;
@@ -561,7 +641,8 @@ impl SignalGeneratorPanel {
                 ui.separator();
                 ui.add_space(4.0);
 
-                let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 120.0), Sense::hover());
+                let (rect, _) =
+                    ui.allocate_exact_size(Vec2::new(ui.available_width(), 120.0), Sense::hover());
                 self.draw_waveform(ui, rect, colors);
             });
         });
@@ -570,11 +651,16 @@ impl SignalGeneratorPanel {
     fn draw_spectrum_analysis(&mut self, ui: &mut Ui, colors: &ThemeColors) {
         ui.group(|ui| {
             ui.vertical(|ui| {
-                ui.label(RichText::new("Spectrum Analysis").size(14.0).color(colors.text));
+                ui.label(
+                    RichText::new("Spectrum Analysis")
+                        .size(14.0)
+                        .color(colors.text),
+                );
                 ui.separator();
                 ui.add_space(4.0);
 
-                let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 100.0), Sense::hover());
+                let (rect, _) =
+                    ui.allocate_exact_size(Vec2::new(ui.available_width(), 100.0), Sense::hover());
                 self.draw_spectrum(ui, rect, colors);
             });
         });
@@ -584,7 +670,11 @@ impl SignalGeneratorPanel {
         if !self.generated_samples.is_empty() {
             ui.group(|ui| {
                 ui.vertical(|ui| {
-                    ui.label(RichText::new("Mathematical Verification").size(14.0).color(colors.text));
+                    ui.label(
+                        RichText::new("Mathematical Verification")
+                            .size(14.0)
+                            .color(colors.text),
+                    );
                     ui.separator();
                     ui.add_space(4.0);
 
@@ -592,28 +682,42 @@ impl SignalGeneratorPanel {
 
                     ui.horizontal(|ui| {
                         ui.label("Samples Generated:");
-                        ui.label(RichText::new(format!("{}", self.generated_samples.len())).color(colors.accent));
+                        ui.label(
+                            RichText::new(format!("{}", self.generated_samples.len()))
+                                .color(colors.accent),
+                        );
                     });
 
                     ui.horizontal(|ui| {
                         ui.label("RMS Level:");
-                        ui.label(RichText::new(format!("{:.4}", verification_results.rms)).color(colors.accent));
+                        ui.label(
+                            RichText::new(format!("{:.4}", verification_results.rms))
+                                .color(colors.accent),
+                        );
                     });
 
                     ui.horizontal(|ui| {
                         ui.label("Peak Level:");
-                        ui.label(RichText::new(format!("{:.4}", verification_results.peak)).color(colors.accent));
+                        ui.label(
+                            RichText::new(format!("{:.4}", verification_results.peak))
+                                .color(colors.accent),
+                        );
                     });
 
                     ui.horizontal(|ui| {
                         ui.label("DC Offset:");
-                        ui.label(RichText::new(format!("{:.6}", verification_results.dc_offset)).color(colors.accent));
+                        ui.label(
+                            RichText::new(format!("{:.6}", verification_results.dc_offset))
+                                .color(colors.accent),
+                        );
                     });
 
                     if let Some(thd) = verification_results.thd {
                         ui.horizontal(|ui| {
                             ui.label("THD+N:");
-                            ui.label(RichText::new(format!("{:.2}%", thd * 100.0)).color(colors.accent));
+                            ui.label(
+                                RichText::new(format!("{:.2}%", thd * 100.0)).color(colors.accent),
+                            );
                         });
                     }
                 });
@@ -655,10 +759,7 @@ impl SignalGeneratorPanel {
 
         if points.len() > 1 {
             // Draw waveform line
-            painter.add(egui::Shape::line(
-                points,
-                Stroke::new(1.5, colors.primary),
-            ));
+            painter.add(egui::Shape::line(points, Stroke::new(1.5, colors.primary)));
         }
 
         // Draw zero line
@@ -669,7 +770,12 @@ impl SignalGeneratorPanel {
         );
 
         // Draw border
-        painter.rect_stroke(rect, 4.0, Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.2)), egui::epaint::StrokeKind::Outside);
+        painter.rect_stroke(
+            rect,
+            4.0,
+            Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.2)),
+            egui::epaint::StrokeKind::Outside,
+        );
     }
 
     fn draw_spectrum(&self, ui: &Ui, rect: Rect, colors: &ThemeColors) {
@@ -707,7 +813,12 @@ impl SignalGeneratorPanel {
         }
 
         // Draw border
-        painter.rect_stroke(rect, 4.0, Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.2)), egui::epaint::StrokeKind::Outside);
+        painter.rect_stroke(
+            rect,
+            4.0,
+            Stroke::new(1.0, ColorUtils::with_alpha(colors.text_secondary, 0.2)),
+            egui::epaint::StrokeKind::Outside,
+        );
     }
 
     fn update_preview(&mut self) {
@@ -727,7 +838,7 @@ impl SignalGeneratorPanel {
     }
 
     fn update_spectrum_analysis(&mut self) {
-        use rustfft::{FftPlanner, num_complex::Complex};
+        use rustfft::{num_complex::Complex, FftPlanner};
 
         if self.waveform_samples.is_empty() {
             return;
@@ -745,7 +856,7 @@ impl SignalGeneratorPanel {
         fft.process(&mut buffer);
 
         // Calculate magnitudes and convert to dB
-        self.spectrum_data = buffer[..fft_size/2]
+        self.spectrum_data = buffer[..fft_size / 2]
             .iter()
             .map(|c| {
                 let magnitude = c.norm();
@@ -784,46 +895,49 @@ impl SignalGeneratorPanel {
                     .with_amplitude(amplitude)
                     .with_phase(self.parameters.phase);
                 generator.generate(duration, self.parameters.sample_rate)
-            },
+            }
             SignalType::WhiteNoise => {
                 let generator = WhiteNoiseGenerator::new()
                     .with_amplitude(amplitude)
                     .with_seed(self.parameters.seed);
                 generator.generate(duration, self.parameters.sample_rate)
-            },
+            }
             SignalType::PinkNoise => {
                 let generator = PinkNoiseGenerator::new()
                     .with_amplitude(amplitude)
                     .with_seed(self.parameters.seed);
                 generator.generate(duration, self.parameters.sample_rate)
-            },
+            }
             SignalType::Square => {
                 let generator = SquareGenerator::new(self.parameters.frequency)
                     .with_amplitude(amplitude)
                     .with_duty_cycle(self.parameters.duty_cycle);
                 generator.generate(duration, self.parameters.sample_rate)
-            },
+            }
             SignalType::Sawtooth => {
-                let generator = SawtoothGenerator::new(self.parameters.frequency)
-                    .with_amplitude(amplitude);
+                let generator =
+                    SawtoothGenerator::new(self.parameters.frequency).with_amplitude(amplitude);
                 generator.generate(duration, self.parameters.sample_rate)
-            },
+            }
             SignalType::Sweep => {
-                let generator = SweepGenerator::new(self.parameters.start_frequency, self.parameters.end_frequency)
-                    .with_amplitude(amplitude);
+                let generator = SweepGenerator::new(
+                    self.parameters.start_frequency,
+                    self.parameters.end_frequency,
+                )
+                .with_amplitude(amplitude);
                 generator.generate(duration, self.parameters.sample_rate)
-            },
+            }
             SignalType::Impulse => {
                 let generator = ImpulseGenerator::new()
                     .with_amplitude(amplitude)
                     .with_delay(self.parameters.phase); // Using phase as delay
                 generator.generate(duration, self.parameters.sample_rate)
-            },
+            }
             SignalType::MultiTone => {
                 let generator = MultiToneGenerator::new(vec![1000.0, 2000.0, 3000.0])
                     .with_amplitudes(vec![amplitude, amplitude * 0.5, amplitude * 0.33]);
                 generator.generate(duration, self.parameters.sample_rate)
-            },
+            }
         }
     }
 
@@ -847,13 +961,20 @@ impl SignalGeneratorPanel {
 
     pub fn stop_playback(&mut self) {
         self.state = GeneratorState::Stopped;
-        if let Some(source) = &mut self.source_node {
-            source.stop();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(source) = &mut self.source_node {
+                source.stop();
+            }
+            self.source_node = None;
         }
-        self.source_node = None;
     }
 
-    pub fn create_audio_buffer(&self, audio_context: &AudioContext) -> Option<web_audio_api::AudioBuffer> {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn create_audio_buffer(
+        &self,
+        audio_context: &AudioContext,
+    ) -> Option<web_audio_api::AudioBuffer> {
         if self.generated_samples.is_empty() {
             return None;
         }
@@ -902,7 +1023,7 @@ impl SignalGeneratorPanel {
 
     fn calculate_thd(&self) -> f32 {
         // Simplified THD calculation using FFT
-        use rustfft::{FftPlanner, num_complex::Complex};
+        use rustfft::{num_complex::Complex, FftPlanner};
 
         if self.generated_samples.len() < 1024 {
             return 0.0;
@@ -920,7 +1041,8 @@ impl SignalGeneratorPanel {
         fft.process(&mut buffer);
 
         // Find fundamental frequency bin
-        let fundamental_bin = (self.parameters.frequency * fft_size as f32 / self.parameters.sample_rate) as usize;
+        let fundamental_bin =
+            (self.parameters.frequency * fft_size as f32 / self.parameters.sample_rate) as usize;
         let fundamental_power = buffer[fundamental_bin].norm_sqr();
 
         // Calculate harmonic power

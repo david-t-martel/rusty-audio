@@ -4,16 +4,26 @@
 // including signal generators, mathematical verification, and test suites.
 
 pub mod signal_generators;
-pub mod spectrum_analysis;
-pub mod equalizer_tests;
-pub mod integration_tests;
-pub mod property_tests;
-pub mod ui_tests;
-pub mod visual_regression;
-pub mod audio_feature_tests;
 
-use web_audio_api::context::{AudioContext, BaseAudioContext};
+// Native-only testing modules that require web_audio_api or dev dependencies
+#[cfg(not(target_arch = "wasm32"))]
+pub mod audio_feature_tests;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod equalizer_tests;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod integration_tests;
+#[cfg(all(not(target_arch = "wasm32"), feature = "property-testing"))]
+pub mod property_tests;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod spectrum_analysis;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ui_tests;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod visual_regression;
+
 use signal_generators::SignalGenerator;
+#[cfg(not(target_arch = "wasm32"))]
+use web_audio_api::context::{AudioContext, BaseAudioContext};
 
 /// Mathematical constants for audio testing
 pub const SAMPLE_RATE: f32 = 44100.0;
@@ -89,11 +99,9 @@ impl TestSuite {
             println!("\n=== Failed Tests ===");
             for result in &self.results {
                 if !result.passed {
-                    println!("{}: expected {:.6}, got {:.6} (error: {:.6})",
-                        result.test_name,
-                        result.expected,
-                        result.actual,
-                        result.error_magnitude
+                    println!(
+                        "{}: expected {:.6}, got {:.6} (error: {:.6})",
+                        result.test_name, result.expected, result.actual, result.error_magnitude
                     );
                 }
             }
@@ -101,7 +109,8 @@ impl TestSuite {
     }
 }
 
-/// Utility function to create test audio buffer
+/// Utility function to create test audio buffer (native only)
+#[cfg(not(target_arch = "wasm32"))]
 pub fn create_test_buffer(context: &AudioContext, samples: Vec<f32>) {
     let mut buffer = context.create_buffer(1, samples.len(), SAMPLE_RATE);
     buffer.copy_to_channel(&samples, 0);
@@ -153,14 +162,13 @@ pub fn calculate_thd(fundamental_amplitude: f32, harmonic_amplitudes: &[f32]) ->
         return f32::INFINITY;
     }
 
-    let harmonic_sum_squares: f32 = harmonic_amplitudes.iter()
-        .map(|&h| h * h)
-        .sum();
+    let harmonic_sum_squares: f32 = harmonic_amplitudes.iter().map(|&h| h * h).sum();
 
     (harmonic_sum_squares.sqrt() / fundamental_amplitude) * 100.0
 }
 
-/// Main test runner that executes all test suites
+/// Main test runner that executes all test suites (native only)
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run_all_tests() -> TestSuite {
     let mut master_suite = TestSuite::new();
 
@@ -173,7 +181,10 @@ pub fn run_all_tests() -> TestSuite {
     let spectrum_passed = spectrum_suite.passed_count();
     let spectrum_total = spectrum_suite.results.len();
     master_suite.results.append(&mut spectrum_suite.results);
-    println!("   ✅ Spectrum Analysis: {}/{} tests passed", spectrum_passed, spectrum_total);
+    println!(
+        "   ✅ Spectrum Analysis: {}/{} tests passed",
+        spectrum_passed, spectrum_total
+    );
 
     // Test 2: Equalizer Tests
     println!("\n2️⃣  Running Equalizer Mathematical Tests...");
@@ -181,15 +192,24 @@ pub fn run_all_tests() -> TestSuite {
     let eq_passed = equalizer_suite.passed_count();
     let eq_total = equalizer_suite.results.len();
     master_suite.results.append(&mut equalizer_suite.results);
-    println!("   ✅ Equalizer Tests: {}/{} tests passed", eq_passed, eq_total);
+    println!(
+        "   ✅ Equalizer Tests: {}/{} tests passed",
+        eq_passed, eq_total
+    );
 
-    // Test 3: Property-Based Tests
-    println!("\n3️⃣  Running Property-Based Tests...");
-    let mut property_suite = property_tests::run_property_tests();
-    let prop_passed = property_suite.passed_count();
-    let prop_total = property_suite.results.len();
-    master_suite.results.append(&mut property_suite.results);
-    println!("   ✅ Property Tests: {}/{} tests passed", prop_passed, prop_total);
+    // Test 3: Property-Based Tests (optional - requires "property-testing" feature)
+    #[cfg(feature = "property-testing")]
+    {
+        println!("\n3️⃣  Running Property-Based Tests...");
+        let mut property_suite = property_tests::run_property_tests();
+        let prop_passed = property_suite.passed_count();
+        let prop_total = property_suite.results.len();
+        master_suite.results.append(&mut property_suite.results);
+        println!(
+            "   ✅ Property Tests: {}/{} tests passed",
+            prop_passed, prop_total
+        );
+    }
 
     // Test 4: Integration Tests
     println!("\n4️⃣  Running Audio Pipeline Integration Tests...");
@@ -197,7 +217,10 @@ pub fn run_all_tests() -> TestSuite {
     let int_passed = integration_suite.passed_count();
     let int_total = integration_suite.results.len();
     master_suite.results.append(&mut integration_suite.results);
-    println!("   ✅ Integration Tests: {}/{} tests passed", int_passed, int_total);
+    println!(
+        "   ✅ Integration Tests: {}/{} tests passed",
+        int_passed, int_total
+    );
 
     // Print final summary
     println!("\n================================================================");
@@ -205,7 +228,9 @@ pub fn run_all_tests() -> TestSuite {
     master_suite.print_summary();
 
     if master_suite.success_rate() >= 0.95 {
-        println!("🎉 EXCELLENT: Mathematical accuracy > 95% - Audio processing is mathematically sound!");
+        println!(
+            "🎉 EXCELLENT: Mathematical accuracy > 95% - Audio processing is mathematically sound!"
+        );
     } else if master_suite.success_rate() >= 0.85 {
         println!("✅ GOOD: Mathematical accuracy > 85% - Audio processing is reliable with minor issues.");
     } else if master_suite.success_rate() >= 0.70 {
@@ -219,7 +244,8 @@ pub fn run_all_tests() -> TestSuite {
     master_suite
 }
 
-/// Quick test runner for essential functionality
+/// Quick test runner for essential functionality (native only)
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run_quick_tests() -> TestSuite {
     let mut suite = TestSuite::new();
 
@@ -250,7 +276,8 @@ pub fn run_quick_tests() -> TestSuite {
     suite
 }
 
-/// Test runner specifically for real-time performance validation
+/// Test runner specifically for real-time performance validation (native only)
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run_realtime_tests() -> TestSuite {
     println!("⚡ RUSTY AUDIO - REAL-TIME PERFORMANCE TESTS");
     println!("=============================================");
@@ -313,6 +340,7 @@ mod tests {
         assert_eq!(suite.success_rate(), 0.5);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn test_quick_tests_run() {
         let suite = run_quick_tests();

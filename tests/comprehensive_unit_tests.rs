@@ -1,16 +1,16 @@
 // Comprehensive Unit Tests for Audio Processing Functions
 // Mathematical verification with high precision testing
 
-use std::f64::consts::PI;
-use rustfft::{FftPlanner, num_complex::Complex32};
-use rand::{Rng, SeedableRng, rngs::StdRng};
-use approx::{assert_relative_eq, assert_abs_diff_eq};
+use approx::{assert_abs_diff_eq, assert_relative_eq};
 use proptest::prelude::*;
 use quickcheck::{QuickCheck, TestResult};
 use quickcheck_macros::quickcheck;
-use rstest::{rstest, fixture};
+use rand::{rngs::StdRng, Rng, SeedableRng};
+use rstest::{fixture, rstest};
+use rustfft::{num_complex::Complex32, FftPlanner};
+use statrs::statistics::{Data, Statistics};
+use std::f64::consts::PI;
 use test_case::test_case;
-use statrs::statistics::{Statistics, Data};
 
 // Test constants with high precision
 const SAMPLE_RATE: f32 = 48000.0;
@@ -104,7 +104,10 @@ impl PrecisionSineGenerator {
     }
 
     fn generate_f32(&self, duration: f64) -> Vec<f32> {
-        self.generate_f64(duration).into_iter().map(|x| x as f32).collect()
+        self.generate_f64(duration)
+            .into_iter()
+            .map(|x| x as f32)
+            .collect()
     }
 }
 
@@ -131,9 +134,8 @@ impl PrecisionFftAnalyzer {
                 let a2 = 0.14128;
                 let a3 = 0.01168;
 
-                a0 - a1 * (2.0 * PI * n / (N - 1.0)).cos()
-                   + a2 * (4.0 * PI * n / (N - 1.0)).cos()
-                   - a3 * (6.0 * PI * n / (N - 1.0)).cos()
+                a0 - a1 * (2.0 * PI * n / (N - 1.0)).cos() + a2 * (4.0 * PI * n / (N - 1.0)).cos()
+                    - a3 * (6.0 * PI * n / (N - 1.0)).cos()
             })
             .collect();
 
@@ -291,7 +293,12 @@ mod tests {
             // Square wave
             (vec![1.0, -1.0, 1.0, -1.0], 1.0),
             // Sine wave (approximate)
-            ((0..1000).map(|i| (i as f64 * 2.0 * PI / 1000.0).sin()).collect::<Vec<_>>(), 1.0 / (2.0f64).sqrt()),
+            (
+                (0..1000)
+                    .map(|i| (i as f64 * 2.0 * PI / 1000.0).sin())
+                    .collect::<Vec<_>>(),
+                1.0 / (2.0f64).sqrt(),
+            ),
             // Zero signal
             (vec![0.0; 100], 0.0),
             // 3-4-5 triangle
@@ -300,7 +307,12 @@ mod tests {
 
         for (samples, expected_rms) in test_cases {
             let rms = math_utils::calculate_rms_f64(&samples);
-            let result = MathTestResult::new("RMS calculation", expected_rms, rms, HIGH_PRECISION_TOLERANCE as f64);
+            let result = MathTestResult::new(
+                "RMS calculation",
+                expected_rms,
+                rms,
+                HIGH_PRECISION_TOLERANCE as f64,
+            );
 
             assert!(
                 result.passed,
@@ -347,23 +359,46 @@ mod tests {
 
             // Test sample count
             let expected_samples = (TEST_DURATION as f64 * SAMPLE_RATE as f64) as usize;
-            assert_eq!(samples.len(), expected_samples, "Sample count mismatch for {} Hz", freq);
+            assert_eq!(
+                samples.len(),
+                expected_samples,
+                "Sample count mismatch for {} Hz",
+                freq
+            );
 
             // Test RMS value (theoretical RMS of unit sine wave is 1/√2)
             let rms = math_utils::calculate_rms_f64(&samples);
             let expected_rms = generator.amplitude / 2.0f64.sqrt();
-            assert_relative_eq!(rms, expected_rms, epsilon = AUDIO_TOLERANCE as f64,
-                "RMS mismatch for {} Hz: expected {:.6}, got {:.6}", freq, expected_rms, rms);
+            assert_relative_eq!(
+                rms,
+                expected_rms,
+                epsilon = AUDIO_TOLERANCE as f64,
+                "RMS mismatch for {} Hz: expected {:.6}, got {:.6}",
+                freq,
+                expected_rms,
+                rms
+            );
 
             // Test peak value
             let peak = math_utils::calculate_peak_f64(&samples);
-            assert_relative_eq!(peak, generator.amplitude, epsilon = AUDIO_TOLERANCE as f64,
-                "Peak mismatch for {} Hz: expected {:.6}, got {:.6}", freq, generator.amplitude, peak);
+            assert_relative_eq!(
+                peak,
+                generator.amplitude,
+                epsilon = AUDIO_TOLERANCE as f64,
+                "Peak mismatch for {} Hz: expected {:.6}, got {:.6}",
+                freq,
+                generator.amplitude,
+                peak
+            );
 
             // Test DC component (should be near zero)
             let dc_component: f64 = samples.iter().sum::<f64>() / samples.len() as f64;
-            assert!(dc_component.abs() < TOLERANCE as f64,
-                "DC component too high for {} Hz: {:.2e}", freq, dc_component);
+            assert!(
+                dc_component.abs() < TOLERANCE as f64,
+                "DC component too high for {} Hz: {:.2e}",
+                freq,
+                dc_component
+            );
         }
     }
 
@@ -377,7 +412,9 @@ mod tests {
             let samples = generator.generate_f32(2.0); // 2 seconds for better resolution
             let spectrum = analyzer.analyze_with_precision(&samples);
 
-            if let Some((detected_freq, magnitude)) = analyzer.find_peak_frequency(&spectrum, SAMPLE_RATE as f64) {
+            if let Some((detected_freq, magnitude)) =
+                analyzer.find_peak_frequency(&spectrum, SAMPLE_RATE as f64)
+            {
                 // Frequency should be detected within tight tolerance
                 let freq_error = (detected_freq - freq).abs();
                 let relative_freq_error = freq_error / freq;
@@ -387,8 +424,12 @@ mod tests {
                     freq, detected_freq, freq_error, relative_freq_error * 100.0);
 
                 // Magnitude should be significant
-                assert!(magnitude > 0.1,
-                    "Magnitude too low for {:.1} Hz: {:.6}", freq, magnitude);
+                assert!(
+                    magnitude > 0.1,
+                    "Magnitude too low for {:.1} Hz: {:.6}",
+                    freq,
+                    magnitude
+                );
             } else {
                 panic!("Failed to detect frequency for {:.1} Hz", freq);
             }
@@ -409,33 +450,57 @@ mod tests {
             let expected_rms = amplitude / 2.0f64.sqrt();
             let peak = math_utils::calculate_peak_f64(&samples);
 
-            assert_relative_eq!(rms, expected_rms, epsilon = AUDIO_TOLERANCE as f64,
+            assert_relative_eq!(
+                rms,
+                expected_rms,
+                epsilon = AUDIO_TOLERANCE as f64,
                 "RMS linearity failed for amplitude {:.3}: expected {:.6}, got {:.6}",
-                amplitude, expected_rms, rms);
+                amplitude,
+                expected_rms,
+                rms
+            );
 
-            assert_relative_eq!(peak, amplitude, epsilon = AUDIO_TOLERANCE as f64,
+            assert_relative_eq!(
+                peak,
+                amplitude,
+                epsilon = AUDIO_TOLERANCE as f64,
                 "Peak linearity failed for amplitude {:.3}: expected {:.6}, got {:.6}",
-                amplitude, amplitude, peak);
+                amplitude,
+                amplitude,
+                peak
+            );
         }
     }
 
     #[test]
     fn test_sine_generator_phase_accuracy() {
-        let phases = vec![0.0, PI as f64 / 4.0, PI as f64 / 2.0, PI as f64, 3.0 * PI as f64 / 2.0];
+        let phases = vec![
+            0.0,
+            PI as f64 / 4.0,
+            PI as f64 / 2.0,
+            PI as f64,
+            3.0 * PI as f64 / 2.0,
+        ];
         let frequency = 1000.0;
 
         for &phase in &phases {
-            let generator = PrecisionSineGenerator::new(frequency, SAMPLE_RATE as f64)
-                .with_phase(phase);
+            let generator =
+                PrecisionSineGenerator::new(frequency, SAMPLE_RATE as f64).with_phase(phase);
             let samples = generator.generate_f64(1.0 / frequency); // One period
 
             // First sample should match expected phase
             let first_sample = samples[0];
             let expected_first = phase.sin();
 
-            assert_relative_eq!(first_sample, expected_first, epsilon = AUDIO_TOLERANCE as f64,
+            assert_relative_eq!(
+                first_sample,
+                expected_first,
+                epsilon = AUDIO_TOLERANCE as f64,
                 "Phase accuracy failed for phase {:.3}: expected {:.6}, got {:.6}",
-                phase, expected_first, first_sample);
+                phase,
+                expected_first,
+                first_sample
+            );
         }
     }
 
@@ -459,14 +524,24 @@ mod tests {
             let samples = generator.generate_f32(4.0); // 4 seconds for high resolution
             let spectrum = analyzer.analyze_with_precision(&samples);
 
-            if let Some((detected_freq, magnitude)) = analyzer.find_peak_frequency(&spectrum, SAMPLE_RATE as f64) {
-                assert!((detected_freq - freq).abs() < tolerance,
+            if let Some((detected_freq, magnitude)) =
+                analyzer.find_peak_frequency(&spectrum, SAMPLE_RATE as f64)
+            {
+                assert!(
+                    (detected_freq - freq).abs() < tolerance,
                     "FFT frequency detection failed for {:.1} Hz: detected {:.3} Hz ± {:.1} Hz",
-                    freq, detected_freq, tolerance);
+                    freq,
+                    detected_freq,
+                    tolerance
+                );
 
                 // Verify magnitude is reasonable for unit amplitude sine
-                assert!(magnitude > 0.1 && magnitude < 10.0,
-                    "FFT magnitude out of range for {:.1} Hz: {:.6}", freq, magnitude);
+                assert!(
+                    magnitude > 0.1 && magnitude < 10.0,
+                    "FFT magnitude out of range for {:.1} Hz: {:.6}",
+                    freq,
+                    magnitude
+                );
             } else {
                 panic!("FFT failed to detect {:.1} Hz signal", freq);
             }
@@ -480,15 +555,28 @@ mod tests {
         // Test window normalization
         let window_sum: f64 = analyzer.window.iter().sum();
         let expected_sum = analyzer.normalization_factor * FFT_SIZE as f64;
-        assert_relative_eq!(window_sum, expected_sum, epsilon = HIGH_PRECISION_TOLERANCE as f64,
-            "Window normalization failed: sum = {:.6}, expected = {:.6}", window_sum, expected_sum);
+        assert_relative_eq!(
+            window_sum,
+            expected_sum,
+            epsilon = HIGH_PRECISION_TOLERANCE as f64,
+            "Window normalization failed: sum = {:.6}, expected = {:.6}",
+            window_sum,
+            expected_sum
+        );
 
         // Test window symmetry (Blackman-Harris is symmetric)
         for i in 0..FFT_SIZE / 2 {
             let left = analyzer.window[i];
             let right = analyzer.window[FFT_SIZE - 1 - i];
-            assert_relative_eq!(left, right, epsilon = HIGH_PRECISION_TOLERANCE as f64,
-                "Window symmetry failed at index {}: left = {:.10}, right = {:.10}", i, left, right);
+            assert_relative_eq!(
+                left,
+                right,
+                epsilon = HIGH_PRECISION_TOLERANCE as f64,
+                "Window symmetry failed at index {}: left = {:.10}, right = {:.10}",
+                i,
+                left,
+                right
+            );
         }
     }
 
@@ -502,21 +590,33 @@ mod tests {
 
         // All bins should be very close to zero
         for (i, &magnitude) in spectrum.iter().enumerate() {
-            assert!(magnitude < 1e-10,
-                "Noise floor too high at bin {}: {:.2e}", i, magnitude);
+            assert!(
+                magnitude < 1e-10,
+                "Noise floor too high at bin {}: {:.2e}",
+                i,
+                magnitude
+            );
         }
 
         // Test with very low amplitude signal
-        let generator = PrecisionSineGenerator::new(1000.0, SAMPLE_RATE as f64)
-            .with_amplitude(1e-6);
+        let generator =
+            PrecisionSineGenerator::new(1000.0, SAMPLE_RATE as f64).with_amplitude(1e-6);
         let samples = generator.generate_f32(2.0);
         let spectrum = analyzer.analyze_with_precision(&samples);
 
-        if let Some((detected_freq, magnitude)) = analyzer.find_peak_frequency(&spectrum, SAMPLE_RATE as f64) {
-            assert!((detected_freq - 1000.0).abs() < 50.0,
-                "Low amplitude signal detection failed: {:.1} Hz", detected_freq);
-            assert!(magnitude > 1e-8 && magnitude < 1e-4,
-                "Low amplitude magnitude out of range: {:.2e}", magnitude);
+        if let Some((detected_freq, magnitude)) =
+            analyzer.find_peak_frequency(&spectrum, SAMPLE_RATE as f64)
+        {
+            assert!(
+                (detected_freq - 1000.0).abs() < 50.0,
+                "Low amplitude signal detection failed: {:.1} Hz",
+                detected_freq
+            );
+            assert!(
+                magnitude > 1e-8 && magnitude < 1e-4,
+                "Low amplitude magnitude out of range: {:.2e}",
+                magnitude
+            );
         }
     }
 
@@ -527,40 +627,55 @@ mod tests {
     #[test]
     fn test_signal_to_noise_ratio_calculation() {
         let test_cases = vec![
-            (1.0, 0.1, 20.0),     // 20 dB SNR
-            (1.0, 0.01, 40.0),    // 40 dB SNR
-            (1.0, 0.001, 60.0),   // 60 dB SNR
-            (2.0, 0.1, 26.02),    // Higher signal level
-            (0.5, 0.05, 20.0),    // Lower signal level
+            (1.0, 0.1, 20.0),   // 20 dB SNR
+            (1.0, 0.01, 40.0),  // 40 dB SNR
+            (1.0, 0.001, 60.0), // 60 dB SNR
+            (2.0, 0.1, 26.02),  // Higher signal level
+            (0.5, 0.05, 20.0),  // Lower signal level
         ];
 
         for (signal_power, noise_power, expected_snr_db) in test_cases {
             let snr_db = math_utils::calculate_snr_db(signal_power, noise_power);
-            assert_relative_eq!(snr_db, expected_snr_db, epsilon = 0.01,
+            assert_relative_eq!(
+                snr_db,
+                expected_snr_db,
+                epsilon = 0.01,
                 "SNR calculation failed: expected {:.2} dB, got {:.2} dB",
-                expected_snr_db, snr_db);
+                expected_snr_db,
+                snr_db
+            );
         }
     }
 
     #[test]
     fn test_sinad_and_enob_calculation() {
         let test_cases = vec![
-            (1.0, 0.001, 60.0, 9.68),      // 60 dB SINAD ≈ 9.68 ENOB
-            (1.0, 0.01, 40.0, 6.35),       // 40 dB SINAD ≈ 6.35 ENOB
-            (1.0, 0.1, 20.0, 3.02),        // 20 dB SINAD ≈ 3.02 ENOB
+            (1.0, 0.001, 60.0, 9.68), // 60 dB SINAD ≈ 9.68 ENOB
+            (1.0, 0.01, 40.0, 6.35),  // 40 dB SINAD ≈ 6.35 ENOB
+            (1.0, 0.1, 20.0, 3.02),   // 20 dB SINAD ≈ 3.02 ENOB
         ];
 
         for (signal_power, noise_distortion, expected_sinad, expected_enob) in test_cases {
             let sinad_db = math_utils::calculate_sinad_db(signal_power, noise_distortion);
             let enob = math_utils::calculate_enob(sinad_db);
 
-            assert_relative_eq!(sinad_db, expected_sinad, epsilon = 0.01,
+            assert_relative_eq!(
+                sinad_db,
+                expected_sinad,
+                epsilon = 0.01,
                 "SINAD calculation failed: expected {:.2} dB, got {:.2} dB",
-                expected_sinad, sinad_db);
+                expected_sinad,
+                sinad_db
+            );
 
-            assert_relative_eq!(enob, expected_enob, epsilon = 0.01,
+            assert_relative_eq!(
+                enob,
+                expected_enob,
+                epsilon = 0.01,
                 "ENOB calculation failed: expected {:.2} bits, got {:.2} bits",
-                expected_enob, enob);
+                expected_enob,
+                enob
+            );
         }
     }
 
@@ -578,8 +693,8 @@ mod tests {
             // Simulate output with known gain
             let gain_db = -3.0; // -3 dB gain
             let gain_linear = 10.0f64.powf(gain_db / 20.0);
-            let output_generator = PrecisionSineGenerator::new(freq, SAMPLE_RATE as f64)
-                .with_amplitude(gain_linear);
+            let output_generator =
+                PrecisionSineGenerator::new(freq, SAMPLE_RATE as f64).with_amplitude(gain_linear);
             let output_samples = output_generator.generate_f32(2.0);
             let output_spectrum = analyzer.analyze_with_precision(&output_samples);
 
@@ -590,9 +705,15 @@ mod tests {
             ) {
                 let measured_gain = math_utils::frequency_response_gain(input_mag, output_mag);
 
-                assert_relative_eq!(measured_gain, gain_db, epsilon = 0.1,
+                assert_relative_eq!(
+                    measured_gain,
+                    gain_db,
+                    epsilon = 0.1,
                     "Frequency response failed at {:.0} Hz: expected {:.2} dB, got {:.2} dB",
-                    freq, gain_db, measured_gain);
+                    freq,
+                    gain_db,
+                    measured_gain
+                );
             } else {
                 panic!("Failed to measure frequency response at {:.0} Hz", freq);
             }
@@ -757,10 +878,18 @@ mod tests {
         // Verify all measurements are consistent
         let expected_rms = test_amplitude / 2.0f64.sqrt();
         assert_relative_eq!(rms_f64, expected_rms, epsilon = AUDIO_TOLERANCE as f64);
-        assert_relative_eq!(rms_f32 as f64, expected_rms, epsilon = AUDIO_TOLERANCE as f64);
+        assert_relative_eq!(
+            rms_f32 as f64,
+            expected_rms,
+            epsilon = AUDIO_TOLERANCE as f64
+        );
 
         assert_relative_eq!(peak_f64, test_amplitude, epsilon = AUDIO_TOLERANCE as f64);
-        assert_relative_eq!(peak_f32 as f64, test_amplitude, epsilon = AUDIO_TOLERANCE as f64);
+        assert_relative_eq!(
+            peak_f32 as f64,
+            test_amplitude,
+            epsilon = AUDIO_TOLERANCE as f64
+        );
 
         assert!((detected_freq - test_frequency).abs() < 25.0);
         assert!(detected_magnitude > 0.1);
@@ -773,8 +902,14 @@ mod tests {
         assert!(snr_db > 40.0, "SNR too low: {:.1} dB", snr_db);
 
         println!("Complete analysis pipeline test passed:");
-        println!("  Generated: {:.1} Hz, {:.3} amplitude", test_frequency, test_amplitude);
-        println!("  Detected: {:.1} Hz, {:.6} magnitude", detected_freq, detected_magnitude);
+        println!(
+            "  Generated: {:.1} Hz, {:.3} amplitude",
+            test_frequency, test_amplitude
+        );
+        println!(
+            "  Detected: {:.1} Hz, {:.6} magnitude",
+            detected_freq, detected_magnitude
+        );
         println!("  RMS (f64): {:.6}, Peak (f64): {:.6}", rms_f64, peak_f64);
         println!("  RMS (f32): {:.6}, Peak (f32): {:.6}", rms_f32, peak_f32);
         println!("  SNR: {:.1} dB", snr_db);
@@ -825,8 +960,16 @@ mod statistical_tests {
         assert_relative_eq!(peak_mean, expected_peak, epsilon = 1e-10);
 
         // Verify low standard deviation (high repeatability)
-        assert!(rms_std < 1e-10, "RMS measurement not repeatable: std = {:.2e}", rms_std);
-        assert!(peak_std < 1e-10, "Peak measurement not repeatable: std = {:.2e}", peak_std);
+        assert!(
+            rms_std < 1e-10,
+            "RMS measurement not repeatable: std = {:.2e}",
+            rms_std
+        );
+        assert!(
+            peak_std < 1e-10,
+            "Peak measurement not repeatable: std = {:.2e}",
+            peak_std
+        );
 
         println!("Repeatability test passed:");
         println!("  RMS: mean = {:.10}, std = {:.2e}", rms_mean, rms_std);

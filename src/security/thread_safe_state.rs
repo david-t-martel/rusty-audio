@@ -3,9 +3,9 @@
 //! Provides atomic and lock-based synchronization for audio state
 //! to prevent race conditions and data corruption.
 
-use parking_lot::{RwLock, Mutex};
-use std::sync::Arc;
+use parking_lot::{Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Thread-safe audio state container
@@ -85,14 +85,16 @@ impl ThreadSafeAudioState {
 
     /// Set position directly (used during seeking)
     pub fn set_position(&self, position: Duration) {
-        self.position_us.store(position.as_micros() as u64, Ordering::Release);
+        self.position_us
+            .store(position.as_micros() as u64, Ordering::Release);
     }
 
     // === Duration Methods ===
 
     /// Set total duration
     pub fn set_duration(&self, duration: Duration) {
-        self.duration_us.store(duration.as_micros() as u64, Ordering::Release);
+        self.duration_us
+            .store(duration.as_micros() as u64, Ordering::Release);
     }
 
     /// Get total duration
@@ -121,7 +123,10 @@ impl ThreadSafeAudioState {
         let duration = self.get_duration();
         if position > duration {
             self.set_seeking(false);
-            return Err(format!("Seek position {:?} exceeds duration {:?}", position, duration));
+            return Err(format!(
+                "Seek position {:?} exceeds duration {:?}",
+                position, duration
+            ));
         }
 
         // Update position
@@ -290,8 +295,8 @@ impl AudioStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
     use std::sync::Arc;
+    use std::thread;
 
     #[test]
     fn test_thread_safety() {
@@ -305,7 +310,9 @@ mod tests {
                 for j in 0..100 {
                     let position = (i * 100 + j) as u64;
                     state_clone.update_position(position);
-                    state_clone.set_volume((position as f32 % 100.0) / 100.0).ok();
+                    state_clone
+                        .set_volume((position as f32 % 100.0) / 100.0)
+                        .ok();
                 }
             });
             handles.push(handle);

@@ -1,0 +1,17 @@
+[build]
+dist = "dist"
+public_url = "/"
+filehash = false
+release = true
+
+[build.rust]
+release = true
+# Override LTO for WASM compatibility and build lib only
+rustflags = ["-C", "lto=off"]
+cargo-args = ["--lib"]
+
+[watch]
+ignore = ["dist/**", "target/**"]
+
+[serve]
+open = true

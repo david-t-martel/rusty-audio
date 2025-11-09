@@ -1,10 +1,10 @@
-use egui::{
-    Ui, Vec2, Rect, Color32, Stroke, Pos2, Response, Sense, CursorIcon, Id, Key,
-    emath::remap_clamp, epaint::CircleShape, RichText,
-};
-use super::utils::{AnimationState, ColorUtils, DrawUtils};
+use super::accessibility::{AccessibilityManager, FocusableControlType, TooltipInfo};
 use super::theme::ThemeColors;
-use super::accessibility::{AccessibilityManager, TooltipInfo, FocusableControlType};
+use super::utils::{AnimationState, ColorUtils, DrawUtils};
+use egui::{
+    emath::remap_clamp, epaint::CircleShape, Color32, CursorIcon, Id, Key, Pos2, Rect, Response,
+    RichText, Sense, Stroke, Ui, Vec2,
+};
 use std::f32::consts::PI;
 
 /// Enhanced slider with comprehensive accessibility support
@@ -64,7 +64,12 @@ impl Default for AccessibleSliderStyle {
 }
 
 impl AccessibleSlider {
-    pub fn new(id: Id, value: f32, range: std::ops::RangeInclusive<f32>, label: impl Into<String>) -> Self {
+    pub fn new(
+        id: Id,
+        value: f32,
+        range: std::ops::RangeInclusive<f32>,
+        label: impl Into<String>,
+    ) -> Self {
         Self {
             id,
             value,
@@ -146,7 +151,7 @@ impl AccessibleSlider {
         if response.clicked() || response.dragged() {
             let new_value = self.calculate_value_from_pos(
                 response.interact_pointer_pos().unwrap_or_default(),
-                rect
+                rect,
             );
             if (new_value - self.value).abs() > f32::EPSILON {
                 self.set_value(new_value);
@@ -164,13 +169,16 @@ impl AccessibleSlider {
         let dt = ui.ctx().input(|i| i.stable_dt);
         self.animation.update(dt);
 
-        self.hover_animation.set_target(if response.hovered() { 1.0 } else { 0.0 });
+        self.hover_animation
+            .set_target(if response.hovered() { 1.0 } else { 0.0 });
         self.hover_animation.update(dt);
 
-        self.drag_animation.set_target(if response.dragged() { 1.0 } else { 0.0 });
+        self.drag_animation
+            .set_target(if response.dragged() { 1.0 } else { 0.0 });
         self.drag_animation.update(dt);
 
-        self.focus_animation.set_target(if self.is_focused { 1.0 } else { 0.0 });
+        self.focus_animation
+            .set_target(if self.is_focused { 1.0 } else { 0.0 });
         self.focus_animation.update(dt);
 
         // Draw the slider
@@ -199,7 +207,9 @@ impl AccessibleSlider {
 
     fn handle_keyboard_input(&mut self, ui: &Ui, response: &mut Response) {
         ui.input(|i| {
-            let step = self.step_size.unwrap_or((self.range.end() - self.range.start()) * 0.01);
+            let step = self
+                .step_size
+                .unwrap_or((self.range.end() - self.range.start()) * 0.01);
             let large_step = step * 10.0;
 
             if i.key_pressed(Key::ArrowLeft) || i.key_pressed(Key::ArrowDown) {
@@ -231,12 +241,8 @@ impl AccessibleSlider {
 
     fn calculate_value_from_pos(&self, pos: Pos2, rect: Rect) -> f32 {
         let t = match self.orientation {
-            SliderOrientation::Horizontal => {
-                (pos.x - rect.min.x) / rect.width()
-            }
-            SliderOrientation::Vertical => {
-                1.0 - (pos.y - rect.min.y) / rect.height()
-            }
+            SliderOrientation::Horizontal => (pos.x - rect.min.x) / rect.width(),
+            SliderOrientation::Vertical => 1.0 - (pos.y - rect.min.y) / rect.height(),
         };
 
         remap_clamp(t.clamp(0.0, 1.0), 0.0..=1.0, self.range.clone())
@@ -252,7 +258,8 @@ impl AccessibleSlider {
         // Calculate positions and sizes
         let track_rect = self.calculate_track_rect(rect);
         let handle_pos = self.calculate_handle_position(rect, animated_value);
-        let handle_radius = self.style.handle_radius * (1.0 + drag_factor * 0.1 + focus_factor * 0.05);
+        let handle_radius =
+            self.style.handle_radius * (1.0 + drag_factor * 0.1 + focus_factor * 0.05);
 
         // Draw track background
         let track_bg_color = ColorUtils::lerp_color32(
@@ -286,8 +293,15 @@ impl AccessibleSlider {
 
         // Draw glow effect if enabled
         if self.style.glow && (hover_factor > 0.0 || drag_factor > 0.0 || focus_factor > 0.0) {
-            let glow_intensity = (hover_factor * 0.3 + drag_factor * 0.5 + focus_factor * 0.4).max(0.0);
-            DrawUtils::draw_glow_effect(ui, handle_pos, handle_radius * 1.5, fill_color, glow_intensity);
+            let glow_intensity =
+                (hover_factor * 0.3 + drag_factor * 0.5 + focus_factor * 0.4).max(0.0);
+            DrawUtils::draw_glow_effect(
+                ui,
+                handle_pos,
+                handle_radius * 1.5,
+                fill_color,
+                glow_intensity,
+            );
         }
 
         // Draw handle shadow
@@ -332,24 +346,24 @@ impl AccessibleSlider {
         if self.style.show_value {
             let value_text = format!("{:.2}", self.value);
             let text_pos = match self.orientation {
-                SliderOrientation::Horizontal => {
-                    Pos2::new(rect.center().x, rect.min.y - 20.0)
-                }
-                SliderOrientation::Vertical => {
-                    Pos2::new(rect.max.x + 25.0, rect.center().y)
-                }
+                SliderOrientation::Horizontal => Pos2::new(rect.center().x, rect.min.y - 20.0),
+                SliderOrientation::Vertical => Pos2::new(rect.max.x + 25.0, rect.center().y),
             };
 
             // Draw value background for better readability
-            let text_size = ui.painter().layout_no_wrap(
-                value_text.clone(),
-                egui::FontId::default(),
-                Color32::WHITE,
-            ).size();
+            let text_size = ui
+                .painter()
+                .layout_no_wrap(value_text.clone(), egui::FontId::default(), Color32::WHITE)
+                .size();
 
             let text_rect = Rect::from_center_size(text_pos, text_size + Vec2::splat(8.0));
             painter.rect_filled(text_rect, 4.0, ColorUtils::with_alpha(colors.surface, 0.9));
-            painter.rect_stroke(text_rect, 4.0, Stroke::new(1.0, colors.text_secondary), egui::epaint::StrokeKind::Outside);
+            painter.rect_stroke(
+                text_rect,
+                4.0,
+                Stroke::new(1.0, colors.text_secondary),
+                egui::epaint::StrokeKind::Outside,
+            );
 
             painter.text(
                 text_pos,
@@ -367,14 +381,20 @@ impl AccessibleSlider {
                 let center_y = rect.center().y;
                 Rect::from_center_size(
                     Pos2::new(rect.center().x, center_y),
-                    Vec2::new(rect.width() - self.style.handle_radius * 2.0, self.style.track_width),
+                    Vec2::new(
+                        rect.width() - self.style.handle_radius * 2.0,
+                        self.style.track_width,
+                    ),
                 )
             }
             SliderOrientation::Vertical => {
                 let center_x = rect.center().x;
                 Rect::from_center_size(
                     Pos2::new(center_x, rect.center().y),
-                    Vec2::new(self.style.track_width, rect.height() - self.style.handle_radius * 2.0),
+                    Vec2::new(
+                        self.style.track_width,
+                        rect.height() - self.style.handle_radius * 2.0,
+                    ),
                 )
             }
         }
@@ -385,11 +405,15 @@ impl AccessibleSlider {
 
         match self.orientation {
             SliderOrientation::Horizontal => {
-                let x = rect.min.x + self.style.handle_radius + t * (rect.width() - self.style.handle_radius * 2.0);
+                let x = rect.min.x
+                    + self.style.handle_radius
+                    + t * (rect.width() - self.style.handle_radius * 2.0);
                 Pos2::new(x, rect.center().y)
             }
             SliderOrientation::Vertical => {
-                let y = rect.max.y - self.style.handle_radius - t * (rect.height() - self.style.handle_radius * 2.0);
+                let y = rect.max.y
+                    - self.style.handle_radius
+                    - t * (rect.height() - self.style.handle_radius * 2.0);
                 Pos2::new(rect.center().x, y)
             }
         }
@@ -423,14 +447,18 @@ impl AccessibleSlider {
 
             let (tick_start, tick_end) = match self.orientation {
                 SliderOrientation::Horizontal => {
-                    let x = rect.min.x + self.style.handle_radius + t * (rect.width() - self.style.handle_radius * 2.0);
+                    let x = rect.min.x
+                        + self.style.handle_radius
+                        + t * (rect.width() - self.style.handle_radius * 2.0);
                     (
                         Pos2::new(x, rect.center().y + self.style.track_width * 0.5 + 2.0),
                         Pos2::new(x, rect.center().y + self.style.track_width * 0.5 + 8.0),
                     )
                 }
                 SliderOrientation::Vertical => {
-                    let y = rect.max.y - self.style.handle_radius - t * (rect.height() - self.style.handle_radius * 2.0);
+                    let y = rect.max.y
+                        - self.style.handle_radius
+                        - t * (rect.height() - self.style.handle_radius * 2.0);
                     (
                         Pos2::new(rect.center().x + self.style.track_width * 0.5 + 2.0, y),
                         Pos2::new(rect.center().x + self.style.track_width * 0.5 + 8.0, y),
@@ -438,21 +466,14 @@ impl AccessibleSlider {
                 }
             };
 
-            painter.line_segment(
-                [tick_start, tick_end],
-                (1.0, colors.text_secondary),
-            );
+            painter.line_segment([tick_start, tick_end], (1.0, colors.text_secondary));
 
             // Draw tick value labels for major ticks
             if i % (self.style.tick_count / 4).max(1) == 0 {
                 let label_text = format!("{:.1}", value);
                 let label_pos = match self.orientation {
-                    SliderOrientation::Horizontal => {
-                        Pos2::new(tick_end.x, tick_end.y + 15.0)
-                    }
-                    SliderOrientation::Vertical => {
-                        Pos2::new(tick_end.x + 15.0, tick_end.y)
-                    }
+                    SliderOrientation::Horizontal => Pos2::new(tick_end.x, tick_end.y + 15.0),
+                    SliderOrientation::Vertical => Pos2::new(tick_end.x + 15.0, tick_end.y),
                 };
 
                 painter.text(
@@ -498,7 +519,12 @@ pub struct AccessibleKnob {
 }
 
 impl AccessibleKnob {
-    pub fn new(id: Id, value: f32, range: std::ops::RangeInclusive<f32>, label: impl Into<String>) -> Self {
+    pub fn new(
+        id: Id,
+        value: f32,
+        range: std::ops::RangeInclusive<f32>,
+        label: impl Into<String>,
+    ) -> Self {
         Self {
             id,
             value,
@@ -568,8 +594,10 @@ impl AccessibleKnob {
             if let Some(_pointer_pos) = response.interact_pointer_pos() {
                 if let Some(_last_pos) = ui.ctx().input(|i| i.pointer.hover_pos()) {
                     let drag_delta = ui.ctx().input(|i| i.pointer.delta());
-                    let value_delta = -drag_delta.y * self.sensitivity * (self.range.end() - self.range.start());
-                    let new_value = (self.value + value_delta).clamp(*self.range.start(), *self.range.end());
+                    let value_delta =
+                        -drag_delta.y * self.sensitivity * (self.range.end() - self.range.start());
+                    let new_value =
+                        (self.value + value_delta).clamp(*self.range.start(), *self.range.end());
 
                     if (new_value - self.value).abs() > f32::EPSILON {
                         self.set_value(new_value);
@@ -589,13 +617,16 @@ impl AccessibleKnob {
         let dt = ui.ctx().input(|i| i.stable_dt);
         self.animation.update(dt);
 
-        self.hover_animation.set_target(if response.hovered() { 1.0 } else { 0.0 });
+        self.hover_animation
+            .set_target(if response.hovered() { 1.0 } else { 0.0 });
         self.hover_animation.update(dt);
 
-        self.drag_animation.set_target(if response.dragged() { 1.0 } else { 0.0 });
+        self.drag_animation
+            .set_target(if response.dragged() { 1.0 } else { 0.0 });
         self.drag_animation.update(dt);
 
-        self.focus_animation.set_target(if self.is_focused { 1.0 } else { 0.0 });
+        self.focus_animation
+            .set_target(if self.is_focused { 1.0 } else { 0.0 });
         self.focus_animation.update(dt);
 
         // Draw the knob
@@ -627,7 +658,9 @@ impl AccessibleKnob {
 
     fn handle_keyboard_input(&mut self, ui: &Ui, response: &mut Response) {
         ui.input(|i| {
-            let step = self.step_size.unwrap_or((self.range.end() - self.range.start()) * 0.01);
+            let step = self
+                .step_size
+                .unwrap_or((self.range.end() - self.range.start()) * 0.01);
             let large_step = step * 10.0;
 
             if i.key_pressed(Key::ArrowUp) || i.key_pressed(Key::ArrowRight) {
@@ -667,16 +700,32 @@ impl AccessibleKnob {
         // Calculate angle for current value
         let value_t = remap_clamp(animated_value, self.range.clone(), 0.0..=1.0);
         let start_angle = -PI * 0.75; // Start at 7:30
-        let end_angle = PI * 0.75;    // End at 4:30
+        let end_angle = PI * 0.75; // End at 4:30
         let current_angle = start_angle + value_t * (end_angle - start_angle);
 
         let knob_radius = self.radius * (1.0 + drag_factor * 0.1 + focus_factor * 0.05);
 
         // Draw background arc if enabled
         if self.show_arc {
-            self.draw_arc(ui, center, self.radius * 1.3, start_angle, end_angle, 6.0, colors.surface);
+            self.draw_arc(
+                ui,
+                center,
+                self.radius * 1.3,
+                start_angle,
+                end_angle,
+                6.0,
+                colors.surface,
+            );
             // Draw value arc
-            self.draw_arc(ui, center, self.radius * 1.3, start_angle, current_angle, 6.0, colors.primary);
+            self.draw_arc(
+                ui,
+                center,
+                self.radius * 1.3,
+                start_angle,
+                current_angle,
+                6.0,
+                colors.primary,
+            );
         }
 
         // Draw knob shadow
@@ -701,7 +750,14 @@ impl AccessibleKnob {
         painter.circle_stroke(
             center,
             knob_radius,
-            Stroke::new(3.0, ColorUtils::lerp_color32(colors.text_secondary, colors.primary, hover_factor + focus_factor)),
+            Stroke::new(
+                3.0,
+                ColorUtils::lerp_color32(
+                    colors.text_secondary,
+                    colors.primary,
+                    hover_factor + focus_factor,
+                ),
+            ),
         );
 
         // Draw focus ring
@@ -730,15 +786,19 @@ impl AccessibleKnob {
             let text_pos = center + Vec2::new(0.0, self.radius * 1.8);
 
             // Draw value background for better readability
-            let text_size = ui.painter().layout_no_wrap(
-                value_text.clone(),
-                egui::FontId::default(),
-                Color32::WHITE,
-            ).size();
+            let text_size = ui
+                .painter()
+                .layout_no_wrap(value_text.clone(), egui::FontId::default(), Color32::WHITE)
+                .size();
 
             let text_rect = Rect::from_center_size(text_pos, text_size + Vec2::splat(6.0));
             painter.rect_filled(text_rect, 3.0, ColorUtils::with_alpha(colors.surface, 0.9));
-            painter.rect_stroke(text_rect, 3.0, Stroke::new(1.0, colors.text_secondary), egui::epaint::StrokeKind::Outside);
+            painter.rect_stroke(
+                text_rect,
+                3.0,
+                Stroke::new(1.0, colors.text_secondary),
+                egui::epaint::StrokeKind::Outside,
+            );
 
             painter.text(
                 text_pos,
@@ -760,7 +820,16 @@ impl AccessibleKnob {
         );
     }
 
-    fn draw_arc(&self, ui: &Ui, center: Pos2, radius: f32, start_angle: f32, end_angle: f32, thickness: f32, color: Color32) {
+    fn draw_arc(
+        &self,
+        ui: &Ui,
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        thickness: f32,
+        color: Color32,
+    ) {
         let painter = ui.painter();
         let segments = ((end_angle - start_angle).abs() * 25.0) as usize;
 
@@ -777,10 +846,7 @@ impl AccessibleKnob {
         }
 
         for i in 0..points.len() - 1 {
-            painter.line_segment(
-                [points[i], points[i + 1]],
-                Stroke::new(thickness, color),
-            );
+            painter.line_segment([points[i], points[i + 1]], Stroke::new(thickness, color));
         }
     }
 

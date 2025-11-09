@@ -4,7 +4,7 @@
 // Provides flexible panel management with drag-and-drop docking, workspace presets,
 // and persistent layout configuration.
 
-use egui::{Ui, Context};
+use egui::{Context, Ui};
 use egui_dock::{DockArea, DockState, NodeIndex, Style, TabViewer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -102,31 +102,31 @@ impl WorkspacePreset {
 pub trait PanelContent {
     /// Render the file browser panel
     fn show_file_browser(&mut self, ui: &mut Ui);
-    
+
     /// Render the waveform display panel
     fn show_waveform(&mut self, ui: &mut Ui);
-    
+
     /// Render the spectrum analyzer panel
     fn show_spectrum(&mut self, ui: &mut Ui);
-    
+
     /// Render the signal generator panel
     fn show_generator(&mut self, ui: &mut Ui);
-    
+
     /// Render the effects rack panel
     fn show_effects(&mut self, ui: &mut Ui);
-    
+
     /// Render the equalizer panel
     fn show_equalizer(&mut self, ui: &mut Ui);
-    
+
     /// Render the inspector/properties panel
     fn show_inspector(&mut self, ui: &mut Ui);
-    
+
     /// Render the mixer panel
     fn show_mixer(&mut self, ui: &mut Ui);
-    
+
     /// Render the transport controls panel
     fn show_transport(&mut self, ui: &mut Ui);
-    
+
     /// Render the settings panel
     fn show_settings(&mut self, ui: &mut Ui);
 }
@@ -135,13 +135,13 @@ pub trait PanelContent {
 pub struct DockLayoutManager {
     /// Current dock state
     dock_state: DockState<PanelId>,
-    
+
     /// Saved workspaces
     saved_workspaces: HashMap<String, DockState<PanelId>>,
-    
+
     /// Currently active workspace
     active_workspace: WorkspacePreset,
-    
+
     /// Dock area style
     style: Style,
 }
@@ -161,11 +161,11 @@ impl DockLayoutManager {
             active_workspace: WorkspacePreset::Default,
             style: Style::default(),
         };
-        
+
         manager.apply_preset(WorkspacePreset::Default);
         manager
     }
-    
+
     /// Apply a workspace preset
     pub fn apply_preset(&mut self, preset: WorkspacePreset) {
         self.dock_state = match preset {
@@ -182,170 +182,172 @@ impl DockLayoutManager {
                 }
             }
         };
-        
+
         self.active_workspace = preset;
     }
-    
+
     /// Create the default balanced layout
     fn create_default_layout(&self) -> DockState<PanelId> {
         let mut state = DockState::new(vec![PanelId::Waveform]);
-        
+
         // Left sidebar: File browser
-        let [_center, left] = state.main_surface_mut().split_left(
-            NodeIndex::root(),
-            0.2,
-            vec![PanelId::FileBrowser],
-        );
-        
+        let [_center, left] =
+            state
+                .main_surface_mut()
+                .split_left(NodeIndex::root(), 0.2, vec![PanelId::FileBrowser]);
+
         // Right sidebar: Inspector
-        let [center, _right] = state.main_surface_mut().split_right(
-            NodeIndex::root(),
-            0.2,
-            vec![PanelId::Inspector],
-        );
-        
+        let [center, _right] =
+            state
+                .main_surface_mut()
+                .split_right(NodeIndex::root(), 0.2, vec![PanelId::Inspector]);
+
         // Center area: Waveform and Spectrum tabs
-        state.main_surface_mut().push_to_focused_leaf(PanelId::Spectrum);
-        
+        state
+            .main_surface_mut()
+            .push_to_focused_leaf(PanelId::Spectrum);
+
         // Bottom area: Transport and Mixer
-        let [_main, _bottom] = state.main_surface_mut().split_below(
-            center,
-            0.15,
-            vec![PanelId::Transport],
-        );
-        
+        let [_main, _bottom] =
+            state
+                .main_surface_mut()
+                .split_below(center, 0.15, vec![PanelId::Transport]);
+
         state
     }
-    
+
     /// Create analyzer-focused layout
     fn create_analyzer_layout(&self) -> DockState<PanelId> {
         let mut state = DockState::new(vec![PanelId::Spectrum]);
-        
+
         // Large spectrum display with waveform tab
-        state.main_surface_mut().push_to_focused_leaf(PanelId::Waveform);
-        
+        state
+            .main_surface_mut()
+            .push_to_focused_leaf(PanelId::Waveform);
+
         // Right panel: Generator and Inspector
         let [_center, _right] = state.main_surface_mut().split_right(
             NodeIndex::root(),
             0.25,
             vec![PanelId::Generator, PanelId::Inspector],
         );
-        
+
         // Bottom: Transport
-        let [_main, _bottom] = state.main_surface_mut().split_below(
-            NodeIndex::root(),
-            0.12,
-            vec![PanelId::Transport],
-        );
-        
+        let [_main, _bottom] =
+            state
+                .main_surface_mut()
+                .split_below(NodeIndex::root(), 0.12, vec![PanelId::Transport]);
+
         state
     }
-    
+
     /// Create generator-focused layout
     fn create_generator_layout(&self) -> DockState<PanelId> {
         let mut state = DockState::new(vec![PanelId::Generator]);
-        
+
         // Center: Generator and Waveform
-        state.main_surface_mut().push_to_focused_leaf(PanelId::Waveform);
-        
+        state
+            .main_surface_mut()
+            .push_to_focused_leaf(PanelId::Waveform);
+
         // Right: Spectrum analyzer
-        let [_center, _right] = state.main_surface_mut().split_right(
-            NodeIndex::root(),
-            0.35,
-            vec![PanelId::Spectrum],
-        );
-        
+        let [_center, _right] =
+            state
+                .main_surface_mut()
+                .split_right(NodeIndex::root(), 0.35, vec![PanelId::Spectrum]);
+
         // Bottom: Transport
-        let [_main, _bottom] = state.main_surface_mut().split_below(
-            NodeIndex::root(),
-            0.12,
-            vec![PanelId::Transport],
-        );
-        
+        let [_main, _bottom] =
+            state
+                .main_surface_mut()
+                .split_below(NodeIndex::root(), 0.12, vec![PanelId::Transport]);
+
         state
     }
-    
+
     /// Create mixing-focused layout
     fn create_mixing_layout(&self) -> DockState<PanelId> {
         let mut state = DockState::new(vec![PanelId::Equalizer]);
-        
+
         // Center: EQ and Effects
-        state.main_surface_mut().push_to_focused_leaf(PanelId::Effects);
-        state.main_surface_mut().push_to_focused_leaf(PanelId::Waveform);
-        
+        state
+            .main_surface_mut()
+            .push_to_focused_leaf(PanelId::Effects);
+        state
+            .main_surface_mut()
+            .push_to_focused_leaf(PanelId::Waveform);
+
         // Right: Mixer and Inspector
         let [_center, _right] = state.main_surface_mut().split_right(
             NodeIndex::root(),
             0.25,
             vec![PanelId::Mixer, PanelId::Inspector],
         );
-        
+
         // Left: Files
-        let [_center, _left] = state.main_surface_mut().split_left(
-            NodeIndex::root(),
-            0.2,
-            vec![PanelId::FileBrowser],
-        );
-        
+        let [_center, _left] =
+            state
+                .main_surface_mut()
+                .split_left(NodeIndex::root(), 0.2, vec![PanelId::FileBrowser]);
+
         // Bottom: Transport
-        let [_main, _bottom] = state.main_surface_mut().split_below(
-            NodeIndex::root(),
-            0.12,
-            vec![PanelId::Transport],
-        );
-        
+        let [_main, _bottom] =
+            state
+                .main_surface_mut()
+                .split_below(NodeIndex::root(), 0.12, vec![PanelId::Transport]);
+
         state
     }
-    
+
     /// Create minimal playback layout
     fn create_playback_layout(&self) -> DockState<PanelId> {
         let mut state = DockState::new(vec![PanelId::Waveform]);
-        
+
         // Simple: Waveform and transport
-        let [_main, _bottom] = state.main_surface_mut().split_below(
-            NodeIndex::root(),
-            0.15,
-            vec![PanelId::Transport],
-        );
-        
+        let [_main, _bottom] =
+            state
+                .main_surface_mut()
+                .split_below(NodeIndex::root(), 0.15, vec![PanelId::Transport]);
+
         state
     }
-    
+
     /// Save the current layout as a custom workspace
     pub fn save_workspace(&mut self, name: String) {
-        self.saved_workspaces.insert(name.clone(), self.dock_state.clone());
+        self.saved_workspaces
+            .insert(name.clone(), self.dock_state.clone());
         self.active_workspace = WorkspacePreset::Custom(name);
     }
-    
+
     /// Get a list of saved workspace names
     pub fn list_workspaces(&self) -> Vec<String> {
         self.saved_workspaces.keys().cloned().collect()
     }
-    
+
     /// Delete a saved workspace
     pub fn delete_workspace(&mut self, name: &str) -> bool {
         self.saved_workspaces.remove(name).is_some()
     }
-    
+
     /// Get the active workspace name
     pub fn active_workspace(&self) -> &WorkspacePreset {
         &self.active_workspace
     }
-    
+
     /// Switch to a different workspace preset (alias for apply_preset)
     pub fn switch_workspace(&mut self, preset: WorkspacePreset) {
         self.apply_preset(preset);
     }
-    
+
     /// Show the dock area with all panels
     pub fn show<T: PanelContent>(&mut self, ctx: &Context, app_state: &mut T) {
         let mut tab_viewer = AppTabViewer { app_state };
-        
+
         DockArea::new(&mut self.dock_state)
             .style(self.style.clone())
             .show(ctx, &mut tab_viewer);
     }
-    
+
     /// Update the style based on current egui visuals
     #[allow(unused_variables)]
     pub fn update_style(&mut self, visuals: &egui::Visuals) {
@@ -362,11 +364,11 @@ struct AppTabViewer<'a, T: PanelContent> {
 
 impl<'a, T: PanelContent> TabViewer for AppTabViewer<'a, T> {
     type Tab = PanelId;
-    
+
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
         tab.title().into()
     }
-    
+
     fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
         match tab {
             PanelId::FileBrowser => self.app_state.show_file_browser(ui),
@@ -386,7 +388,7 @@ impl<'a, T: PanelContent> TabViewer for AppTabViewer<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_panel_id_uniqueness() {
         let panels = vec![
@@ -401,13 +403,13 @@ mod tests {
             PanelId::Transport,
             PanelId::Settings,
         ];
-        
+
         let ids: Vec<&str> = panels.iter().map(|p| p.id()).collect();
         let unique_ids: std::collections::HashSet<&str> = ids.iter().copied().collect();
-        
+
         assert_eq!(ids.len(), unique_ids.len(), "Panel IDs must be unique");
     }
-    
+
     #[test]
     fn test_workspace_presets() {
         let manager = DockLayoutManager::new();

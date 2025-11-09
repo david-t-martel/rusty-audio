@@ -4,17 +4,17 @@
 // testing capabilities for the car stereo-style interface.
 
 use crate::ui::{
-    theme::{Theme, ThemeManager, ThemeColors},
-    components::{AlbumArtDisplay, ProgressBar, MetadataDisplay, MetadataLayout},
-    controls::{EnhancedSlider, CircularKnob, EnhancedButton, ButtonStyle},
-    enhanced_controls::{AccessibleSlider, AccessibleKnob},
     accessibility::AccessibilityManager,
-    utils::{ScreenSize, ResponsiveSize},
+    components::{AlbumArtDisplay, MetadataDisplay, MetadataLayout, ProgressBar},
+    controls::{ButtonStyle, CircularKnob, EnhancedButton, EnhancedSlider},
+    enhanced_controls::{AccessibleKnob, AccessibleSlider},
+    theme::{Theme, ThemeColors, ThemeManager},
+    utils::{ResponsiveSize, ScreenSize},
 };
-use egui::{Vec2, Rect, Pos2, Color32, Context, ColorImage};
+use egui::{Color32, ColorImage, Context, Pos2, Rect, Vec2};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 /// Visual test result comparing screenshots
@@ -131,24 +131,35 @@ impl VisualTestSuite {
         println!("Passed: {}", self.passed_count());
         println!("Failed: {}", self.failed_count());
         println!("Success rate: {:.1}%", self.success_rate() * 100.0);
-        println!("Total execution time: {:.2}s", self.total_duration.as_secs_f32());
+        println!(
+            "Total execution time: {:.2}s",
+            self.total_duration.as_secs_f32()
+        );
 
         // Group by component
         let mut by_component: HashMap<String, Vec<&VisualTestResult>> = HashMap::new();
         for result in &self.results {
-            by_component.entry(result.component_name.clone()).or_default().push(result);
+            by_component
+                .entry(result.component_name.clone())
+                .or_default()
+                .push(result);
         }
 
         for (component, tests) in by_component {
             let passed = tests.iter().filter(|t| t.passed).count();
             let total = tests.len();
-            println!("\n📸 Component: {} ({}/{} passed)", component, passed, total);
+            println!(
+                "\n📸 Component: {} ({}/{} passed)",
+                component, passed, total
+            );
 
             for test in tests {
                 let status = if test.passed { "✅" } else { "❌" };
                 let time = format!("{:.1}ms", test.execution_time.as_secs_f32() * 1000.0);
-                println!("   {} {} - {:.2}% diff (threshold: {:.2}%) ({})",
-                    status, test.test_name, test.difference_percentage, test.threshold, time);
+                println!(
+                    "   {} {} - {:.2}% diff (threshold: {:.2}%) ({})",
+                    status, test.test_name, test.difference_percentage, test.threshold, time
+                );
 
                 if !test.passed {
                     println!("      Baseline: {}", test.baseline_path.display());
@@ -162,7 +173,11 @@ impl VisualTestSuite {
 
         // Visual quality summary
         let avg_diff = if !self.results.is_empty() {
-            self.results.iter().map(|r| r.difference_percentage).sum::<f32>() / self.results.len() as f32
+            self.results
+                .iter()
+                .map(|r| r.difference_percentage)
+                .sum::<f32>()
+                / self.results.len() as f32
         } else {
             0.0
         };
@@ -170,15 +185,19 @@ impl VisualTestSuite {
         println!("\n📊 Visual Quality Summary:");
         println!("   Average difference: {:.2}%", avg_diff);
 
-        let high_diff_tests: Vec<_> = self.results.iter()
+        let high_diff_tests: Vec<_> = self
+            .results
+            .iter()
             .filter(|r| r.difference_percentage > 5.0)
             .collect();
 
         if !high_diff_tests.is_empty() {
             println!("   High difference tests (>5%): {}", high_diff_tests.len());
             for test in high_diff_tests {
-                println!("     - {}.{}: {:.1}%",
-                    test.component_name, test.test_name, test.difference_percentage);
+                println!(
+                    "     - {}.{}: {:.1}%",
+                    test.component_name, test.test_name, test.difference_percentage
+                );
             }
         }
     }
@@ -243,9 +262,13 @@ impl MockScreenshotGenerator {
             }
         }
 
-        ColorImage::from_rgba_unmultiplied([width, height], &pixels.iter()
-            .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
-            .collect::<Vec<u8>>())
+        ColorImage::from_rgba_unmultiplied(
+            [width, height],
+            &pixels
+                .iter()
+                .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
+                .collect::<Vec<u8>>(),
+        )
     }
 
     /// Save screenshot to file
@@ -256,7 +279,9 @@ impl MockScreenshotGenerator {
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Convert ColorImage to image format
         let [width, height] = image.size;
-        let pixels: Vec<u8> = image.pixels.iter()
+        let pixels: Vec<u8> = image
+            .pixels
+            .iter()
             .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
             .collect();
 
@@ -268,7 +293,10 @@ impl MockScreenshotGenerator {
     }
 
     /// Load screenshot from file
-    pub fn load_screenshot(&self, file_path: &Path) -> Result<ColorImage, Box<dyn std::error::Error>> {
+    pub fn load_screenshot(
+        &self,
+        file_path: &Path,
+    ) -> Result<ColorImage, Box<dyn std::error::Error>> {
         if !file_path.exists() {
             return Err(format!("Screenshot file does not exist: {}", file_path.display()).into());
         }
@@ -277,11 +305,15 @@ impl MockScreenshotGenerator {
         let rgba = img.to_rgba8();
         let (width, height) = rgba.dimensions();
 
-        let pixels: Vec<Color32> = rgba.pixels()
+        let pixels: Vec<Color32> = rgba
+            .pixels()
             .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
             .collect();
 
-        Ok(ColorImage::from_rgba_unmultiplied([width as usize, height as usize], &rgba.into_raw()))
+        Ok(ColorImage::from_rgba_unmultiplied(
+            [width as usize, height as usize],
+            &rgba.into_raw(),
+        ))
     }
 }
 
@@ -300,7 +332,9 @@ impl ImageComparator {
             return 0.0;
         }
 
-        let different_pixels = baseline.pixels.iter()
+        let different_pixels = baseline
+            .pixels
+            .iter()
             .zip(current.pixels.iter())
             .filter(|(baseline_pixel, current_pixel)| {
                 Self::pixel_difference(baseline_pixel, current_pixel) > 10 // Threshold for pixel difference
@@ -326,13 +360,19 @@ impl ImageComparator {
             // Return a red image to indicate size mismatch
             let [width, height] = baseline.size;
             let red_pixels = vec![Color32::RED; width * height];
-            return ColorImage::from_rgba_unmultiplied([width, height], &red_pixels.iter()
-                .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
-                .collect::<Vec<u8>>());
+            return ColorImage::from_rgba_unmultiplied(
+                [width, height],
+                &red_pixels
+                    .iter()
+                    .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
+                    .collect::<Vec<u8>>(),
+            );
         }
 
         let [width, height] = baseline.size;
-        let diff_pixels: Vec<Color32> = baseline.pixels.iter()
+        let diff_pixels: Vec<Color32> = baseline
+            .pixels
+            .iter()
             .zip(current.pixels.iter())
             .map(|(baseline_pixel, current_pixel)| {
                 let diff = Self::pixel_difference(baseline_pixel, current_pixel);
@@ -344,9 +384,13 @@ impl ImageComparator {
             })
             .collect();
 
-        ColorImage::from_rgba_unmultiplied([width, height], &diff_pixels.iter()
-            .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
-            .collect::<Vec<u8>>())
+        ColorImage::from_rgba_unmultiplied(
+            [width, height],
+            &diff_pixels
+                .iter()
+                .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
+                .collect::<Vec<u8>>(),
+        )
     }
 }
 
@@ -384,19 +428,28 @@ impl VisualRegressionTester {
         let start_time = Instant::now();
 
         // Generate current screenshot
-        let current_image = self.screenshot_generator.generate_component_screenshot(
-            component_name,
-            test_scenario,
-        );
+        let current_image = self
+            .screenshot_generator
+            .generate_component_screenshot(component_name, test_scenario);
 
         // Define file paths
         let test_name = format!("{}_{}", component_name, test_scenario);
-        let baseline_path = self.suite.baseline_directory.join(format!("{}.png", test_name));
-        let current_path = self.suite.current_directory.join(format!("{}.png", test_name));
-        let diff_path = self.suite.diff_directory.join(format!("{}_diff.png", test_name));
+        let baseline_path = self
+            .suite
+            .baseline_directory
+            .join(format!("{}.png", test_name));
+        let current_path = self
+            .suite
+            .current_directory
+            .join(format!("{}.png", test_name));
+        let diff_path = self
+            .suite
+            .diff_directory
+            .join(format!("{}_diff.png", test_name));
 
         // Save current screenshot
-        self.screenshot_generator.save_screenshot(&current_image, &current_path)?;
+        self.screenshot_generator
+            .save_screenshot(&current_image, &current_path)?;
 
         // Load or create baseline
         let difference_percentage = if baseline_path.exists() {
@@ -405,14 +458,17 @@ impl VisualRegressionTester {
 
             // Create diff image if there are differences
             if diff_percent > self.difference_threshold {
-                let diff_image = ImageComparator::create_diff_image(&baseline_image, &current_image);
-                self.screenshot_generator.save_screenshot(&diff_image, &diff_path)?;
+                let diff_image =
+                    ImageComparator::create_diff_image(&baseline_image, &current_image);
+                self.screenshot_generator
+                    .save_screenshot(&diff_image, &diff_path)?;
             }
 
             diff_percent
         } else {
             // First run - create baseline
-            self.screenshot_generator.save_screenshot(&current_image, &baseline_path)?;
+            self.screenshot_generator
+                .save_screenshot(&current_image, &baseline_path)?;
             0.0 // No difference for first run
         };
 
@@ -527,14 +583,16 @@ impl VisualRegressionTester {
 }
 
 /// Main visual regression test runner
-pub fn run_visual_regression_tests(test_data_dir: &Path) -> Result<VisualTestSuite, Box<dyn std::error::Error>> {
+pub fn run_visual_regression_tests(
+    test_data_dir: &Path,
+) -> Result<VisualTestSuite, Box<dyn std::error::Error>> {
     println!("🎨 RUSTY AUDIO - VISUAL REGRESSION TESTING FRAMEWORK");
     println!("====================================================");
 
     let mut tester = VisualRegressionTester::new(
         test_data_dir,
         Vec2::new(1200.0, 800.0), // Default car stereo landscape size
-        1.25,                      // HiDPI scaling
+        1.25,                     // HiDPI scaling
         Theme::Mocha,             // Default theme
         2.0,                      // 2% difference threshold
     )?;
@@ -551,7 +609,9 @@ pub fn run_visual_regression_tests(test_data_dir: &Path) -> Result<VisualTestSui
 }
 
 /// Quick visual regression test for CI/CD
-pub fn run_quick_visual_tests(test_data_dir: &Path) -> Result<VisualTestSuite, Box<dyn std::error::Error>> {
+pub fn run_quick_visual_tests(
+    test_data_dir: &Path,
+) -> Result<VisualTestSuite, Box<dyn std::error::Error>> {
     println!("🚀 RUSTY AUDIO - QUICK VISUAL TESTS");
     println!("===================================");
 
@@ -583,9 +643,13 @@ mod tests {
     fn test_image_comparator() {
         // Create two identical images
         let pixels = vec![Color32::WHITE; 100];
-        let image1 = ColorImage::from_rgba_unmultiplied([10, 10], &pixels.iter()
-            .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
-            .collect::<Vec<u8>>());
+        let image1 = ColorImage::from_rgba_unmultiplied(
+            [10, 10],
+            &pixels
+                .iter()
+                .flat_map(|c| [c.r(), c.g(), c.b(), c.a()])
+                .collect::<Vec<u8>>(),
+        );
         let image2 = image1.clone();
 
         let diff = ImageComparator::compare_images(&image1, &image2);

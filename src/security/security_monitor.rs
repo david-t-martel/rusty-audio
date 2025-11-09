@@ -3,12 +3,12 @@
 //! Tracks security events, violations, and provides alerting capabilities
 //! for security-critical incidents.
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
-use std::time::{Instant, Duration};
 use parking_lot::RwLock;
 use std::collections::VecDeque;
-use tracing::{error, warn, info, debug};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tracing::{debug, error, info, warn};
 
 /// Security monitor for tracking and alerting on security events
 pub struct SecurityMonitor {
@@ -239,17 +239,14 @@ impl SecurityMonitor {
     /// Get recent events
     pub fn get_recent_events(&self, count: usize) -> Vec<SecurityEvent> {
         let events = self.events.read();
-        events.iter()
-            .rev()
-            .take(count)
-            .cloned()
-            .collect()
+        events.iter().rev().take(count).cloned().collect()
     }
 
     /// Get events by severity
     pub fn get_events_by_severity(&self, min_severity: Severity) -> Vec<SecurityEvent> {
         let events = self.events.read();
-        events.iter()
+        events
+            .iter()
             .filter(|e| e.severity >= min_severity)
             .cloned()
             .collect()

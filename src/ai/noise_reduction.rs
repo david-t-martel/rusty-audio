@@ -3,10 +3,10 @@
 //! Implements intelligent noise reduction using spectral subtraction,
 //! Wiener filtering, and ML-based noise profile detection.
 
-use anyhow::{Result, Context};
-use rustfft::{FftPlanner, num_complex::Complex};
-use std::collections::VecDeque;
 use crate::ai::feature_extractor::AudioFeatures;
+use anyhow::{Context, Result};
+use rustfft::{num_complex::Complex, FftPlanner};
+use std::collections::VecDeque;
 
 /// Noise reduction processor using AI techniques
 pub struct NoiseReducer {
@@ -127,7 +127,9 @@ impl NoiseReducer {
 
             // Copy and window the frame
             for j in 0..end - i {
-                let window = 0.5 * (1.0 - (2.0 * std::f32::consts::PI * j as f32 / self.window_size as f32).cos());
+                let window = 0.5
+                    * (1.0
+                        - (2.0 * std::f32::consts::PI * j as f32 / self.window_size as f32).cos());
                 frame[j] = Complex::new(buffer[i + j] * window, 0.0);
             }
 
@@ -144,7 +146,9 @@ impl NoiseReducer {
                 // Subtract noise spectrum with oversubtraction factor
                 let noise_level = self.noise_profile.get_noise_level(j);
                 let alpha = self.calculate_oversubtraction_factor(magnitude, noise_level);
-                let clean_magnitude = (magnitude.powi(2) - alpha * noise_level.powi(2)).max(0.0).sqrt();
+                let clean_magnitude = (magnitude.powi(2) - alpha * noise_level.powi(2))
+                    .max(0.0)
+                    .sqrt();
 
                 // Apply spectral floor to prevent musical noise
                 let final_magnitude = clean_magnitude.max(self.spectral_floor * magnitude);
@@ -307,7 +311,11 @@ impl NoiseReducer {
     }
 
     /// Reconstruct audio from spectrum
-    fn reconstruct_from_spectrum(&mut self, spectrum: &[f32], target_length: usize) -> Result<Vec<f32>> {
+    fn reconstruct_from_spectrum(
+        &mut self,
+        spectrum: &[f32],
+        target_length: usize,
+    ) -> Result<Vec<f32>> {
         let mut frame = vec![Complex::new(0.0, 0.0); self.window_size];
 
         // Assume zero phase for simplicity (can be improved with phase vocoder)
@@ -482,10 +490,8 @@ impl AdaptiveThreshold {
 
         // Calculate adaptive threshold based on statistics
         let mean = self.history.iter().sum::<f32>() / self.history.len() as f32;
-        let variance = self.history
-            .iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f32>() / self.history.len() as f32;
+        let variance = self.history.iter().map(|x| (x - mean).powi(2)).sum::<f32>()
+            / self.history.len() as f32;
 
         // Threshold is mean minus one standard deviation
         Ok((mean - variance.sqrt()).max(0.001))

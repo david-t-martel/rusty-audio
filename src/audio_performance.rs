@@ -52,9 +52,9 @@
 //! let spectrum = processor.process_realtime(&audio_samples);
 //! ```
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use parking_lot::RwLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -356,7 +356,8 @@ impl LockFreeRingBuffer {
             }
         }
 
-        self.write_pos.store((current_write + to_write) & self.mask, Ordering::Release);
+        self.write_pos
+            .store((current_write + to_write) & self.mask, Ordering::Release);
         to_write
     }
 
@@ -401,7 +402,8 @@ impl LockFreeRingBuffer {
             }
         }
 
-        self.read_pos.store((current_read + to_read) & self.mask, Ordering::Release);
+        self.read_pos
+            .store((current_read + to_read) & self.mask, Ordering::Release);
         to_read
     }
 
@@ -417,6 +419,12 @@ impl LockFreeRingBuffer {
     #[inline(always)]
     pub fn available_space(&self) -> usize {
         self.size - self.available()
+    }
+
+    /// Get total buffer capacity
+    #[inline(always)]
+    pub fn capacity(&self) -> usize {
+        self.size
     }
 
     #[inline(always)]
@@ -435,8 +443,8 @@ pub struct AlignedAudioBuffer {
 impl AlignedAudioBuffer {
     /// Create a new aligned audio buffer
     pub fn new(size: usize, alignment: usize) -> Self {
-        let layout = std::alloc::Layout::from_size_align(size * 4, alignment)
-            .expect("Invalid alignment");
+        let layout =
+            std::alloc::Layout::from_size_align(size * 4, alignment).expect("Invalid alignment");
 
         unsafe {
             let ptr = std::alloc::alloc(layout) as *mut f32;
@@ -448,7 +456,10 @@ impl AlignedAudioBuffer {
             ptr.write_bytes(0, size);
 
             let data = Vec::from_raw_parts(ptr, size, size);
-            Self { data, capacity: size }
+            Self {
+                data,
+                capacity: size,
+            }
         }
     }
 
@@ -480,11 +491,15 @@ pub struct OptimizedBufferPool {
 impl OptimizedBufferPool {
     /// Create a new buffer pool with specified capacity and buffer size
     pub fn new(pool_size: usize, buffer_size: usize) -> Self {
-        let alignment = if cfg!(target_arch = "x86_64") && is_x86_feature_detected!("avx2") {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        let alignment = if is_x86_feature_detected!("avx2") {
             32
         } else {
             16
         };
+
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        let alignment = 16;
 
         let mut pool = Vec::with_capacity(pool_size);
         for _ in 0..pool_size {
@@ -606,7 +621,7 @@ impl OptimizedEqProcessor {
     fn process_biquad_block(
         samples: &mut [f32],
         coeff: &BiquadCoefficients,
-        state: &mut BiquadState
+        state: &mut BiquadState,
     ) {
         #[cfg(target_arch = "x86_64")]
         {
@@ -629,7 +644,7 @@ impl OptimizedEqProcessor {
     fn process_biquad_scalar(
         samples: &mut [f32],
         coeff: &BiquadCoefficients,
-        state: &mut BiquadState
+        state: &mut BiquadState,
     ) {
         let mut x1 = state.x1;
         let mut x2 = state.x2;
@@ -677,11 +692,10 @@ impl OptimizedEqProcessor {
     /// - All pointer arithmetic is bounds-checked
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
-    #[inline(always)]
     unsafe fn process_biquad_avx2(
         samples: &mut [f32],
         coeff: &BiquadCoefficients,
-        state: &mut BiquadState
+        state: &mut BiquadState,
     ) {
         let len = samples.len();
         let simd_len = len - (len % 8);
@@ -753,11 +767,10 @@ impl OptimizedEqProcessor {
     /// Fallback for systems without AVX2 support.
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse")]
-    #[inline(always)]
     unsafe fn process_biquad_sse(
         samples: &mut [f32],
         coeff: &BiquadCoefficients,
-        state: &mut BiquadState
+        state: &mut BiquadState,
     ) {
         let len = samples.len();
         let simd_len = len - (len % 4);
@@ -871,7 +884,8 @@ impl OptimizedSpectrumProcessor {
 
         // Hann window for better frequency resolution
         for i in 0..fft_size {
-            window[i] = 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (fft_size - 1) as f32).cos());
+            window[i] =
+                0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (fft_size - 1) as f32).cos());
         }
 
         Self {
@@ -882,7 +896,8 @@ impl OptimizedSpectrumProcessor {
         }
     }
 
-    /// Process frequency data with smoothing and reduced allocations
+    /// Process frequency data with smoothing and reduced allocations (native only)
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn process_spectrum(&mut self, analyser: &mut web_audio_api::node::AnalyserNode) -> &[f32] {
         // Get byte frequency data
         let mut byte_data = vec![0u8; self.frequency_buffer.len()];
@@ -900,7 +915,11 @@ impl OptimizedSpectrumProcessor {
         // Fallback scalar implementation
         for (i, &byte_val) in byte_data.iter().enumerate() {
             let db = (byte_val as f32 / 255.0) * 100.0 - 100.0;
-            let linear = if db > -100.0 { fast_pow10(db * 0.05) } else { 0.0 };
+            let linear = if db > -100.0 {
+                fast_pow10(db * 0.05)
+            } else {
+                0.0
+            };
 
             self.spectrum_buffer[i] = self.spectrum_buffer[i] * self.smoothing_factor
                 + linear * (1.0 - self.smoothing_factor);
@@ -909,6 +928,7 @@ impl OptimizedSpectrumProcessor {
         &self.spectrum_buffer
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
     unsafe fn process_spectrum_avx2(&mut self, byte_data: &[u8]) {
@@ -930,14 +950,19 @@ impl OptimizedSpectrumProcessor {
             let db = _mm256_add_ps(_mm256_mul_ps(floats, scale_vec), offset_vec);
 
             // Convert to linear (simplified)
-            let linear = _mm256_max_ps(_mm256_setzero_ps(),
-                _mm256_add_ps(_mm256_set1_ps(1.0), _mm256_mul_ps(db, _mm256_set1_ps(0.023026))));
+            let linear = _mm256_max_ps(
+                _mm256_setzero_ps(),
+                _mm256_add_ps(
+                    _mm256_set1_ps(1.0),
+                    _mm256_mul_ps(db, _mm256_set1_ps(0.023026)),
+                ),
+            );
 
             // Apply smoothing
             let old_spectrum = _mm256_loadu_ps(&self.spectrum_buffer[i]);
             let smoothed = _mm256_add_ps(
                 _mm256_mul_ps(old_spectrum, smoothing_vec),
-                _mm256_mul_ps(linear, one_minus_smoothing)
+                _mm256_mul_ps(linear, one_minus_smoothing),
             );
 
             _mm256_storeu_ps(&mut self.spectrum_buffer[i], smoothed);
@@ -946,7 +971,11 @@ impl OptimizedSpectrumProcessor {
         // Handle remaining elements
         for i in simd_len..len {
             let db = (byte_data[i] as f32 / 255.0) * 100.0 - 100.0;
-            let linear = if db > -100.0 { fast_pow10(db * 0.05) } else { 0.0 };
+            let linear = if db > -100.0 {
+                fast_pow10(db * 0.05)
+            } else {
+                0.0
+            };
 
             self.spectrum_buffer[i] = self.spectrum_buffer[i] * self.smoothing_factor
                 + linear * (1.0 - self.smoothing_factor);
@@ -970,27 +999,33 @@ pub struct AudioOptimizer {
 impl AudioOptimizer {
     pub fn new() -> Self {
         Self {
+            #[cfg(target_arch = "x86_64")]
             has_avx2: is_x86_feature_detected!("avx2"),
+            #[cfg(not(target_arch = "x86_64"))]
+            has_avx2: false,
+            #[cfg(target_arch = "x86_64")]
             has_sse42: is_x86_feature_detected!("sse4.2"),
+            #[cfg(not(target_arch = "x86_64"))]
+            has_sse42: false,
             num_cores: num_cpus::get(),
         }
     }
 
     pub fn optimal_buffer_size(&self) -> usize {
         if self.has_avx2 {
-            256  // Larger buffers for AVX2
+            256 // Larger buffers for AVX2
         } else if self.has_sse42 {
-            128  // Standard render quantum
+            128 // Standard render quantum
         } else {
-            64   // Smaller buffers for older CPUs
+            64 // Smaller buffers for older CPUs
         }
     }
 
     pub fn optimal_fft_size(&self) -> usize {
         if self.has_avx2 && self.num_cores >= 4 {
-            2048  // Larger FFT for better frequency resolution
+            2048 // Larger FFT for better frequency resolution
         } else {
-            1024  // Standard FFT size
+            1024 // Standard FFT size
         }
     }
 }

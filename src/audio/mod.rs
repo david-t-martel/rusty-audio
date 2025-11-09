@@ -9,10 +9,10 @@
 
 pub mod backend;
 pub mod device;
-pub mod manager;
 pub mod hybrid;
-pub mod web_bridge;
+pub mod manager;
 pub mod recorder;
+pub mod web_bridge;
 
 // Re-export commonly used types
 pub use backend::{
@@ -20,10 +20,9 @@ pub use backend::{
     SampleFormat, StreamDirection, StreamStatus,
 };
 pub use device::CpalBackend;
+pub use hybrid::{BackendHealth, FallbackPolicy, HybridAudioBackend, HybridMode, HybridRingBuffer};
 pub use manager::AudioDeviceManager;
-pub use hybrid::{HybridAudioBackend, HybridMode, HybridRingBuffer, FallbackPolicy, BackendHealth};
-pub use web_bridge::{WebAudioBridge, WebAudioBridgeConfig};
 pub use recorder::{
-    AudioRecorder, RecordingConfig, RecordingFormat, RecordingState,
-    MonitoringMode,
+    AudioRecorder, MonitoringMode, RecordingConfig, RecordingFormat, RecordingState,
 };
+pub use web_bridge::{WebAudioBridge, WebAudioBridgeConfig};

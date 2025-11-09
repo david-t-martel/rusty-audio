@@ -3,12 +3,12 @@
 // This module tests the entire audio processing pipeline from input to output,
 // verifying that all components work together correctly.
 
-use web_audio_api::context::{AudioContext, BaseAudioContext};
-use web_audio_api::node::AudioNode;
-use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
 use super::signal_generators::*;
 use super::spectrum_analysis::FftAnalyzer;
+use super::{TestResult, TestSuite, SAMPLE_RATE, TOLERANCE};
 use std::time::{Duration, Instant};
+use web_audio_api::context::{AudioContext, BaseAudioContext};
+use web_audio_api::node::AudioNode;
 
 /// Complete audio pipeline test configuration
 #[derive(Debug, Clone)]
@@ -86,10 +86,13 @@ impl AudioPipelineIntegration {
         ];
 
         for (generator, name) in test_signals {
-            let input_samples = generator.generate(self.config.test_duration, self.config.sample_rate);
+            let input_samples =
+                generator.generate(self.config.test_duration, self.config.sample_rate);
 
             // Create audio buffer and source
-            let mut buffer = self.context.create_buffer(1, input_samples.len(), self.config.sample_rate);
+            let mut buffer =
+                self.context
+                    .create_buffer(1, input_samples.len(), self.config.sample_rate);
             buffer.copy_to_channel(&input_samples, 0);
 
             let mut source = self.context.create_buffer_source();
@@ -99,18 +102,22 @@ impl AudioPipelineIntegration {
             source.connect(&self.context.destination());
 
             // Analyze input
-            let input_analysis = self.analyzer.analyze(&input_samples, self.config.sample_rate);
+            let input_analysis = self
+                .analyzer
+                .analyze(&input_samples, self.config.sample_rate);
 
             // In a real test, we'd capture the output here
             // For this simulation, we assume perfect pass-through
             let output_analysis = input_analysis.clone();
 
             // Compare input vs output spectra
-            for (i, (&input_mag, &output_mag)) in input_analysis.magnitudes
+            for (i, (&input_mag, &output_mag)) in input_analysis
+                .magnitudes
                 .iter()
                 .zip(&output_analysis.magnitudes)
                 .enumerate()
-                .take(512) // Test lower half of spectrum
+                .take(512)
+            // Test lower half of spectrum
             {
                 let frequency = input_analysis.frequencies[i];
 
@@ -135,10 +142,13 @@ impl AudioPipelineIntegration {
 
         for &gain_value in &test_gains {
             let generator = presets::sine_1khz();
-            let input_samples = generator.generate(self.config.test_duration, self.config.sample_rate);
+            let input_samples =
+                generator.generate(self.config.test_duration, self.config.sample_rate);
 
             // Setup audio graph: source -> gain -> destination
-            let mut buffer = self.context.create_buffer(1, input_samples.len(), self.config.sample_rate);
+            let mut buffer =
+                self.context
+                    .create_buffer(1, input_samples.len(), self.config.sample_rate);
             buffer.copy_to_channel(&input_samples, 0);
 
             let mut source = self.context.create_buffer_source();
@@ -151,7 +161,8 @@ impl AudioPipelineIntegration {
             gain_node.connect(&self.context.destination());
 
             // Calculate expected output
-            let expected_samples: Vec<f32> = input_samples.iter()
+            let expected_samples: Vec<f32> = input_samples
+                .iter()
                 .map(|&sample| sample * gain_value)
                 .collect();
 
@@ -203,12 +214,15 @@ impl AudioPipelineIntegration {
         let input_samples = generator.generate(self.config.test_duration, self.config.sample_rate);
 
         // With flat EQ, output should closely match input
-        let input_analysis = self.analyzer.analyze(&input_samples, self.config.sample_rate);
+        let input_analysis = self
+            .analyzer
+            .analyze(&input_samples, self.config.sample_rate);
 
         // Simulate flat EQ processing (output = input)
         let output_analysis = input_analysis.clone();
 
-        for (i, (&input_mag, &output_mag)) in input_analysis.magnitudes
+        for (i, (&input_mag, &output_mag)) in input_analysis
+            .magnitudes
             .iter()
             .zip(&output_analysis.magnitudes)
             .enumerate()
@@ -229,7 +243,8 @@ impl AudioPipelineIntegration {
         eq_bands[2].gain().set_value(6.0); // Boost ~240Hz band by 6dB
 
         let sine_generator = SineGenerator::new(240.0);
-        let sine_samples = sine_generator.generate(self.config.test_duration, self.config.sample_rate);
+        let sine_samples =
+            sine_generator.generate(self.config.test_duration, self.config.sample_rate);
 
         let input_rms = super::calculate_rms(&sine_samples);
         let expected_gain = 10.0f32.powf(6.0 / 20.0); // +6dB = 2x linear
@@ -256,7 +271,9 @@ impl AudioPipelineIntegration {
         let generator = presets::harmonic_test_signal(200.0);
         let input_samples = generator.generate(self.config.test_duration, self.config.sample_rate);
 
-        let mut buffer = self.context.create_buffer(1, input_samples.len(), self.config.sample_rate);
+        let mut buffer =
+            self.context
+                .create_buffer(1, input_samples.len(), self.config.sample_rate);
         buffer.copy_to_channel(&input_samples, 0);
 
         let mut source = self.context.create_buffer_source();
@@ -284,7 +301,9 @@ impl AudioPipelineIntegration {
         analyser.connect(&self.context.destination());
 
         // Test that each stage contributes expected effect
-        let input_analysis = self.analyzer.analyze(&input_samples, self.config.sample_rate);
+        let input_analysis = self
+            .analyzer
+            .analyze(&input_samples, self.config.sample_rate);
 
         // Find fundamental and harmonics in input
         if let Some(fundamental_mag) = input_analysis.magnitude_at_frequency(200.0) {
@@ -373,9 +392,12 @@ impl AudioPipelineIntegration {
 
         // Test very quiet signal (-60dB)
         let quiet_generator = SineGenerator::new(1000.0).with_amplitude(0.001);
-        let quiet_samples = quiet_generator.generate(self.config.test_duration, self.config.sample_rate);
+        let quiet_samples =
+            quiet_generator.generate(self.config.test_duration, self.config.sample_rate);
 
-        let quiet_analysis = self.analyzer.analyze(&quiet_samples, self.config.sample_rate);
+        let quiet_analysis = self
+            .analyzer
+            .analyze(&quiet_samples, self.config.sample_rate);
 
         if let Some((detected_freq, magnitude)) = quiet_analysis.find_peak() {
             let result1 = TestResult::new(
@@ -397,9 +419,12 @@ impl AudioPipelineIntegration {
 
         // Test loud signal (near 0dBFS)
         let loud_generator = SineGenerator::new(1000.0).with_amplitude(0.9);
-        let loud_samples = loud_generator.generate(self.config.test_duration, self.config.sample_rate);
+        let loud_samples =
+            loud_generator.generate(self.config.test_duration, self.config.sample_rate);
 
-        let loud_analysis = self.analyzer.analyze(&loud_samples, self.config.sample_rate);
+        let loud_analysis = self
+            .analyzer
+            .analyze(&loud_samples, self.config.sample_rate);
 
         if let Some((detected_freq, magnitude)) = loud_analysis.find_peak() {
             let result1 = TestResult::new(
@@ -546,7 +571,9 @@ mod tests {
         let suite = integration.test_realtime_performance();
 
         // Should measure processing performance
-        let perf_results: Vec<_> = suite.results.iter()
+        let perf_results: Vec<_> = suite
+            .results
+            .iter()
             .filter(|r| r.test_name.contains("processing"))
             .collect();
 

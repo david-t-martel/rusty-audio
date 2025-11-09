@@ -1,46 +1,63 @@
 use eframe::{egui, NativeOptions};
-use egui::{
-    load::SizedTexture, Color32, RichText, Vec2,
-};
+use egui::{load::SizedTexture, Color32, RichText, Vec2};
 use image::GenericImageView;
 use lofty::{file::TaggedFileExt, tag::Accessor};
+
+// Platform-specific imports
+#[cfg(not(target_arch = "wasm32"))]
 use rfd::FileHandle;
+
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+// Audio context - platform specific
+#[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::context::{AudioContext, BaseAudioContext};
+#[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::node::{
-    AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType, AnalyserNode,
+    AnalyserNode, AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType,
 };
 
-// Import hybrid audio backend
+// Import hybrid audio backend (native only for now)
+#[cfg(not(target_arch = "wasm32"))]
 use rusty_audio::audio::{
-    HybridAudioBackend, HybridMode, AudioDeviceManager, AudioConfig, StreamDirection,
-    WebAudioBridge, WebAudioBridgeConfig, FallbackPolicy, BackendHealth,
+    AudioConfig, AudioDeviceManager, BackendHealth, FallbackPolicy, HybridAudioBackend, HybridMode,
+    StreamDirection, WebAudioBridge, WebAudioBridgeConfig,
 };
 
 // Use library modules instead of declaring them locally
-use rusty_audio::{ui, audio_performance, testing, async_audio_loader};
+use rusty_audio::{audio_performance, platform, testing, ui};
+
+// Async components (native only)
+#[cfg(not(target_arch = "wasm32"))]
+use async_audio_loader::{AsyncAudioLoader, AsyncLoadConfig};
+#[cfg(not(target_arch = "wasm32"))]
+use rusty_audio::async_audio_loader;
+
 mod panel_implementation;
 
-// Import async components
-use async_audio_loader::{AsyncAudioLoader, AsyncLoadConfig};
-
-use ui::{
-    theme::{Theme, ThemeManager, ThemeColors},
-    layout::{LayoutManager, PanelConfig, PanelType, DockSide},
-    spectrum::{SpectrumVisualizer, SpectrumVisualizerConfig, SpectrumMode},
-    components::{AlbumArtDisplay, ProgressBar, MetadataDisplay, MetadataLayout, ProgressBarStyle},
-    controls::{EnhancedSlider, CircularKnob, EnhancedButton, SliderOrientation, SliderStyle, ButtonStyle},
-    utils::{ScreenSize, AnimationState, ResponsiveSize},
-    signal_generator::{SignalGeneratorPanel, GeneratorState},
-    accessibility::{AccessibilityManager, AccessibilityAction},
-    enhanced_controls::{AccessibleSlider, AccessibleKnob},
-    enhanced_button::{AccessibleButton, ProgressIndicator, VolumeSafetyIndicator},
-    error_handling::{ErrorManager, RecoveryActionType},
-    dock_layout::{DockLayoutManager, PanelContent, PanelId},
-    recording_panel::RecordingPanel,
-};
 use testing::signal_generators::*;
+use ui::{
+    accessibility::{AccessibilityAction, AccessibilityManager},
+    components::{AlbumArtDisplay, MetadataDisplay, MetadataLayout, ProgressBar, ProgressBarStyle},
+    controls::{
+        ButtonStyle, CircularKnob, EnhancedButton, EnhancedSlider, SliderOrientation, SliderStyle,
+    },
+    dock_layout::{DockLayoutManager, PanelContent, PanelId},
+    enhanced_button::{AccessibleButton, ProgressIndicator, VolumeSafetyIndicator},
+    enhanced_controls::{AccessibleKnob, AccessibleSlider},
+    error_handling::{ErrorManager, RecoveryActionType},
+    layout::{DockSide, LayoutManager, PanelConfig, PanelType},
+    recording_panel::RecordingPanel,
+    signal_generator::{GeneratorState, SignalGeneratorPanel},
+    spectrum::{SpectrumMode, SpectrumVisualizer, SpectrumVisualizerConfig},
+    theme::{Theme, ThemeColors, ThemeManager},
+    utils::{AnimationState, ResponsiveSize, ScreenSize},
+};
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
 
 #[derive(Debug, Clone, PartialEq)]
 enum Tab {
@@ -51,7 +68,6 @@ enum Tab {
     Recording,
     Settings,
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 enum PlaybackState {
@@ -68,6 +84,11 @@ struct TrackMetadata {
     year: String,
 }
 
+// ============================================================================
+// Native Application (Desktop)
+// ============================================================================
+
+#[cfg(not(target_arch = "wasm32"))]
 struct AudioPlayerApp {
     audio_context: AudioContext,
     source_node: Option<web_audio_api::node::AudioBufferSourceNode>,
@@ -122,7 +143,7 @@ struct AudioPlayerApp {
     // Dock layout system (Phase 2.1)
     dock_layout_manager: DockLayoutManager,
     enable_dock_layout: bool,
-    
+
     // Phase 3.1: Hybrid audio backend
     audio_backend: Option<HybridAudioBackend>,
     device_manager: Option<AudioDeviceManager>,
@@ -130,7 +151,7 @@ struct AudioPlayerApp {
     audio_mode_switching: bool, // Animation state for mode changes
     last_latency_check: Instant,
     audio_status_message: Option<(String, Instant)>, // (message, timestamp)
-    
+
     // Phase 3.2: Recording
     recording_panel: RecordingPanel,
 
@@ -140,6 +161,7 @@ struct AudioPlayerApp {
     load_progress: Option<f32>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for AudioPlayerApp {
     fn default() -> Self {
         let audio_context = AudioContext::default();
@@ -176,9 +198,15 @@ impl Default for AudioPlayerApp {
                     -40.0..=40.0,
                     freq_label,
                 )
-                .description(format!("Equalizer gain for {} frequency band",
-                    if freq < 1000.0 { format!("{:.0} Hz", freq) } else { format!("{:.1} kHz", freq / 1000.0) }))
-                .step_size(0.5)
+                .description(format!(
+                    "Equalizer gain for {} frequency band",
+                    if freq < 1000.0 {
+                        format!("{:.0} Hz", freq)
+                    } else {
+                        format!("{:.1} kHz", freq / 1000.0)
+                    }
+                ))
+                .step_size(0.5),
             );
         }
 
@@ -222,7 +250,7 @@ impl Default for AudioPlayerApp {
                 egui::Id::new("volume_slider"),
                 0.5,
                 0.0..=1.0,
-                "Volume"
+                "Volume",
             )
             .description("Master audio volume control")
             .safety_info("Keep volume below 80% to protect hearing")
@@ -246,7 +274,7 @@ impl Default for AudioPlayerApp {
             // Dock layout system
             dock_layout_manager: DockLayoutManager::new(),
             enable_dock_layout: false, // Start with traditional layout, can be toggled
-            
+
             // Phase 3.1: Hybrid audio backend (initialize gracefully)
             audio_backend: {
                 let mut backend = HybridAudioBackend::new();
@@ -269,7 +297,7 @@ impl Default for AudioPlayerApp {
             audio_mode_switching: false,
             last_latency_check: Instant::now(),
             audio_status_message: None,
-            
+
             // Phase 3.2: Recording
             recording_panel: RecordingPanel::new(),
 
@@ -281,13 +309,14 @@ impl Default for AudioPlayerApp {
                     .thread_name("rusty-audio-async")
                     .enable_all()
                     .build()
-                    .expect("Failed to create tokio runtime")
+                    .expect("Failed to create tokio runtime"),
             ),
             load_progress: None,
         }
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl eframe::App for AudioPlayerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Update responsive layout and timing
@@ -298,38 +327,35 @@ impl eframe::App for AudioPlayerApp {
         // Update screen size and responsive layout
         let screen_size_vec = ctx.screen_rect().size();
         self.screen_size = ScreenSize::from_width(screen_size_vec.x);
-        self.layout_manager.update_responsive_layout(screen_size_vec);
+        self.layout_manager
+            .update_responsive_layout(screen_size_vec);
 
         // Apply theme (with accessibility enhancements)
         self.theme_manager.apply_theme(ctx);
         let base_colors = self.theme_manager.get_colors();
-        let colors = self.accessibility_manager.get_accessible_colors(&base_colors);
+        let colors = self
+            .accessibility_manager
+            .get_accessible_colors(&base_colors);
 
         // Update animations
         self.layout_manager.update_animations(dt);
 
         // Update accessibility system
-        let ui_builder = egui::UiBuilder::new()
-            .max_rect(egui::Rect::EVERYTHING);
+        let ui_builder = egui::UiBuilder::new().max_rect(egui::Rect::EVERYTHING);
         self.accessibility_manager.update(
-            &egui::Ui::new(
-                ctx.clone(),
-                egui::Id::new("accessibility_ui"),
-                ui_builder,
-            ),
-            dt
+            &egui::Ui::new(ctx.clone(), egui::Id::new("accessibility_ui"), ui_builder),
+            dt,
         );
 
         // Handle accessibility actions
-        let ui_builder = egui::UiBuilder::new()
-            .max_rect(egui::Rect::EVERYTHING);
-        let accessibility_action = self.accessibility_manager.handle_keyboard_input(
-            &egui::Ui::new(
-                ctx.clone(),
-                egui::Id::new("accessibility_input"),
-                ui_builder,
-            )
-        );
+        let ui_builder = egui::UiBuilder::new().max_rect(egui::Rect::EVERYTHING);
+        let accessibility_action =
+            self.accessibility_manager
+                .handle_keyboard_input(&egui::Ui::new(
+                    ctx.clone(),
+                    egui::Id::new("accessibility_input"),
+                    ui_builder,
+                ));
 
         match accessibility_action {
             AccessibilityAction::EmergencyVolumeReduction => {
@@ -341,20 +367,26 @@ impl eframe::App for AudioPlayerApp {
                     "Emergency volume reduction activated".to_string(),
                     ui::accessibility::AnnouncementPriority::Critical,
                 );
-            },
+            }
             AccessibilityAction::ToggleHelp => {
                 // Help system is handled within accessibility manager
-            },
+            }
             AccessibilityAction::ToggleHighContrast => {
                 self.accessibility_manager.announce(
-                    format!("High contrast mode {}",
-                        if self.accessibility_manager.is_high_contrast_mode() { "enabled" } else { "disabled" }),
+                    format!(
+                        "High contrast mode {}",
+                        if self.accessibility_manager.is_high_contrast_mode() {
+                            "enabled"
+                        } else {
+                            "disabled"
+                        }
+                    ),
                     ui::accessibility::AnnouncementPriority::Medium,
                 );
-            },
+            }
             AccessibilityAction::AdjustFocusedControl(delta) => {
                 // This would be handled by the focused control itself
-            },
+            }
             _ => {}
         }
 
@@ -386,28 +418,18 @@ impl eframe::App for AudioPlayerApp {
         }
 
         // Show accessibility help overlay
-        let ui_builder = egui::UiBuilder::new()
-            .max_rect(egui::Rect::EVERYTHING);
+        let ui_builder = egui::UiBuilder::new().max_rect(egui::Rect::EVERYTHING);
         self.accessibility_manager.show_help_overlay(
-            &egui::Ui::new(
-                ctx.clone(),
-                egui::Id::new("help_overlay"),
-                ui_builder,
-            ),
-            &colors
+            &egui::Ui::new(ctx.clone(), egui::Id::new("help_overlay"), ui_builder),
+            &colors,
         );
 
         // Show error dialogs and handle recovery actions
-        let ui_builder = egui::UiBuilder::new()
-            .max_rect(egui::Rect::EVERYTHING);
+        let ui_builder = egui::UiBuilder::new().max_rect(egui::Rect::EVERYTHING);
         let recovery_actions = self.error_manager.show_errors(
-            &mut egui::Ui::new(
-                ctx.clone(),
-                egui::Id::new("error_display"),
-                ui_builder,
-            ),
+            &mut egui::Ui::new(ctx.clone(), egui::Id::new("error_display"), ui_builder),
             &colors,
-            &mut self.accessibility_manager
+            &mut self.accessibility_manager,
         );
 
         // Execute recovery actions
@@ -417,25 +439,25 @@ impl eframe::App for AudioPlayerApp {
                     if self.current_file.is_some() {
                         self.load_current_file();
                     }
-                },
+                }
                 RecoveryActionType::SelectDifferentFile => {
                     self.open_file_dialog();
-                },
+                }
                 RecoveryActionType::ResetSettings => {
                     self.reset_all_settings();
-                },
+                }
                 RecoveryActionType::CheckPermissions => {
                     self.accessibility_manager.announce(
                         "Please check that the file is accessible and not in use by another application".to_string(),
                         ui::accessibility::AnnouncementPriority::High,
                     );
-                },
+                }
                 RecoveryActionType::ContactSupport => {
                     self.show_format_help();
-                },
+                }
                 RecoveryActionType::Dismiss => {
                     // Already handled by error manager
-                },
+                }
             }
         }
 
@@ -454,7 +476,7 @@ impl AudioPlayerApp {
         // Update progress bar
         self.progress_bar.set_progress(
             self.playback_pos.as_secs_f32(),
-            self.total_duration.as_secs_f32()
+            self.total_duration.as_secs_f32(),
         );
 
         // Update metadata display
@@ -468,7 +490,8 @@ impl AudioPlayerApp {
         }
 
         // Update album art display
-        self.album_art_display.set_texture(self.album_art.as_ref().map(|arc| (**arc).clone()));
+        self.album_art_display
+            .set_texture(self.album_art.as_ref().map(|arc| (**arc).clone()));
 
         // Update spectrum visualizer
         self.spectrum_visualizer.update(&self.spectrum);
@@ -483,82 +506,136 @@ impl AudioPlayerApp {
         let is_landscape = available_space.x > available_space.y;
 
         // Top panel with optimized height for landscape
-        egui::TopBottomPanel::top("header").exact_height(60.0).show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
-                ui.heading(egui::RichText::new("🎵 Rusty Audio - Car Stereo Style").size(18.0));
+        egui::TopBottomPanel::top("header")
+            .exact_height(60.0)
+            .show(ctx, |ui| {
+                ui.horizontal_centered(|ui| {
+                    ui.heading(egui::RichText::new("🎵 Rusty Audio - Car Stereo Style").size(18.0));
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // Theme selector with better HiDPI sizing
-                    egui::ComboBox::from_label("")
-                        .selected_text(self.theme_manager.current_theme().display_name())
-                        .width(120.0)
-                        .show_ui(ui, |ui| {
-                            for theme in Theme::all() {
-                                ui.selectable_value(
-                                    &mut self.theme_manager,
-                                    ThemeManager::new(theme.clone()),
-                                    theme.display_name()
-                                );
-                            }
-                        });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Theme selector with better HiDPI sizing
+                        egui::ComboBox::from_label("")
+                            .selected_text(self.theme_manager.current_theme().display_name())
+                            .width(120.0)
+                            .show_ui(ui, |ui| {
+                                for theme in Theme::all() {
+                                    ui.selectable_value(
+                                        &mut self.theme_manager,
+                                        ThemeManager::new(theme.clone()),
+                                        theme.display_name(),
+                                    );
+                                }
+                            });
 
-                    // Layout toggle button
-                    let layout_text = if self.enable_dock_layout { "📑" } else { "📑" };
-                    if ui.add_sized([40.0, 30.0], egui::Button::new(layout_text))
-                        .on_hover_text("Toggle Dock Layout")
+                        // Layout toggle button
+                        let layout_text = if self.enable_dock_layout {
+                            "📑"
+                        } else {
+                            "📑"
+                        };
+                        if ui
+                            .add_sized([40.0, 30.0], egui::Button::new(layout_text))
+                            .on_hover_text("Toggle Dock Layout")
+                            .clicked()
+                        {
+                            self.enable_dock_layout = !self.enable_dock_layout;
+                        }
+
+                        if ui.add_sized([40.0, 30.0], egui::Button::new("?")).clicked() {
+                            self.show_keyboard_shortcuts = !self.show_keyboard_shortcuts;
+                        }
+                    });
+                });
+            });
+
+        // Tab panel - horizontal layout for landscape optimization
+        egui::TopBottomPanel::top("tabs")
+            .exact_height(50.0)
+            .show(ctx, |ui| {
+                ui.horizontal_centered(|ui| {
+                    let tab_button_size = [120.0, 35.0];
+
+                    if ui
+                        .add_sized(
+                            tab_button_size,
+                            egui::SelectableLabel::new(
+                                self.active_tab == Tab::Playback,
+                                "🎵 Playback",
+                            ),
+                        )
                         .clicked()
                     {
-                        self.enable_dock_layout = !self.enable_dock_layout;
+                        self.active_tab = Tab::Playback;
                     }
+                    ui.separator();
 
-                    if ui.add_sized([40.0, 30.0], egui::Button::new("?")).clicked() {
-                        self.show_keyboard_shortcuts = !self.show_keyboard_shortcuts;
+                    if ui
+                        .add_sized(
+                            tab_button_size,
+                            egui::SelectableLabel::new(
+                                self.active_tab == Tab::Effects,
+                                "🎛️ Effects",
+                            ),
+                        )
+                        .clicked()
+                    {
+                        self.active_tab = Tab::Effects;
+                    }
+                    ui.separator();
+
+                    if ui
+                        .add_sized(
+                            tab_button_size,
+                            egui::SelectableLabel::new(self.active_tab == Tab::Eq, "📊 EQ"),
+                        )
+                        .clicked()
+                    {
+                        self.active_tab = Tab::Eq;
+                    }
+                    ui.separator();
+
+                    if ui
+                        .add_sized(
+                            tab_button_size,
+                            egui::SelectableLabel::new(
+                                self.active_tab == Tab::Generator,
+                                "🎛️ Generator",
+                            ),
+                        )
+                        .clicked()
+                    {
+                        self.active_tab = Tab::Generator;
+                    }
+                    ui.separator();
+
+                    if ui
+                        .add_sized(
+                            tab_button_size,
+                            egui::SelectableLabel::new(
+                                self.active_tab == Tab::Recording,
+                                "🎙️ Recording",
+                            ),
+                        )
+                        .clicked()
+                    {
+                        self.active_tab = Tab::Recording;
+                    }
+                    ui.separator();
+
+                    if ui
+                        .add_sized(
+                            tab_button_size,
+                            egui::SelectableLabel::new(
+                                self.active_tab == Tab::Settings,
+                                "⚙️ Settings",
+                            ),
+                        )
+                        .clicked()
+                    {
+                        self.active_tab = Tab::Settings;
                     }
                 });
             });
-        });
-
-        // Tab panel - horizontal layout for landscape optimization
-        egui::TopBottomPanel::top("tabs").exact_height(50.0).show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
-                let tab_button_size = [120.0, 35.0];
-
-                if ui.add_sized(tab_button_size,
-                    egui::SelectableLabel::new(self.active_tab == Tab::Playback, "🎵 Playback")).clicked() {
-                    self.active_tab = Tab::Playback;
-                }
-                ui.separator();
-
-                if ui.add_sized(tab_button_size,
-                    egui::SelectableLabel::new(self.active_tab == Tab::Effects, "🎛️ Effects")).clicked() {
-                    self.active_tab = Tab::Effects;
-                }
-                ui.separator();
-
-                if ui.add_sized(tab_button_size,
-                    egui::SelectableLabel::new(self.active_tab == Tab::Eq, "📊 EQ")).clicked() {
-                    self.active_tab = Tab::Eq;
-                }
-                ui.separator();
-
-                if ui.add_sized(tab_button_size,
-                    egui::SelectableLabel::new(self.active_tab == Tab::Generator, "🎛️ Generator")).clicked() {
-                    self.active_tab = Tab::Generator;
-                }
-                ui.separator();
-
-                if ui.add_sized(tab_button_size,
-                    egui::SelectableLabel::new(self.active_tab == Tab::Recording, "🎙️ Recording")).clicked() {
-                    self.active_tab = Tab::Recording;
-                }
-                ui.separator();
-
-                if ui.add_sized(tab_button_size,
-                    egui::SelectableLabel::new(self.active_tab == Tab::Settings, "⚙️ Settings")).clicked() {
-                    self.active_tab = Tab::Settings;
-                }
-            });
-        });
 
         // Main content area - optimized for landscape
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -593,15 +670,13 @@ impl AudioPlayerApp {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            match self.active_tab {
-                Tab::Playback => self.draw_mobile_playback_panel(ui, colors),
-                Tab::Effects => self.draw_mobile_effects_panel(ui, colors),
-                Tab::Eq => self.draw_mobile_eq_panel(ui, colors),
-                Tab::Generator => self.draw_mobile_generator_panel(ui, colors),
-                Tab::Recording => self.draw_recording_panel(ui, colors),
-                Tab::Settings => self.draw_settings_panel_main(ui, colors),
-            }
+        egui::CentralPanel::default().show(ctx, |ui| match self.active_tab {
+            Tab::Playback => self.draw_mobile_playback_panel(ui, colors),
+            Tab::Effects => self.draw_mobile_effects_panel(ui, colors),
+            Tab::Eq => self.draw_mobile_eq_panel(ui, colors),
+            Tab::Generator => self.draw_mobile_generator_panel(ui, colors),
+            Tab::Recording => self.draw_recording_panel(ui, colors),
+            Tab::Settings => self.draw_settings_panel_main(ui, colors),
         });
     }
 
@@ -609,105 +684,133 @@ impl AudioPlayerApp {
         // Landscape-optimized layout - side-by-side content
         ui.horizontal(|ui| {
             // Left side: Album art and metadata (1/3 of width)
-            ui.allocate_ui(egui::Vec2::new(ui.available_width() * 0.35, ui.available_height()), |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(10.0);
+            ui.allocate_ui(
+                egui::Vec2::new(ui.available_width() * 0.35, ui.available_height()),
+                |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(10.0);
 
-                    // Album art with enhanced display - smaller for landscape
-                    let album_art_response = self.album_art_display.show(ui, colors);
+                        // Album art with enhanced display - smaller for landscape
+                        let album_art_response = self.album_art_display.show(ui, colors);
 
-                    ui.add_space(10.0);
+                        ui.add_space(10.0);
 
-                    // Metadata display
-                    self.metadata_display.show(ui, colors);
-                });
-            });
+                        // Metadata display
+                        self.metadata_display.show(ui, colors);
+                    });
+                },
+            );
 
             ui.separator();
 
             // Right side: Controls and progress (2/3 of width)
-            ui.allocate_ui(egui::Vec2::new(ui.available_width(), ui.available_height()), |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(20.0);
+            ui.allocate_ui(
+                egui::Vec2::new(ui.available_width(), ui.available_height()),
+                |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(20.0);
 
-                    // Enhanced progress bar - wider for landscape
-                    ui.allocate_ui(egui::Vec2::new(ui.available_width() * 0.9, 40.0), |ui| {
-                        let progress_response = self.progress_bar.show(ui, colors);
-                        if progress_response.changed() {
-                            let position_seconds = self.progress_bar.progress * self.total_duration.as_secs_f32();
-                            self.seek_to_position_main(position_seconds);
-                        }
-                    });
-
-                    ui.add_space(20.0);
-
-                    // Control buttons with enhanced styling - larger for landscape
-                    ui.horizontal_centered(|ui| {
-                        let button_size = egui::Vec2::new(80.0, 40.0);
-
-                        let mut open_button = EnhancedButton::new("📁 Open")
-                            .style(ButtonStyle {
-                                glow: true,
-                                ..Default::default()
-                            });
-                        if ui.add_sized(button_size,
-                            egui::Button::new("📁 Open")).clicked() {
-                            self.open_file_dialog();
-                        }
-
-                        ui.add_space(10.0);
-
-                        let play_pause_text = if self.playback_state == PlaybackState::Playing { "⏸️ Pause" } else { "▶️ Play" };
-                        if ui.add_sized(button_size,
-                            egui::Button::new(play_pause_text)).clicked() {
-                            self.play_pause_main();
-                        }
-
-                        ui.add_space(10.0);
-
-                        if ui.add_sized(button_size,
-                            egui::Button::new("⏹️ Stop")).clicked() {
-                            self.stop_playback_main();
-                        }
-
-                        ui.add_space(10.0);
-
-                        let loop_text = if self.is_looping { "🔁 Loop: On" } else { "🔁 Loop: Off" };
-                        if ui.add_sized(button_size,
-                            egui::Button::new(loop_text)).clicked() {
-                            self.is_looping = !self.is_looping;
-                        }
-                    });
-
-                    ui.add_space(20.0);
-
-                    // Volume control with accessible slider - horizontal for landscape
-                    ui.horizontal_centered(|ui| {
-                        ui.label(egui::RichText::new("🔊 Volume:").size(14.0));
-                        ui.add_space(10.0);
-
-                        // Wider volume slider for landscape layout
-                        ui.allocate_ui(egui::Vec2::new(300.0, 30.0), |ui| {
-                            let volume_response = self.accessible_volume_slider.show(ui, colors, &mut self.accessibility_manager);
-                            if volume_response.changed() {
-                                self.volume = self.accessible_volume_slider.value();
-                                self.gain_node.gain().set_value(self.volume);
-
-                                // Check volume safety
-                                if !self.accessibility_manager.is_volume_safe(self.volume) {
-                                    self.accessibility_manager.announce(
-                                        "Warning: Volume level may be harmful to hearing".to_string(),
-                                        ui::accessibility::AnnouncementPriority::High,
-                                    );
-                                }
+                        // Enhanced progress bar - wider for landscape
+                        ui.allocate_ui(egui::Vec2::new(ui.available_width() * 0.9, 40.0), |ui| {
+                            let progress_response = self.progress_bar.show(ui, colors);
+                            if progress_response.changed() {
+                                let position_seconds =
+                                    self.progress_bar.progress * self.total_duration.as_secs_f32();
+                                self.seek_to_position_main(position_seconds);
                             }
                         });
 
-                        ui.add_space(10.0);
-                        ui.label(format!("{:.0}%", self.volume * 100.0));
+                        ui.add_space(20.0);
+
+                        // Control buttons with enhanced styling - larger for landscape
+                        ui.horizontal_centered(|ui| {
+                            let button_size = egui::Vec2::new(80.0, 40.0);
+
+                            let mut open_button =
+                                EnhancedButton::new("📁 Open").style(ButtonStyle {
+                                    glow: true,
+                                    ..Default::default()
+                                });
+                            if ui
+                                .add_sized(button_size, egui::Button::new("📁 Open"))
+                                .clicked()
+                            {
+                                self.open_file_dialog();
+                            }
+
+                            ui.add_space(10.0);
+
+                            let play_pause_text = if self.playback_state == PlaybackState::Playing {
+                                "⏸️ Pause"
+                            } else {
+                                "▶️ Play"
+                            };
+                            if ui
+                                .add_sized(button_size, egui::Button::new(play_pause_text))
+                                .clicked()
+                            {
+                                self.play_pause_main();
+                            }
+
+                            ui.add_space(10.0);
+
+                            if ui
+                                .add_sized(button_size, egui::Button::new("⏹️ Stop"))
+                                .clicked()
+                            {
+                                self.stop_playback_main();
+                            }
+
+                            ui.add_space(10.0);
+
+                            let loop_text = if self.is_looping {
+                                "🔁 Loop: On"
+                            } else {
+                                "🔁 Loop: Off"
+                            };
+                            if ui
+                                .add_sized(button_size, egui::Button::new(loop_text))
+                                .clicked()
+                            {
+                                self.is_looping = !self.is_looping;
+                            }
+                        });
+
+                        ui.add_space(20.0);
+
+                        // Volume control with accessible slider - horizontal for landscape
+                        ui.horizontal_centered(|ui| {
+                            ui.label(egui::RichText::new("🔊 Volume:").size(14.0));
+                            ui.add_space(10.0);
+
+                            // Wider volume slider for landscape layout
+                            ui.allocate_ui(egui::Vec2::new(300.0, 30.0), |ui| {
+                                let volume_response = self.accessible_volume_slider.show(
+                                    ui,
+                                    colors,
+                                    &mut self.accessibility_manager,
+                                );
+                                if volume_response.changed() {
+                                    self.volume = self.accessible_volume_slider.value();
+                                    self.gain_node.gain().set_value(self.volume);
+
+                                    // Check volume safety
+                                    if !self.accessibility_manager.is_volume_safe(self.volume) {
+                                        self.accessibility_manager.announce(
+                                            "Warning: Volume level may be harmful to hearing"
+                                                .to_string(),
+                                            ui::accessibility::AnnouncementPriority::High,
+                                        );
+                                    }
+                                }
+                            });
+
+                            ui.add_space(10.0);
+                            ui.label(format!("{:.0}%", self.volume * 100.0));
+                        });
                     });
-                });
-            });
+                },
+            );
 
             // Error display
             if let Some(error) = &self.error {
@@ -734,7 +837,8 @@ impl AudioPlayerApp {
             // Progress bar
             let progress_response = self.progress_bar.show(ui, colors);
             if progress_response.changed() {
-                let position_seconds = self.progress_bar.progress * self.total_duration.as_secs_f32();
+                let position_seconds =
+                    self.progress_bar.progress * self.total_duration.as_secs_f32();
                 self.seek_to_position_main(position_seconds);
             }
 
@@ -742,18 +846,30 @@ impl AudioPlayerApp {
 
             // Compact controls
             ui.horizontal_centered(|ui| {
-                if ui.button("📁").clicked() { self.open_file_dialog(); }
+                if ui.button("📁").clicked() {
+                    self.open_file_dialog();
+                }
                 ui.add_space(15.0);
 
-                let play_pause_icon = if self.playback_state == PlaybackState::Playing { "⏸️" } else { "▶️" };
-                if ui.button(play_pause_icon).clicked() { self.play_pause_main(); }
+                let play_pause_icon = if self.playback_state == PlaybackState::Playing {
+                    "⏸️"
+                } else {
+                    "▶️"
+                };
+                if ui.button(play_pause_icon).clicked() {
+                    self.play_pause_main();
+                }
                 ui.add_space(15.0);
 
-                if ui.button("⏹️").clicked() { self.stop_playback_main(); }
+                if ui.button("⏹️").clicked() {
+                    self.stop_playback_main();
+                }
                 ui.add_space(15.0);
 
                 let loop_icon = if self.is_looping { "🔁" } else { "🔁" };
-                if ui.button(loop_icon).clicked() { self.toggle_loop_main(); }
+                if ui.button(loop_icon).clicked() {
+                    self.toggle_loop_main();
+                }
             });
 
             ui.add_space(10.0);
@@ -831,7 +947,11 @@ impl AudioPlayerApp {
                         .show(ui, colors)
                         .clicked()
                     {
-                        for (band, knob) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()) {
+                        for (band, knob) in self
+                            .eq_bands
+                            .iter_mut()
+                            .zip(self.accessible_eq_knobs.iter_mut())
+                        {
                             band.gain().set_value(0.0);
                             knob.set_value(0.0);
                         }
@@ -848,7 +968,12 @@ impl AudioPlayerApp {
             // EQ bands with accessible knobs
             ui.horizontal(|ui| {
                 let eq_bands_len = self.eq_bands.len();
-                for (i, (band, knob)) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()).enumerate() {
+                for (i, (band, knob)) in self
+                    .eq_bands
+                    .iter_mut()
+                    .zip(self.accessible_eq_knobs.iter_mut())
+                    .enumerate()
+                {
                     ui.vertical(|ui| {
                         // Frequency label
                         let freq = 60.0 * 2.0_f32.powi(i as i32);
@@ -873,7 +998,11 @@ impl AudioPlayerApp {
                         }
 
                         // Gain value display
-                        ui.label(RichText::new(format!("{:.1}dB", knob.value())).color(colors.text_secondary).size(10.0));
+                        ui.label(
+                            RichText::new(format!("{:.1}dB", knob.value()))
+                                .color(colors.text_secondary)
+                                .size(10.0),
+                        );
                     });
 
                     if i < eq_bands_len - 1 {
@@ -890,9 +1019,12 @@ impl AudioPlayerApp {
                 ui.add_space(10.0);
 
                 let mut master_gain = self.gain_node.gain().value();
-                if ui.add(egui::Slider::new(&mut master_gain, 0.0..=2.0)
-                    .text("dB")
-                    .clamp_to_range(true))
+                if ui
+                    .add(
+                        egui::Slider::new(&mut master_gain, 0.0..=2.0)
+                            .text("dB")
+                            .clamp_to_range(true),
+                    )
                     .changed()
                 {
                     self.gain_node.gain().set_value(master_gain);
@@ -941,7 +1073,11 @@ impl AudioPlayerApp {
                 ui.label(RichText::new("📊 EQ").size(18.0).color(colors.text));
                 ui.add_space(10.0);
                 if ui.button("Reset").clicked() {
-                    for (band, knob) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()) {
+                    for (band, knob) in self
+                        .eq_bands
+                        .iter_mut()
+                        .zip(self.accessible_eq_knobs.iter_mut())
+                    {
                         band.gain().set_value(0.0);
                         knob.set_value(0.0);
                     }
@@ -954,7 +1090,13 @@ impl AudioPlayerApp {
             ui.vertical(|ui| {
                 // First row (0-3)
                 ui.horizontal_centered(|ui| {
-                    for (i, (band, knob)) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()).enumerate().take(4) {
+                    for (i, (band, knob)) in self
+                        .eq_bands
+                        .iter_mut()
+                        .zip(self.accessible_eq_knobs.iter_mut())
+                        .enumerate()
+                        .take(4)
+                    {
                         ui.vertical(|ui| {
                             let freq = 60.0 * 2.0_f32.powi(i as i32);
                             let freq_label = if freq < 1000.0 {
@@ -964,7 +1106,8 @@ impl AudioPlayerApp {
                             };
                             ui.label(RichText::new(freq_label).size(10.0));
 
-                            let knob_response = knob.show(ui, colors, &mut self.accessibility_manager);
+                            let knob_response =
+                                knob.show(ui, colors, &mut self.accessibility_manager);
                             if knob_response.changed() {
                                 band.gain().set_value(knob.value());
                             }
@@ -976,7 +1119,13 @@ impl AudioPlayerApp {
 
                 // Second row (4-7)
                 ui.horizontal_centered(|ui| {
-                    for (i, (band, knob)) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()).enumerate().skip(4) {
+                    for (i, (band, knob)) in self
+                        .eq_bands
+                        .iter_mut()
+                        .zip(self.accessible_eq_knobs.iter_mut())
+                        .enumerate()
+                        .skip(4)
+                    {
                         ui.vertical(|ui| {
                             let freq = 60.0 * 2.0_f32.powi(i as i32);
                             let freq_label = if freq < 1000.0 {
@@ -986,7 +1135,8 @@ impl AudioPlayerApp {
                             };
                             ui.label(RichText::new(freq_label).size(10.0));
 
-                            let knob_response = knob.show(ui, colors, &mut self.accessibility_manager);
+                            let knob_response =
+                                knob.show(ui, colors, &mut self.accessibility_manager);
                             if knob_response.changed() {
                                 band.gain().set_value(knob.value());
                             }
@@ -997,10 +1147,10 @@ impl AudioPlayerApp {
         });
     }
 
-
     fn draw_legacy_effects_tab(&mut self, ui: &mut egui::Ui) {
         ui.label("Spectrum");
-        let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 200.0), egui::Sense::hover());
+        let (rect, _) =
+            ui.allocate_exact_size(Vec2::new(ui.available_width(), 200.0), egui::Sense::hover());
         let painter = ui.painter();
         let color = Color32::from_rgb(0, 128, 255);
         let num_points = self.spectrum.len();
@@ -1023,7 +1173,6 @@ impl AudioPlayerApp {
         }
     }
 
-
     fn draw_legacy_eq_tab(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
@@ -1042,7 +1191,10 @@ impl AudioPlayerApp {
                     ui.vertical(|ui| {
                         ui.label(format!("{} Hz", 60 * 2_i32.pow(i as u32)));
                         let mut gain = band.gain().value();
-                        if ui.add(egui::Slider::new(&mut gain, -40.0..=40.0).vertical()).changed() {
+                        if ui
+                            .add(egui::Slider::new(&mut gain, -40.0..=40.0).vertical())
+                            .changed()
+                        {
                             band.gain().set_value(gain);
                         }
                     });
@@ -1054,13 +1206,15 @@ impl AudioPlayerApp {
             ui.horizontal(|ui| {
                 ui.label("Master Gain:");
                 let mut master_gain = self.gain_node.gain().value();
-                if ui.add(egui::Slider::new(&mut master_gain, 0.0..=2.0)).changed() {
+                if ui
+                    .add(egui::Slider::new(&mut master_gain, 0.0..=2.0))
+                    .changed()
+                {
                     self.gain_node.gain().set_value(master_gain);
                 }
             });
         });
     }
-
 
     fn draw_generator_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
         self.signal_generator_panel.show(ui, colors);
@@ -1069,18 +1223,22 @@ impl AudioPlayerApp {
     fn draw_mobile_generator_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
         // Mobile version of signal generator - simplified controls
         ui.vertical_centered(|ui| {
-            ui.label(RichText::new("🎛️ Signal Generator").size(18.0).color(colors.text));
+            ui.label(
+                RichText::new("🎛️ Signal Generator")
+                    .size(18.0)
+                    .color(colors.text),
+            );
             ui.add_space(10.0);
 
             // Simplified signal generator for mobile
             self.signal_generator_panel.show(ui, colors);
         });
     }
-    
+
     fn draw_recording_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
         // Update level meters if recording
         self.recording_panel.update_levels();
-        
+
         // Draw the recording panel
         self.recording_panel.draw(ui, colors);
     }
@@ -1092,7 +1250,10 @@ impl AudioPlayerApp {
             .show_ui(ui, |ui| {
                 for theme in Theme::all() {
                     let mut current_theme = self.theme_manager.current_theme().clone();
-                    if ui.selectable_value(&mut current_theme, theme.clone(), theme.display_name()).clicked() {
+                    if ui
+                        .selectable_value(&mut current_theme, theme.clone(), theme.display_name())
+                        .clicked()
+                    {
                         self.theme_manager.set_theme(theme);
                     }
                 }
@@ -1100,8 +1261,6 @@ impl AudioPlayerApp {
         ui.add_space(20.0);
         ui.label("Audio Device selection is not supported with the web-audio-api backend.");
     }
-
-
 
     fn tick(&mut self) {
         // Use optimized spectrum processor for better performance
@@ -1149,7 +1308,6 @@ impl AudioPlayerApp {
         });
     }
 
-
     fn seek_backward(&mut self) {
         if let Some(source_node) = &mut self.source_node {
             let new_pos = self.playback_pos.saturating_sub(Duration::from_secs(5));
@@ -1163,8 +1321,6 @@ impl AudioPlayerApp {
             self.seek_to_position_main(new_pos.as_secs_f32());
         }
     }
-
-
 
     fn legacy_handle_keyboard_input(&mut self, ui: &mut egui::Ui) {
         ui.input(|i| {
@@ -1207,11 +1363,11 @@ impl AudioPlayerApp {
         });
     }
 
-
     fn load_current_file(&mut self) {
         if let Some(handle) = &self.current_file {
             let path = handle.path();
-            let filename = path.file_name()
+            let filename = path
+                .file_name()
                 .and_then(|name| name.to_str())
                 .unwrap_or("Unknown file");
 
@@ -1226,7 +1382,10 @@ impl AudioPlayerApp {
                         title: tag.title().as_deref().unwrap_or("Unknown Title").into(),
                         artist: tag.artist().as_deref().unwrap_or("Unknown Artist").into(),
                         album: tag.album().as_deref().unwrap_or("Unknown Album").into(),
-                        year: tag.year().map(|y| y.to_string()).unwrap_or_else(|| "----".into()),
+                        year: tag
+                            .year()
+                            .map(|y| y.to_string())
+                            .unwrap_or_else(|| "----".into()),
                     });
                 }
                 // Album art will be loaded separately when context is available
@@ -1272,26 +1431,25 @@ impl AudioPlayerApp {
                                 format!("Audio file loaded: {}", filename),
                                 ui::accessibility::AnnouncementPriority::Medium,
                             );
-                        },
+                        }
                         Err(decode_error) => {
                             self.load_progress = None;
                             self.error_manager.add_audio_decode_error(
                                 filename,
-                                Some("audio") // Could be enhanced to detect actual format
+                                Some("audio"), // Could be enhanced to detect actual format
                             );
                             self.error = Some("Failed to decode audio file".to_string());
                         }
                     }
-                },
+                }
                 Err(io_error) => {
                     self.load_progress = None;
                     if io_error.kind() == std::io::ErrorKind::PermissionDenied {
-                        self.error_manager.add_permission_error("access", path.to_str().unwrap_or(filename));
+                        self.error_manager
+                            .add_permission_error("access", path.to_str().unwrap_or(filename));
                     } else {
-                        self.error_manager.add_file_load_error(
-                            filename,
-                            Some(format!("IO Error: {}", io_error))
-                        );
+                        self.error_manager
+                            .add_file_load_error(filename, Some(format!("IO Error: {}", io_error)));
                     }
                     self.error = Some("Failed to open audio file".to_string());
                 }
@@ -1301,7 +1459,11 @@ impl AudioPlayerApp {
 
     fn reset_all_settings(&mut self) {
         // Reset equalizer
-        for (band, knob) in self.eq_bands.iter_mut().zip(self.accessible_eq_knobs.iter_mut()) {
+        for (band, knob) in self
+            .eq_bands
+            .iter_mut()
+            .zip(self.accessible_eq_knobs.iter_mut())
+        {
             band.gain().set_value(0.0);
             knob.set_value(0.0);
         }
@@ -1323,7 +1485,8 @@ impl AudioPlayerApp {
 
     fn show_format_help(&mut self) {
         self.accessibility_manager.announce(
-            "Supported audio formats: MP3, WAV, FLAC, OGG, M4A. Ensure your file is not corrupted.".to_string(),
+            "Supported audio formats: MP3, WAV, FLAC, OGG, M4A. Ensure your file is not corrupted."
+                .to_string(),
             ui::accessibility::AnnouncementPriority::Medium,
         );
     }
@@ -1337,8 +1500,15 @@ impl AudioPlayerApp {
                         let (width, height) = img.dimensions();
                         let rgba = img.to_rgba8();
                         let pixels = rgba.into_raw();
-                        let image = egui::ColorImage::from_rgba_unmultiplied([width as usize, height as usize], &pixels);
-                        self.album_art = Some(Arc::new(ctx.load_texture("album-art", image, Default::default())));
+                        let image = egui::ColorImage::from_rgba_unmultiplied(
+                            [width as usize, height as usize],
+                            &pixels,
+                        );
+                        self.album_art = Some(Arc::new(ctx.load_texture(
+                            "album-art",
+                            image,
+                            Default::default(),
+                        )));
                     }
                 }
             }
@@ -1363,14 +1533,14 @@ impl AudioPlayerApp {
                 if let Some(source) = &mut self.source_node {
                     source.stop();
                 }
-            },
+            }
             PlaybackState::Paused | PlaybackState::Stopped => {
                 if self.current_file.is_some() {
                     self.load_current_file();
                 } else if !self.signal_generator_panel.generated_samples.is_empty() {
                     self.play_generated_signal();
                 }
-            },
+            }
         }
     }
 
@@ -1392,7 +1562,9 @@ impl AudioPlayerApp {
 
     fn seek_to_position_main(&mut self, position_seconds: f32) {
         if let Some(source_node) = &mut self.source_node {
-            let new_pos = Duration::from_secs_f32(position_seconds.clamp(0.0, self.total_duration.as_secs_f32()));
+            let new_pos = Duration::from_secs_f32(
+                position_seconds.clamp(0.0, self.total_duration.as_secs_f32()),
+            );
 
             // For simplicity, restart playback at the new position
             source_node.stop();
@@ -1408,7 +1580,10 @@ impl AudioPlayerApp {
     }
 
     fn play_generated_signal(&mut self) {
-        if let Some(buffer) = self.signal_generator_panel.create_audio_buffer(&self.audio_context) {
+        if let Some(buffer) = self
+            .signal_generator_panel
+            .create_audio_buffer(&self.audio_context)
+        {
             // Stop any currently playing source
             if let Some(source) = &mut self.source_node {
                 source.stop();
@@ -1434,11 +1609,12 @@ impl AudioPlayerApp {
             self.playback_state = PlaybackState::Playing;
 
             // Set duration for progress tracking
-            self.total_duration = Duration::from_secs_f32(self.signal_generator_panel.parameters.duration);
+            self.total_duration =
+                Duration::from_secs_f32(self.signal_generator_panel.parameters.duration);
             self.playback_pos = Duration::ZERO;
         }
     }
-    
+
     /// Setup hybrid audio mode with ring buffer bridge
     fn setup_hybrid_mode(&mut self) {
         // Only setup if backend is available and in HybridNative mode
@@ -1452,15 +1628,15 @@ impl AudioPlayerApp {
                         input_channels: 2,
                         output_channels: 2,
                     };
-                    
+
                     let bridge = WebAudioBridge::new(ring_buffer, config);
-                    
+
                     // Connect the bridge to the audio graph
                     // The analyser is the last node before destination
                     bridge.connect_to_graph(&self.audio_context, &self.analyser);
-                    
+
                     self.web_audio_bridge = Some(bridge);
-                    
+
                     println!("✅ Hybrid audio bridge connected");
                 } else {
                     eprintln!("⚠️ Ring buffer not available from backend");
@@ -1494,14 +1670,14 @@ impl AudioPlayerApp {
 
             // Audio Backend Settings (Phase 3.1 Enhanced UI)
             let mut should_setup_hybrid = false;
-            
+
             ui.group(|ui| {
                 ui.label(RichText::new("🔊 Audio Backend").strong());
                 ui.add_space(5.0);
-                
+
                 if let Some(backend) = &mut self.audio_backend {
                     let current_mode = backend.mode();
-                    
+
                     ui.horizontal(|ui| {
                         ui.label("Mode:");
                         if ui.radio(current_mode == HybridMode::WebAudioOnly, "🌐 Web Audio API").clicked() {
@@ -1512,7 +1688,7 @@ impl AudioPlayerApp {
                             }
                         }
                     });
-                    
+
                     ui.horizontal(|ui| {
                         ui.label("");
                         if ui.radio(current_mode == HybridMode::HybridNative, "🎵 Hybrid (Native + Web)").clicked() {
@@ -1525,7 +1701,7 @@ impl AudioPlayerApp {
                             }
                         }
                     });
-                    
+
                     // Show mode-specific info
                     ui.add_space(5.0);
                     match current_mode {
@@ -1544,44 +1720,44 @@ impl AudioPlayerApp {
                     ui.label("Using web-audio-api fallback mode");
                 }
             });
-            
+
             // Setup hybrid mode if requested (after releasing borrow)
             if should_setup_hybrid {
                 self.setup_hybrid_mode();
             }
 
             ui.add_space(15.0);
-            
+
             // Fallback Policy Settings (Phase 3.1.6)
             if let Some(backend) = &mut self.audio_backend {
                 ui.group(|ui| {
                     ui.label(RichText::new("🔄 Audio Fallback Policy").strong());
                     ui.add_space(5.0);
-                    
+
                     let current_policy = backend.fallback_policy();
                     let health = backend.health();
-                    
+
                     // Show health status with color coding
                     let (health_text, health_color) = match health {
                         BackendHealth::Healthy => ("✅ Healthy", Color32::from_rgb(100, 255, 100)),
                         BackendHealth::Degraded => ("⚠️ Degraded", Color32::from_rgb(255, 200, 100)),
                         BackendHealth::Failed => ("❌ Failed", Color32::from_rgb(255, 100, 100)),
                     };
-                    
+
                     ui.horizontal(|ui| {
                         ui.label("Status:");
                         ui.label(RichText::new(health_text).color(health_color));
                     });
-                    
+
                     ui.add_space(5.0);
-                    
+
                     // Fallback policy dropdown
                     let policy_text = match current_policy {
                         FallbackPolicy::Manual => "Manual",
                         FallbackPolicy::AutoOnError => "Auto on Error",
                         FallbackPolicy::AutoWithPreference(_) => "Auto with Preference",
                     };
-                    
+
                     egui::ComboBox::from_label("Policy:")
                         .selected_text(policy_text)
                         .show_ui(ui, |ui| {
@@ -1592,7 +1768,7 @@ impl AudioPlayerApp {
                                 backend.set_fallback_policy(FallbackPolicy::Manual);
                                 self.audio_status_message = Some(("Fallback policy: Manual".to_string(), Instant::now()));
                             }
-                            
+
                             if ui.selectable_label(
                                 matches!(current_policy, FallbackPolicy::AutoOnError),
                                 "🔄 Auto on Error"
@@ -1600,7 +1776,7 @@ impl AudioPlayerApp {
                                 backend.set_fallback_policy(FallbackPolicy::AutoOnError);
                                 self.audio_status_message = Some(("Fallback policy: Auto on Error".to_string(), Instant::now()));
                             }
-                            
+
                             if ui.selectable_label(
                                 matches!(current_policy, FallbackPolicy::AutoWithPreference(_)),
                                 "⚙️ Auto with Preference"
@@ -1610,7 +1786,7 @@ impl AudioPlayerApp {
                                 self.audio_status_message = Some(("Fallback policy: Auto with Preference".to_string(), Instant::now()));
                             }
                         });
-                    
+
                     // Show policy description
                     ui.add_space(5.0);
                     let description = match current_policy {
@@ -1620,7 +1796,7 @@ impl AudioPlayerApp {
                             &format!("System will try {:?} first, automatically falling back to Web Audio API if unavailable.", mode)
                         }
                     };
-                    
+
                     ui.label(RichText::new(description).size(11.0).color(colors.text_secondary).italics());
                 });
             }
@@ -1633,16 +1809,16 @@ impl AudioPlayerApp {
                     ui.group(|ui| {
                         ui.label(RichText::new("🎧 Audio Device").strong());
                         ui.add_space(5.0);
-                        
+
                         if let Some(device_manager) = &self.device_manager {
                             // Output device selection
                             ui.label("Output Device:");
-                            
+
                             let selected_device = device_manager.selected_output_device();
                             let selected_name = selected_device.as_ref()
                                 .map(|d| d.name.clone())
                                 .unwrap_or_else(|| "No device selected".to_string());
-                            
+
                             egui::ComboBox::from_label("")
                                 .selected_text(&selected_name)
                                 .show_ui(ui, |ui| {
@@ -1650,7 +1826,7 @@ impl AudioPlayerApp {
                                         for device in devices {
                                             let icon = if device.is_default { "🔊" } else { "🔉" };
                                             let label = format!("{} {}", icon, device.name);
-                                            
+
                                             if ui.selectable_label(
                                                 selected_device.as_ref().map(|d| d.id == device.id).unwrap_or(false),
                                                 label
@@ -1666,26 +1842,26 @@ impl AudioPlayerApp {
                                         ui.label("⚠️ Failed to enumerate devices");
                                     }
                                 });
-                            
+
                             // Device info display
                             if let Some(device) = &selected_device {
                                 ui.add_space(10.0);
                                 ui.group(|ui| {
                                     ui.label(RichText::new("Device Info:").size(12.0).strong());
                                     ui.separator();
-                                    
+
                                     ui.horizontal(|ui| {
                                         ui.label("Sample Rate:");
                                         ui.label(format!("{} - {} Hz", device.min_sample_rate, device.max_sample_rate));
                                     });
-                                    
+
                                     ui.horizontal(|ui| {
                                         ui.label("Channels:");
                                         ui.label(format!("{}", device.max_output_channels));
                                     });
                                 });
                             }
-                            
+
                             // Latency indicator with color coding
                             ui.add_space(10.0);
                             if let Some(latency_ms) = device_manager.stream_latency_ms() {
@@ -1698,13 +1874,13 @@ impl AudioPlayerApp {
                                 } else {
                                     Color32::from_rgb(255, 100, 100) // Red: high
                                 };
-                                
+
                                 ui.horizontal(|ui| {
                                     ui.label("Latency:");
                                     ui.label(RichText::new(format!("{:.1} ms", latency_ms))
                                         .color(latency_color)
                                         .strong());
-                                    
+
                                     // Status indicator
                                     if latency_ms < 10.0 {
                                         ui.label("✅ Excellent");
@@ -1721,11 +1897,11 @@ impl AudioPlayerApp {
                             ui.label("⚠️ Device manager not initialized");
                         }
                     });
-                    
+
                     ui.add_space(15.0);
                 }
             }
-            
+
             // Show status messages (fade out after 3 seconds)
             if let Some((message, timestamp)) = &self.audio_status_message {
                 let elapsed = Instant::now().duration_since(*timestamp).as_secs_f32();
@@ -1733,7 +1909,7 @@ impl AudioPlayerApp {
                     let alpha = (1.0 - (elapsed / 3.0)).clamp(0.0, 1.0);
                     let mut color = Color32::from_rgb(100, 200, 255);
                     color[3] = (alpha * 255.0) as u8;
-                    
+
                     ui.add_space(5.0);
                     ui.label(RichText::new(message).color(color).size(12.0));
                 } else {
@@ -1770,35 +1946,44 @@ impl AudioPlayerApp {
             egui::menu::bar(ui, |ui| {
                 egui::menu::menu_button(ui, "View", |ui| {
                     if ui.button("📋 Default Workspace").clicked() {
-                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Default);
+                        self.dock_layout_manager
+                            .switch_workspace(ui::dock_layout::WorkspacePreset::Default);
                         ui.close_menu();
                     }
                     if ui.button("📊 Analyzer Workspace").clicked() {
-                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Analyzer);
+                        self.dock_layout_manager
+                            .switch_workspace(ui::dock_layout::WorkspacePreset::Analyzer);
                         ui.close_menu();
                     }
                     if ui.button("🎛️ Generator Workspace").clicked() {
-                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Generator);
+                        self.dock_layout_manager
+                            .switch_workspace(ui::dock_layout::WorkspacePreset::Generator);
                         ui.close_menu();
                     }
                     if ui.button("🎚️ Mixing Workspace").clicked() {
-                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Mixing);
+                        self.dock_layout_manager
+                            .switch_workspace(ui::dock_layout::WorkspacePreset::Mixing);
                         ui.close_menu();
                     }
                     if ui.button("⏯️ Playback Workspace").clicked() {
-                        self.dock_layout_manager.switch_workspace(ui::dock_layout::WorkspacePreset::Playback);
+                        self.dock_layout_manager
+                            .switch_workspace(ui::dock_layout::WorkspacePreset::Playback);
                         ui.close_menu();
                     }
                 });
-                
+
                 ui.separator();
-                ui.label(format!("Workspace: {:?}", self.dock_layout_manager.active_workspace()));
+                ui.label(format!(
+                    "Workspace: {:?}",
+                    self.dock_layout_manager.active_workspace()
+                ));
             });
         });
-        
+
         // Render the dock layout by temporarily taking ownership
         // This is safe because we're not using dock_layout_manager again in this function
-        let mut dock_manager = std::mem::replace(&mut self.dock_layout_manager, DockLayoutManager::new());
+        let mut dock_manager =
+            std::mem::replace(&mut self.dock_layout_manager, DockLayoutManager::new());
         dock_manager.show(ctx, self);
         self.dock_layout_manager = dock_manager;
     }
@@ -1806,7 +1991,7 @@ impl AudioPlayerApp {
     fn draw_keyboard_shortcuts_overlay(&mut self, ctx: &egui::Context, colors: &ThemeColors) {
         let mut show_shortcuts = self.show_keyboard_shortcuts;
         let mut close_requested = false;
-        
+
         egui::Window::new("🎹 Keyboard Shortcuts")
             .open(&mut show_shortcuts)
             .resizable(false)
@@ -1814,7 +1999,12 @@ impl AudioPlayerApp {
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
-                    ui.label(RichText::new("Playback Controls").size(16.0).color(colors.text).strong());
+                    ui.label(
+                        RichText::new("Playback Controls")
+                            .size(16.0)
+                            .color(colors.text)
+                            .strong(),
+                    );
                     ui.separator();
                     ui.add_space(5.0);
 
@@ -1839,7 +2029,12 @@ impl AudioPlayerApp {
                     });
 
                     ui.add_space(10.0);
-                    ui.label(RichText::new("Volume & Seeking").size(16.0).color(colors.text).strong());
+                    ui.label(
+                        RichText::new("Volume & Seeking")
+                            .size(16.0)
+                            .color(colors.text)
+                            .strong(),
+                    );
                     ui.separator();
                     ui.add_space(5.0);
 
@@ -1854,7 +2049,12 @@ impl AudioPlayerApp {
                     });
 
                     ui.add_space(10.0);
-                    ui.label(RichText::new("Interface").size(16.0).color(colors.text).strong());
+                    ui.label(
+                        RichText::new("Interface")
+                            .size(16.0)
+                            .color(colors.text)
+                            .strong(),
+                    );
                     ui.separator();
                     ui.add_space(5.0);
 
@@ -1877,19 +2077,24 @@ impl AudioPlayerApp {
                     }
                 });
             });
-        
+
         if close_requested || !show_shortcuts {
             self.show_keyboard_shortcuts = false;
         }
     }
 }
 
+// ============================================================================
+// Platform-specific entry points
+// ============================================================================
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), eframe::Error> {
     // Configure for Windows landscape HiDPI displays
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size(Vec2::new(1200.0, 800.0))  // Landscape orientation
-            .with_min_inner_size(Vec2::new(800.0, 600.0))  // Minimum size
+            .with_inner_size(Vec2::new(1200.0, 800.0)) // Landscape orientation
+            .with_min_inner_size(Vec2::new(800.0, 600.0)) // Minimum size
             .with_resizable(true)
             .with_maximize_button(true)
             .with_minimize_button(true)
@@ -1897,8 +2102,8 @@ fn main() -> Result<(), eframe::Error> {
             .with_drag_and_drop(true)
             .with_transparent(false)
             .with_decorations(true),
-        multisampling: 4,  // Anti-aliasing for crisp HiDPI rendering
-        depth_buffer: 8,   // Better rendering quality
+        multisampling: 4, // Anti-aliasing for crisp HiDPI rendering
+        depth_buffer: 8,  // Better rendering quality
         stencil_buffer: 0,
         hardware_acceleration: eframe::HardwareAcceleration::Required,
         centered: true,
@@ -1910,7 +2115,7 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| {
             // Configure for HiDPI scaling
-            cc.egui_ctx.set_pixels_per_point(1.25);  // Optimal for HiDPI displays
+            cc.egui_ctx.set_pixels_per_point(1.25); // Optimal for HiDPI displays
             cc.egui_ctx.set_zoom_factor(1.0);
 
             // Enable better text rendering for HiDPI
@@ -1940,3 +2145,10 @@ fn main() -> Result<(), eframe::Error> {
         }),
     )
 }
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = WebHandle)]
+pub use rusty_audio::web::WebHandle;

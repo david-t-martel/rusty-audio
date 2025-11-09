@@ -1,10 +1,10 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
-use std::time::{Duration, Instant};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use parking_lot::{Mutex, RwLock};
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
-use parking_lot::{Mutex, RwLock};
-use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 
 const SAMPLE_RATE: f32 = 48000.0;
 const RENDER_QUANTUM_SIZE: usize = 128;
@@ -49,7 +49,8 @@ impl RealtimeMetrics {
         if self.total_processed_samples == 0 {
             0.0
         } else {
-            self.total_processing_time_ns as f64 / (self.total_processed_samples / RENDER_QUANTUM_SIZE as u64) as f64
+            self.total_processing_time_ns as f64
+                / (self.total_processed_samples / RENDER_QUANTUM_SIZE as u64) as f64
         }
     }
 
@@ -92,7 +93,8 @@ impl LockFreeRingBuffer {
             }
         }
 
-        self.write_pos.store(write_pos + to_write as u64, Ordering::Release);
+        self.write_pos
+            .store(write_pos + to_write as u64, Ordering::Release);
         to_write
     }
 
@@ -111,7 +113,8 @@ impl LockFreeRingBuffer {
             };
         }
 
-        self.read_pos.store(read_pos + to_read as u64, Ordering::Release);
+        self.read_pos
+            .store(read_pos + to_read as u64, Ordering::Release);
         to_read
     }
 
@@ -243,7 +246,8 @@ struct RealtimeConstraints {
 
 impl RealtimeConstraints {
     fn new(sample_rate: f32, quantum_size: usize) -> Self {
-        let quantum_duration_ns = ((quantum_size as f64 / sample_rate as f64) * 1_000_000_000.0) as u64;
+        let quantum_duration_ns =
+            ((quantum_size as f64 / sample_rate as f64) * 1_000_000_000.0) as u64;
 
         Self {
             quantum_duration_ns,
@@ -273,9 +277,7 @@ fn bench_quantum_processing_deadlines(c: &mut Criterion) {
         processor.start();
 
         // Fill input buffer
-        let input_data: Vec<f32> = (0..BUFFER_SIZE)
-            .map(|i| (i as f32 * 0.001).sin())
-            .collect();
+        let input_data: Vec<f32> = (0..BUFFER_SIZE).map(|i| (i as f32 * 0.001).sin()).collect();
         processor.feed_input(&input_data);
 
         b.iter(|| {
@@ -298,9 +300,7 @@ fn bench_quantum_processing_deadlines(c: &mut Criterion) {
         processor.start();
 
         // Fill input buffer
-        let input_data: Vec<f32> = (0..BUFFER_SIZE)
-            .map(|i| (i as f32 * 0.001).sin())
-            .collect();
+        let input_data: Vec<f32> = (0..BUFFER_SIZE).map(|i| (i as f32 * 0.001).sin()).collect();
         processor.feed_input(&input_data);
 
         b.iter(|| {
@@ -460,9 +460,7 @@ fn bench_sustained_cpu_load(c: &mut Criterion) {
         processor.start();
 
         // Fill input buffer with test data
-        let input_data: Vec<f32> = (0..BUFFER_SIZE)
-            .map(|i| (i as f32 * 0.001).sin())
-            .collect();
+        let input_data: Vec<f32> = (0..BUFFER_SIZE).map(|i| (i as f32 * 0.001).sin()).collect();
 
         for _ in 0..10 {
             processor.feed_input(&input_data);
@@ -492,9 +490,7 @@ fn bench_sustained_cpu_load(c: &mut Criterion) {
         let mut processor = RealtimeAudioProcessor::new();
         processor.start();
 
-        let input_data: Vec<f32> = (0..BUFFER_SIZE)
-            .map(|i| (i as f32 * 0.001).sin())
-            .collect();
+        let input_data: Vec<f32> = (0..BUFFER_SIZE).map(|i| (i as f32 * 0.001).sin()).collect();
 
         b.iter(|| {
             // Simulate burst of processing after idle period
@@ -528,9 +524,7 @@ fn bench_realtime_memory(c: &mut Criterion) {
         let mut processor = RealtimeAudioProcessor::new();
         processor.start();
 
-        let input_data: Vec<f32> = (0..BUFFER_SIZE)
-            .map(|i| (i as f32 * 0.001).sin())
-            .collect();
+        let input_data: Vec<f32> = (0..BUFFER_SIZE).map(|i| (i as f32 * 0.001).sin()).collect();
         processor.feed_input(&input_data);
 
         b.iter(|| {

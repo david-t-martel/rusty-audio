@@ -1,4 +1,4 @@
-use egui::{Ui, Vec2, Rect, Pos2, Color32, Stroke};
+use egui::{Color32, Pos2, Rect, Stroke, Ui, Vec2};
 
 /// Responsive sizing utilities
 pub struct ResponsiveSize {
@@ -32,10 +32,10 @@ impl ResponsiveSize {
 /// Screen size categories for responsive design
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenSize {
-    Mobile,    // < 600px width
-    Tablet,    // 600-900px width
-    Desktop,   // 900-1200px width
-    Large,     // > 1200px width
+    Mobile,  // < 600px width
+    Tablet,  // 600-900px width
+    Desktop, // 900-1200px width
+    Large,   // > 1200px width
 }
 
 impl ScreenSize {
@@ -160,21 +160,12 @@ impl ColorUtils {
 pub struct DrawUtils;
 
 impl DrawUtils {
-    pub fn draw_rounded_rect_outline(
-        ui: &Ui,
-        rect: Rect,
-        rounding: f32,
-        stroke: Stroke,
-    ) {
-        ui.painter().rect_stroke(rect, rounding, stroke, egui::epaint::StrokeKind::Outside);
+    pub fn draw_rounded_rect_outline(ui: &Ui, rect: Rect, rounding: f32, stroke: Stroke) {
+        ui.painter()
+            .rect_stroke(rect, rounding, stroke, egui::epaint::StrokeKind::Outside);
     }
 
-    pub fn draw_rounded_rect_filled(
-        ui: &Ui,
-        rect: Rect,
-        rounding: f32,
-        fill: Color32,
-    ) {
+    pub fn draw_rounded_rect_filled(ui: &Ui, rect: Rect, rounding: f32, fill: Color32) {
         ui.painter().rect_filled(rect, rounding, fill);
     }
 
@@ -193,27 +184,13 @@ impl DrawUtils {
         painter.rect_filled(rect, rounding, mid_color);
     }
 
-    pub fn draw_shadow(
-        ui: &Ui,
-        rect: Rect,
-        rounding: f32,
-        blur: f32,
-        color: Color32,
-    ) {
-        let shadow_rect = Rect::from_min_size(
-            rect.min + Vec2::splat(blur * 0.5),
-            rect.size(),
-        );
-        ui.painter().rect_filled(shadow_rect, rounding, ColorUtils::with_alpha(color, 0.3));
+    pub fn draw_shadow(ui: &Ui, rect: Rect, rounding: f32, blur: f32, color: Color32) {
+        let shadow_rect = Rect::from_min_size(rect.min + Vec2::splat(blur * 0.5), rect.size());
+        ui.painter()
+            .rect_filled(shadow_rect, rounding, ColorUtils::with_alpha(color, 0.3));
     }
 
-    pub fn draw_glow_effect(
-        ui: &Ui,
-        center: Pos2,
-        radius: f32,
-        color: Color32,
-        intensity: f32,
-    ) {
+    pub fn draw_glow_effect(ui: &Ui, center: Pos2, radius: f32, color: Color32, intensity: f32) {
         let painter = ui.painter();
         let glow_color = ColorUtils::with_alpha(color, intensity * 0.5);
 
@@ -240,7 +217,9 @@ impl LayoutUtils {
             return (0, 0, Vec2::ZERO);
         }
 
-        let cols = ((available.x + spacing) / (min_item_size.x + spacing)).floor().max(1.0) as usize;
+        let cols = ((available.x + spacing) / (min_item_size.x + spacing))
+            .floor()
+            .max(1.0) as usize;
         let rows = (item_count + cols - 1) / cols;
 
         let item_width = (available.x - spacing * (cols - 1) as f32) / cols as f32;
@@ -254,11 +233,7 @@ impl LayoutUtils {
         (cols, rows, item_size)
     }
 
-    pub fn distribute_space(
-        available: f32,
-        weights: &[f32],
-        spacing: f32,
-    ) -> Vec<f32> {
+    pub fn distribute_space(available: f32, weights: &[f32], spacing: f32) -> Vec<f32> {
         if weights.is_empty() {
             return vec![];
         }

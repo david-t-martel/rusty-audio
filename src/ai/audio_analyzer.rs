@@ -3,8 +3,8 @@
 //! Performs comprehensive audio analysis using FFT, statistical analysis,
 //! and pattern recognition for intelligent feature extraction.
 
-use anyhow::{Result, Context};
-use rustfft::{FftPlanner, num_complex::Complex};
+use anyhow::{Context, Result};
+use rustfft::{num_complex::Complex, FftPlanner};
 use std::f32::consts::PI;
 
 /// Audio analyzer for intelligent analysis
@@ -30,7 +30,8 @@ impl AudioAnalyzer {
         let statistical_features = self.extract_statistical_features(buffer)?;
         let rhythm_features = self.extract_rhythm_features(buffer, sample_rate)?;
 
-        let overall_quality_score = self.calculate_quality_score(&spectral_features, &temporal_features);
+        let overall_quality_score =
+            self.calculate_quality_score(&spectral_features, &temporal_features);
 
         Ok(AudioAnalysis {
             spectral_features,
@@ -42,7 +43,11 @@ impl AudioAnalyzer {
     }
 
     /// Extract spectral features using FFT
-    fn extract_spectral_features(&mut self, buffer: &[f32], sample_rate: u32) -> Result<SpectralFeatures> {
+    fn extract_spectral_features(
+        &mut self,
+        buffer: &[f32],
+        sample_rate: u32,
+    ) -> Result<SpectralFeatures> {
         let mut windowed_buffer = vec![Complex::new(0.0, 0.0); self.window_size];
 
         // Apply Hann window
@@ -75,7 +80,8 @@ impl AudioAnalyzer {
             spectral_entropy,
             mfcc,
             harmonic_peaks: self.detect_harmonic_peaks(&magnitude_spectrum),
-            fundamental_frequency: self.estimate_fundamental_frequency(&magnitude_spectrum, sample_rate),
+            fundamental_frequency: self
+                .estimate_fundamental_frequency(&magnitude_spectrum, sample_rate),
         })
     }
 
@@ -166,9 +172,11 @@ impl AudioAnalyzer {
     /// Calculate spectral flux
     fn calculate_spectral_flux(&self, spectrum: &[f32]) -> f32 {
         // Simplified version - in production, compare with previous frame
-        spectrum.windows(2)
+        spectrum
+            .windows(2)
             .map(|w| (w[1] - w[0]).abs())
-            .sum::<f32>() / spectrum.len() as f32
+            .sum::<f32>()
+            / spectrum.len() as f32
     }
 
     /// Calculate spectral entropy
@@ -201,7 +209,11 @@ impl AudioAnalyzer {
             let end_idx = ((i + 1) * spectrum.len() / num_coeffs).min(spectrum.len());
 
             let bin_energy: f32 = spectrum[start_idx..end_idx].iter().sum();
-            mfcc[i] = if bin_energy > 0.0 { bin_energy.ln() } else { 0.0 };
+            mfcc[i] = if bin_energy > 0.0 {
+                bin_energy.ln()
+            } else {
+                0.0
+            };
         }
 
         Ok(mfcc)
@@ -262,7 +274,11 @@ impl AudioAnalyzer {
     /// Calculate dynamic range
     fn calculate_dynamic_range(&self, buffer: &[f32]) -> f32 {
         let max = buffer.iter().map(|x| x.abs()).fold(0.0f32, f32::max);
-        let min = buffer.iter().map(|x| x.abs()).filter(|&x| x > 0.0).fold(1.0f32, f32::min);
+        let min = buffer
+            .iter()
+            .map(|x| x.abs())
+            .filter(|&x| x > 0.0)
+            .fold(1.0f32, f32::min);
 
         if min > 0.0 && max > min {
             20.0 * (max / min).log10()
@@ -324,7 +340,7 @@ impl AudioAnalyzer {
 
         // Autocorrelation
         let min_lag = (60.0 * sample_rate as f32 / (200.0 * hop_size as f32)) as usize; // 200 BPM max
-        let max_lag = (60.0 * sample_rate as f32 / (40.0 * hop_size as f32)) as usize;  // 40 BPM min
+        let max_lag = (60.0 * sample_rate as f32 / (40.0 * hop_size as f32)) as usize; // 40 BPM min
 
         let mut best_correlation = 0.0;
         let mut best_lag = min_lag;
@@ -364,7 +380,8 @@ impl AudioAnalyzer {
 
         for i in (hop_size..buffer.len()).step_by(hop_size) {
             let prev_energy = self.calculate_energy(&buffer[i - hop_size..i]);
-            let curr_energy = self.calculate_energy(&buffer[i..i.min(i + hop_size).min(buffer.len())]);
+            let curr_energy =
+                self.calculate_energy(&buffer[i..i.min(i + hop_size).min(buffer.len())]);
 
             if curr_energy > prev_energy * 1.5 {
                 onsets += 1;
@@ -383,7 +400,11 @@ impl AudioAnalyzer {
     }
 
     /// Calculate overall quality score
-    fn calculate_quality_score(&self, spectral: &SpectralFeatures, temporal: &TemporalFeatures) -> f32 {
+    fn calculate_quality_score(
+        &self,
+        spectral: &SpectralFeatures,
+        temporal: &TemporalFeatures,
+    ) -> f32 {
         let mut score = 0.0;
 
         // Penalize clipping

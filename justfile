@@ -24,7 +24,7 @@ check-lib:
 # Check main binary only
 check-bin:
     @echo "🎵 Checking binary..."
-    cargo check --bin rusty-audio
+    cargo check --bin rusty-audio_native
 
 # === Building ===
 
@@ -40,7 +40,7 @@ build-release:
 
 # Build all targets
 build-all:
-    @echo "🏗️ Building all targets..."
+    @echo "🏗️  Building all targets..."
     cargo build --all-targets
 
 # Clean build artifacts
@@ -52,7 +52,7 @@ clean:
 
 # Run debug version
 run:
-    @echo "▶️ Running rusty-audio (debug)..."
+    @echo "▶️  Running rusty-audio (debug)..."
     cargo run
 
 # Run release version (better performance)
@@ -147,6 +147,139 @@ doc-check:
     @echo "🔗 Checking documentation..."
     cargo doc --no-deps
 
+# === WASM/PWA Build Targets ===
+
+# Build WASM with wasm-pack (dev profile, fastest)
+build-wasm:
+    @echo "🌐 Building WASM with wasm-pack (dev)..."
+    wasm-pack build --target web --out-dir dist/pkg --dev
+
+# Build WASM with wasm-pack (release + optimizations)
+build-wasm-release:
+    @echo "⚡ Building WASM with wasm-pack (release)..."
+    wasm-pack build --target web --out-dir dist/pkg --release
+
+# Build complete PWA with Trunk (includes all assets)
+build-trunk:
+    @echo "🚀 Building PWA with Trunk..."
+    trunk build
+
+# Build complete PWA with Trunk (release + optimizations)
+build-trunk-release:
+    @echo "⚡ Building PWA with Trunk (release)..."
+    trunk build --release
+
+# Check WASM compilation without building artifacts
+check-wasm:
+    @echo "🔍 Checking WASM compilation..."
+    cargo check --lib --target wasm32-unknown-unknown
+
+# === WASM/PWA Development Servers ===
+
+# Serve WASM app with Trunk (auto-reload, dev mode)
+serve-wasm:
+    @echo "🌐 Starting Trunk dev server..."
+    @echo "📍 Open http://localhost:8080 in your browser"
+    @echo "💡 Press Ctrl+C to stop"
+    trunk serve
+
+# Serve WASM app with Trunk (release mode)
+serve-wasm-release:
+    @echo "⚡ Starting Trunk dev server (release)..."
+    @echo "📍 Open http://localhost:8080 in your browser"
+    trunk serve --release
+
+# Serve WASM app on custom port
+serve-wasm-port PORT:
+    @echo "🌐 Starting Trunk dev server on port {{PORT}}..."
+    @echo "📍 Open http://localhost:{{PORT}} in your browser"
+    trunk serve --port {{PORT}}
+
+# Serve pre-built dist/ with Python HTTP server
+serve-dist:
+    @echo "📂 Serving dist/ directory..."
+    @echo "📍 Open http://localhost:8000 in your browser"
+    python3 -m http.server 8000 --directory dist
+
+# === WASM Testing ===
+
+# Test WASM in headless browsers (Firefox + Chrome)
+test-wasm-headless:
+    @echo "🧪 Testing WASM in headless browsers..."
+    wasm-pack test --headless --firefox --chrome
+
+# Test WASM interactively in browsers
+test-wasm-browser:
+    @echo "🌐 Opening WASM tests in browser..."
+    wasm-pack test --firefox --chrome
+
+# Run localhost integration tests (requires server running)
+test-localhost:
+    @echo "🔗 Running localhost integration tests..."
+    @echo "⚠️  Make sure server is running: just serve-wasm"
+    cargo test --test localhost_integration -- --test-threads=1
+
+# Full WASM test suite (build + serve + test + cleanup)
+test-wasm-full:
+    @echo "🎭 Running full WASM test suite..."
+    just build-wasm
+    @echo "📍 Starting test server..."
+    python3 -m http.server 8000 --directory dist &
+    sleep 3
+    just test-localhost || true
+    pkill -f "python3 -m http.server" || true
+    @echo "✅ WASM tests complete"
+
+# === WASM Bundle Analysis ===
+
+# Show WASM bundle sizes
+wasm-size:
+    @echo "📊 WASM Bundle Sizes:"
+    @echo ""
+    @ls -lh dist/pkg/*.wasm 2>/dev/null || echo "❌ No WASM files. Run: just build-wasm"
+    @ls -lh dist/pkg/*.js 2>/dev/null || echo "❌ No JS files found"
+    @echo ""
+    @echo "📦 Total dist/ size:"
+    @du -sh dist/ 2>/dev/null || echo "❌ dist/ not found"
+
+# Analyze WASM binary features
+wasm-analyze:
+    @echo "🔬 Analyzing WASM binary features..."
+    @wasm-opt dist/pkg/*_bg.wasm --print-features 2>/dev/null || echo "❌ wasm-opt not found. Install binaryen."
+
+# Optimize WASM with wasm-opt
+wasm-optimize:
+    @echo "⚡ Optimizing WASM with wasm-opt..."
+    @wasm-opt -Oz dist/pkg/*_bg.wasm -o dist/pkg/rusty_audio_bg_opt.wasm
+    @echo "📊 Size comparison:"
+    @echo "Original: $(ls -lh dist/pkg/*_bg.wasm | grep -v opt | awk '{print $5}')"
+    @echo "Optimized: $(ls -lh dist/pkg/rusty_audio_bg_opt.wasm | awk '{print $5}')"
+
+# === PWA Deployment ===
+
+# Build complete PWA bundle (wasm-pack + copy static assets)
+pwa-build:
+    @echo "🌐 Building complete PWA bundle..."
+    just build-wasm-release
+    @cp -r static/* dist/
+    @cp index.html dist/
+    @echo "✅ PWA build complete: dist/"
+
+# Verify PWA setup (check required files)
+pwa-verify:
+    @echo "✅ Verifying PWA setup..."
+    @echo "Checking required files:"
+    @test -f index.html && echo "✅ index.html" || echo "❌ index.html missing"
+    @test -f static/manifest.webmanifest && echo "✅ manifest.webmanifest" || echo "❌ manifest.webmanifest missing"
+    @test -f static/service-worker.js && echo "✅ service-worker.js" || echo "❌ service-worker.js missing"
+    @test -f static/_headers && echo "✅ _headers" || echo "❌ _headers missing"
+    @test -d static/icons && echo "✅ icons/ directory" || echo "❌ icons/ missing"
+    @echo ""
+    @echo "Rust toolchain:"
+    @rustc --version
+    @echo "WASM target:"
+    @rustup target list | grep wasm32-unknown-unknown
+
 # === Platform-Specific ===
 
 # Build for Windows with ASIO support (future)
@@ -154,16 +287,11 @@ build-windows-asio:
     @echo "🪟 Building for Windows with ASIO..."
     cargo build --release --features asio
 
-# Build for WASM target
-build-wasm:
-    @echo "🌐 Building for WASM..."
-    cargo build --target wasm32-unknown-unknown --lib
-
 # === Advanced ===
 
 # Update dependencies
 update:
-    @echo "⬆️ Updating dependencies..."
+    @echo "⬆️  Updating dependencies..."
     cargo update
 
 # Check for outdated dependencies
@@ -178,7 +306,7 @@ tree:
 
 # Check compilation time
 time-build:
-    @echo "⏱️ Timing build..."
+    @echo "⏱️  Timing build..."
     cargo build --timings
 
 # Expand macros for debugging
@@ -213,8 +341,8 @@ ci: fmt-check lint test
 pre-commit: fmt lint test check-bin
     @echo "✅ Ready to commit!"
 
-# Full pre-release check
-pre-release: quality build-release test doc-check
+# Full pre-release check (native + WASM)
+pre-release: quality build-release test doc-check build-wasm-release
     @echo "✅ Ready for release!"
 
 # === Profiling & Performance ===
@@ -223,7 +351,7 @@ pre-release: quality build-release test doc-check
 profile-perf:
     @echo "📊 Profiling with perf..."
     cargo build --release
-    perf record -F 99 -g target/release/rusty-audio
+    perf record -F 99 -g target/release/rusty-audio_native
     perf script | stackcollapse-perf.pl | flamegraph.pl > flame.svg
 
 # Profile with cargo-flamegraph
@@ -240,6 +368,9 @@ status:
     @echo "Build artifacts:"
     @du -sh target/ 2>/dev/null || echo "No build artifacts"
     @echo ""
+    @echo "WASM artifacts:"
+    @du -sh dist/ 2>/dev/null || echo "No WASM artifacts"
+    @echo ""
     @echo "Git status:"
     @git status -s
     @echo ""
@@ -251,6 +382,7 @@ clean-all: clean
     @echo "🧹 Cleaning Cargo cache..."
     @rm -rf ~/.cargo/registry/cache
     @rm -rf ~/.cargo/git/db
+    @rm -rf dist/
 
 # === Help ===
 
@@ -263,6 +395,12 @@ help:
     @echo "  just build          - Build debug version"
     @echo "  just run            - Run debug version"
     @echo "  just test           - Run all tests"
+    @echo ""
+    @echo "WASM/PWA:"
+    @echo "  just build-wasm     - Build WASM (dev)"
+    @echo "  just serve-wasm     - Start dev server"
+    @echo "  just pwa-build      - Build complete PWA"
+    @echo "  just test-wasm-full - Full WASM test suite"
     @echo ""
     @echo "Development:"
     @echo "  just fmt            - Format code"
@@ -285,6 +423,17 @@ install-tools:
     cargo install cargo-watch cargo-outdated cargo-tree cargo-expand
     cargo install cargo-tarpaulin cargo-audit cargo-deny
     @echo "✅ Tools installed!"
+
+# Install WASM tools
+install-wasm-tools:
+    @echo "🔧 Installing WASM tools..."
+    rustup target add wasm32-unknown-unknown
+    cargo install wasm-pack trunk wasm-bindgen-cli
+    @echo "💡 Install binaryen for wasm-opt:"
+    @echo "   Windows: choco install binaryen"
+    @echo "   macOS: brew install binaryen"
+    @echo "   Linux: apt install binaryen"
+    @echo "✅ WASM tools installed!"
 
 # Install ast-grep
 install-ast-grep:
@@ -318,7 +467,7 @@ ast-grep-audio:
 
 # Run ast-grep error handling checks
 ast-grep-errors:
-    @echo "🛡️ Checking error handling..."
+    @echo "🛡️  Checking error handling..."
     ast-grep scan --config .ast-grep/sgconfig.yml --ruleset error-handling src/
 
 # Run ast-grep performance checks
@@ -339,15 +488,15 @@ auto-claude:
     @echo "🤖 Running auto-claude analysis..."
     @echo "Note: Requires auto-claude CLI to be installed"
     @# auto-claude analyze --path src/ --config .auto-claude/config.json
-    @echo "⚠️ auto-claude not yet configured - see https://github.com/anthropics/auto-claude"
+    @echo "⚠️  auto-claude not yet configured - see https://github.com/anthropics/auto-claude"
 
 # Auto-claude code review
 auto-claude-review:
-    @echo "👁️ Running auto-claude code review..."
+    @echo "👁️  Running auto-claude code review..."
     @echo "Analyzing uncommitted changes..."
     @git diff > /tmp/rusty-audio-changes.diff
     @echo "Review saved to /tmp/rusty-audio-changes.diff"
-    @echo "⚠️ Run with actual auto-claude when available"
+    @echo "⚠️  Run with actual auto-claude when available"
 
 # Auto-claude security audit
 auto-claude-security:
@@ -400,8 +549,8 @@ ci-fast: fmt-check lint test-lib ast-grep-panic
 pre-push: quality-full
     @echo "✅ Ready to push!"
 
-# Pre-PR checks (comprehensive)
-pre-pr: quality-full cargo-audit cargo-deny doc-check
+# Pre-PR checks (comprehensive, includes WASM)
+pre-pr: quality-full cargo-audit cargo-deny doc-check check-wasm
     @echo "✅ Ready to create PR!"
 
 # Quick commit check
@@ -437,7 +586,7 @@ find-unwrap:
 # Find all expect() usage
 find-expect:
     @echo "🔍 Finding all .expect() calls..."
-    @grep -rn "\.expect(" src/ || echo "✅ No expect() found"
+    @grep -rn "\.expect(" src/ || echo "❌ No expect() found"
 
 # Find all panic!() usage
 find-panic:
@@ -469,3 +618,8 @@ watch-run:
 watch-clear:
     @echo "👀 Watching with clear..."
     cargo watch -c -x check
+
+# Watch WASM builds
+watch-wasm:
+    @echo "👀 Watching WASM builds..."
+    cargo watch -x "check --lib --target wasm32-unknown-unknown"

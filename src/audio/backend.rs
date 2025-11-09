@@ -11,22 +11,22 @@ use thiserror::Error;
 pub enum AudioBackendError {
     #[error("Device not found: {0}")]
     DeviceNotFound(String),
-    
+
     #[error("Device unavailable: {0}")]
     DeviceUnavailable(String),
-    
+
     #[error("Unsupported format: {0}")]
     UnsupportedFormat(String),
-    
+
     #[error("Stream error: {0}")]
     StreamError(String),
-    
+
     #[error("Initialization failed: {0}")]
     InitializationFailed(String),
-    
+
     #[error("Backend not available: {0}")]
     BackendNotAvailable(String),
-    
+
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
@@ -94,32 +94,32 @@ pub enum StreamStatus {
 pub trait AudioBackend: Send + Sync {
     /// Get the backend name (e.g., "cpal", "web-audio-api")
     fn name(&self) -> &'static str;
-    
+
     /// Check if this backend is available on the current platform
     fn is_available(&self) -> bool;
-    
+
     /// Initialize the backend
     fn initialize(&mut self) -> Result<()>;
-    
+
     /// Enumerate available audio devices
     fn enumerate_devices(&self, direction: StreamDirection) -> Result<Vec<DeviceInfo>>;
-    
+
     /// Get the default device for the specified direction
     fn default_device(&self, direction: StreamDirection) -> Result<DeviceInfo>;
-    
+
     /// Test if a device is available and functional
     fn test_device(&self, device_id: &str) -> Result<bool>;
-    
+
     /// Get supported configurations for a device
     fn supported_configs(&self, device_id: &str) -> Result<Vec<AudioConfig>>;
-    
+
     /// Create an output stream with the specified device and config
     fn create_output_stream(
         &mut self,
         device_id: &str,
         config: AudioConfig,
     ) -> Result<Box<dyn AudioStream>>;
-    
+
     /// Create an input stream with the specified device and config
     fn create_input_stream(
         &mut self,
@@ -132,22 +132,22 @@ pub trait AudioBackend: Send + Sync {
 pub trait AudioStream: Send {
     /// Start the stream
     fn play(&mut self) -> Result<()>;
-    
+
     /// Pause the stream
     fn pause(&mut self) -> Result<()>;
-    
+
     /// Stop the stream
     fn stop(&mut self) -> Result<()>;
-    
+
     /// Get current stream status
     fn status(&self) -> StreamStatus;
-    
+
     /// Get the stream configuration
     fn config(&self) -> &AudioConfig;
-    
+
     /// Get current latency in samples
     fn latency_samples(&self) -> Option<usize>;
-    
+
     /// Get current latency in milliseconds
     fn latency_ms(&self) -> Option<f32> {
         self.latency_samples().map(|samples| {
@@ -171,15 +171,15 @@ impl AudioBuffer {
             sample_rate,
         }
     }
-    
+
     pub fn num_channels(&self) -> usize {
         self.channels.len()
     }
-    
+
     pub fn num_samples(&self) -> usize {
         self.channels.first().map(|c| c.len()).unwrap_or(0)
     }
-    
+
     pub fn duration_ms(&self) -> f32 {
         (self.num_samples() as f32 / self.sample_rate as f32) * 1000.0
     }

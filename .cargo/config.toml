@@ -1,100 +1,86 @@
 # Cargo configuration for rusty-audio
-# Optimized for Windows development with sccache
-#
-# IMPORTANT: This configuration is for Windows development.
-# sccache must be installed on Windows, not WSL!
-#
-# Windows setup:
-#   1. Install sccache: cargo install sccache --locked
-#   2. Run: .\scripts\setup-sccache-windows.ps1 -Install -Configure
-#   3. Restart terminal
-#   4. Build: cargo build
-#
-# The sccache server runs on Windows and caches Rust compilations.
+# Dual-target: Windows desktop (primary) + WASM/PWA (web deployment)
 
 [build]
-# Limit to 8 CPU cores for compilation (prevents system slowdown)
 jobs = 8
-
-# Incremental compilation for faster rebuilds
 incremental = true
+# rustc-wrapper = "sccache"  # ❌ Removed: Causes CI failures when sccache is not installed
+# To enable sccache for faster builds, set environment variable: export RUSTC_WRAPPER=sccache
+# GitHub Actions workflows using sccache already set this via mozilla-actions/sccache-action
+target-dir = "target"
 
-# sccache integration - ENABLED for faster Windows builds
-# NOTE: This uses the Windows sccache installation, not WSL
-rustc-wrapper = "sccache"
+# ============================================================================
+# WINDOWS DESKTOP TARGET (Primary - Performance Optimized)
+# ============================================================================
 
-# Shared target directory for sccache efficiency (Windows path)
-# Uncomment if you want all projects to share the same build cache:
-# target-dir = "C:\\Users\\david\\.cargo\\shared-target"
-
-# Optimize for Windows (primary target platform)
 [target.x86_64-pc-windows-msvc]
 rustflags = [
-    "-C", "target-cpu=x86-64-v3",     # Target modern CPUs (AVX2, BMI2, etc.)
-    # "-D", "warnings",                 # TEMPORARILY DISABLED FOR TESTING Phase 4.1
-    "-C", "link-arg=/STACK:8388608",  # Increase stack size for audio processing
-    "-C", "llvm-args=-polly",          # Enable LLVM Polly optimizer
-    "-C", "llvm-args=-polly-vectorizer=stripmine",
+    "-C", "target-cpu=x86-64-v3",     # AVX2, BMI2, FMA for SIMD
+    "-C", "link-arg=/STACK:8388608",  # 8MB stack for audio processing
 ]
 
 [target.x86_64-pc-windows-gnu]
-rustflags = [
-    "-C", "target-cpu=native",
-    "-D", "warnings",
-    "-A", "dead_code",
-    "-A", "unused_imports",
-]
+rustflags = ["-C", "target-cpu=native", "-A", "dead_code", "-A", "unused_imports"]
 
-# Linux/WSL support (secondary platform)
+# ============================================================================
+# LINUX/WSL SUPPORT (Development)
+# ============================================================================
+
 [target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=native", "-A", "dead_code"]
+
+# ============================================================================
+# WASM/PWA TARGET (Web Deployment - Size Optimized)
+# ============================================================================
+
+[target.wasm32-unknown-unknown]
 rustflags = [
-    "-C", "target-cpu=native",
-    "-D", "warnings",
-    "-A", "dead_code",
+    "--cfg", "getrandom_backend=\"wasm_js\"",
+    "-C", "embed-bitcode=yes",        # Required for wasm-opt
+    "-C", "opt-level=z",              # Optimize for size (critical for web)
+    # LTO disabled for cdylib compatibility
 ]
 
-# macOS support (tertiary platform)
-[target.x86_64-apple-darwin]
-rustflags = [
-    "-C", "target-cpu=native",
-    "-D", "warnings",
-    "-A", "dead_code",
-]
+# ============================================================================
+# PROFILE OPTIMIZATIONS
+# ============================================================================
 
-[target.aarch64-apple-darwin]
-rustflags = [
-    "-C", "target-cpu=native",
-    "-D", "warnings",
-    "-A", "dead_code",
-]
-
-# Profile optimizations
 [profile.dev]
-opt-level = 1           # Minimal optimizations for faster compile
-debug = 1               # Line numbers only
+opt-level = 1
+debug = 1
 incremental = true
-codegen-units = 256     # Max parallelism for dev builds
+codegen-units = 256
 
 [profile.dev.package."*"]
-opt-level = 2           # Optimize dependencies more
+opt-level = 2  # Optimize dependencies
 
 [profile.release]
 opt-level = 3
-lto = "thin"            # Thin LTO for good optimization without huge compile time
+lto = "thin"
 codegen-units = 16
-strip = true            # Strip symbols
-panic = "abort"         # Smaller binary, faster panic
+strip = true
+panic = "abort"
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"           # Maximum size reduction for WASM
+lto = false               # LTO must be disabled for cdylib targets (WASM)
+codegen-units = 1
 
 [profile.release-with-debug]
 inherits = "release"
 debug = true
 strip = false
 
-# Alias for commonly used commands
+# ============================================================================
+# ALIASES
+# ============================================================================
+
 [alias]
 b = "build"
 c = "check"
 r = "run"
 t = "test"
 br = "build --release"
-rr = "run --release"
+wasm = "build --target wasm32-unknown-unknown --profile wasm-release"
+wasm-check = "check --target wasm32-unknown-unknown"

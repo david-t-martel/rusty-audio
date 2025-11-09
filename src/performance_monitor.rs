@@ -1,8 +1,8 @@
 // Real-time performance monitoring and telemetry system
 
+use parking_lot::RwLock;
 use std::collections::VecDeque;
 use std::sync::Arc;
-use parking_lot::RwLock;
 use std::time::{Duration, Instant};
 
 /// Performance metrics for audio processing
@@ -51,7 +51,9 @@ impl MetricsHistory {
 
     pub fn get_average(&self, duration: Duration) -> Option<AudioMetrics> {
         let cutoff = Instant::now() - duration;
-        let recent: Vec<_> = self.history.iter()
+        let recent: Vec<_> = self
+            .history
+            .iter()
             .zip(self.timestamps.iter())
             .filter(|(_, ts)| **ts >= cutoff)
             .map(|(m, _)| m.clone())
@@ -63,11 +65,13 @@ impl MetricsHistory {
 
         let len = recent.len() as f32;
         Some(AudioMetrics {
-            callback_latency_us: recent.iter().map(|m| m.callback_latency_us).sum::<f64>() / len as f64,
+            callback_latency_us: recent.iter().map(|m| m.callback_latency_us).sum::<f64>()
+                / len as f64,
             underruns: recent.iter().map(|m| m.underruns).sum::<u32>() / len as u32,
             cpu_usage: recent.iter().map(|m| m.cpu_usage).sum::<f32>() / len,
             memory_usage_mb: recent.iter().map(|m| m.memory_usage_mb).sum::<f32>() / len,
-            spectrum_latency_us: recent.iter().map(|m| m.spectrum_latency_us).sum::<f64>() / len as f64,
+            spectrum_latency_us: recent.iter().map(|m| m.spectrum_latency_us).sum::<f64>()
+                / len as f64,
             frame_time_ms: recent.iter().map(|m| m.frame_time_ms).sum::<f32>() / len,
             dropouts: recent.iter().map(|m| m.dropouts).sum::<u32>(),
         })
@@ -132,7 +136,8 @@ impl PerformanceMonitor {
             self.metrics.write().callback_latency_us = elapsed_us;
 
             // Check for high latency alert
-            if elapsed_us > 1000.0 { // > 1ms
+            if elapsed_us > 1000.0 {
+                // > 1ms
                 self.add_alert(PerformanceAlert::HighLatency {
                     latency_ms: elapsed_us as f32 / 1000.0,
                     threshold_ms: 1.0,
@@ -165,38 +170,53 @@ impl PerformanceMonitor {
         }
     }
 
-    // Update system metrics
+    /// Update system metrics
+    ///
+    /// Note: System resource metrics (memory/CPU) are disabled on WASM targets
+    /// and cross-compilation environments due to platform-specific dependencies
+    /// on sys-info crate which requires Windows SDK for native builds.
     pub fn update_system_metrics(&self) {
         let mut metrics = self.metrics.write();
 
-        // Get memory usage
-        if let Ok(mem_info) = sys_info::mem_info() {
-            let used_kb = mem_info.total - mem_info.free;
-            metrics.memory_usage_mb = (used_kb as f32) / 1024.0;
+        // Platform-specific memory monitoring (disabled on WASM and cross-compilation)
+        // Requires sys-info crate which is platform-dependent
+        #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+        {
+            // Get memory usage statistics
+            if let Ok(mem_info) = sys_info::mem_info() {
+                let used_kb = mem_info.total - mem_info.free;
+                metrics.memory_usage_mb = (used_kb as f32) / 1024.0;
 
-            // Check for memory pressure
-            let usage_percent = (used_kb as f32 / mem_info.total as f32) * 100.0;
-            if usage_percent > 80.0 {
-                self.add_alert(PerformanceAlert::MemoryPressure {
-                    usage_mb: metrics.memory_usage_mb,
-                    threshold_mb: (mem_info.total as f32 * 0.8) / 1024.0,
-                });
+                // Alert on high memory pressure (>80% usage)
+                let usage_percent = (used_kb as f32 / mem_info.total as f32) * 100.0;
+                if usage_percent > 80.0 {
+                    self.add_alert(PerformanceAlert::MemoryPressure {
+                        usage_mb: metrics.memory_usage_mb,
+                        threshold_mb: (mem_info.total as f32 * 0.8) / 1024.0,
+                    });
+                }
             }
         }
 
-        // Estimate CPU usage (simplified)
-        if let Ok(loadavg) = sys_info::loadavg() {
-            metrics.cpu_usage = (loadavg.one as f32) * 100.0 / num_cpus::get() as f32;
+        // Platform-specific CPU monitoring (disabled on WASM and cross-compilation)
+        // Uses system load average to estimate CPU utilization
+        #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+        {
+            if let Ok(loadavg) = sys_info::loadavg() {
+                // Normalize load average by CPU count to get percentage
+                metrics.cpu_usage = (loadavg.one as f32) * 100.0 / num_cpus::get() as f32;
 
-            if metrics.cpu_usage > 80.0 {
-                self.add_alert(PerformanceAlert::HighCpuUsage {
-                    usage: metrics.cpu_usage,
-                    threshold: 80.0,
-                });
+                // Alert on sustained high CPU usage (>80%)
+                if metrics.cpu_usage > 80.0 {
+                    self.add_alert(PerformanceAlert::HighCpuUsage {
+                        usage: metrics.cpu_usage,
+                        threshold: 80.0,
+                    });
+                }
             }
         }
 
-        // Store in history
+        // Store current metrics snapshot in performance history
         self.history.write().push(metrics.clone());
     }
 
@@ -241,7 +261,9 @@ impl PerformanceMonitor {
     }
 
     pub fn get_p99_latency(&self) -> Option<f64> {
-        self.history.read().get_percentile(99.0)
+        self.history
+            .read()
+            .get_percentile(99.0)
             .map(|m| m.callback_latency_us)
     }
 
@@ -266,9 +288,15 @@ impl PerformanceMonitor {
             avg_1s,
             avg_10s,
             avg_60s,
-            p50_latency: self.history.read().get_percentile(50.0)
+            p50_latency: self
+                .history
+                .read()
+                .get_percentile(50.0)
                 .map(|m| m.callback_latency_us),
-            p95_latency: self.history.read().get_percentile(95.0)
+            p95_latency: self
+                .history
+                .read()
+                .get_percentile(95.0)
                 .map(|m| m.callback_latency_us),
             p99_latency: self.get_p99_latency(),
             recent_alerts: self.get_recent_alerts(),
@@ -294,10 +322,22 @@ impl PerformanceReport {
         let mut summary = String::new();
 
         summary.push_str("=== Performance Report ===\n");
-        summary.push_str(&format!("Current Latency: {:.2}μs\n", self.current_metrics.callback_latency_us));
-        summary.push_str(&format!("CPU Usage: {:.1}%\n", self.current_metrics.cpu_usage));
-        summary.push_str(&format!("Memory: {:.1}MB\n", self.current_metrics.memory_usage_mb));
-        summary.push_str(&format!("Frame Time: {:.2}ms\n", self.current_metrics.frame_time_ms));
+        summary.push_str(&format!(
+            "Current Latency: {:.2}μs\n",
+            self.current_metrics.callback_latency_us
+        ));
+        summary.push_str(&format!(
+            "CPU Usage: {:.1}%\n",
+            self.current_metrics.cpu_usage
+        ));
+        summary.push_str(&format!(
+            "Memory: {:.1}MB\n",
+            self.current_metrics.memory_usage_mb
+        ));
+        summary.push_str(&format!(
+            "Frame Time: {:.2}ms\n",
+            self.current_metrics.frame_time_ms
+        ));
 
         if let Some(p50) = self.p50_latency {
             summary.push_str(&format!("P50 Latency: {:.2}μs\n", p50));

@@ -1,14 +1,14 @@
 // Property-Based Tests for Signal Generators
 // Using QuickCheck and Proptest for comprehensive testing
 
-use proptest::prelude::*;
-use proptest::strategy::{Just, BoxedStrategy};
-use quickcheck::{QuickCheck, TestResult, Arbitrary, Gen};
-use quickcheck_macros::quickcheck;
-use std::f32::consts::PI;
-use rustfft::{FftPlanner, num_complex::Complex32};
 use approx::{assert_relative_eq, relative_eq};
-use statrs::statistics::{Statistics, Data};
+use proptest::prelude::*;
+use proptest::strategy::{BoxedStrategy, Just};
+use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
+use quickcheck_macros::quickcheck;
+use rustfft::{num_complex::Complex32, FftPlanner};
+use statrs::statistics::{Data, Statistics};
+use std::f32::consts::PI;
 
 const SAMPLE_RATE: f32 = 48000.0;
 const MIN_FREQUENCY: f32 = 20.0;
@@ -41,7 +41,8 @@ impl Arbitrary for SignalType {
             Just(SignalType::Sawtooth),
             Just(SignalType::WhiteNoise),
             Just(SignalType::PinkNoise),
-        ].boxed()
+        ]
+        .boxed()
     }
 }
 
@@ -67,17 +68,19 @@ impl Arbitrary for SignalParams {
             MIN_AMPLITUDE..MAX_AMPLITUDE,
             0.0f32..(2.0 * PI),
             MIN_DURATION..MAX_DURATION,
-            prop_oneof![Just(44100.0f32), Just(48000.0f32)]
-        ).prop_map(|(signal_type, frequency, amplitude, phase, duration, sample_rate)| {
-            SignalParams {
-                signal_type,
-                frequency,
-                amplitude,
-                phase,
-                duration,
-                sample_rate,
-            }
-        }).boxed()
+            prop_oneof![Just(44100.0f32), Just(48000.0f32)],
+        )
+            .prop_map(
+                |(signal_type, frequency, amplitude, phase, duration, sample_rate)| SignalParams {
+                    signal_type,
+                    frequency,
+                    amplitude,
+                    phase,
+                    duration,
+                    sample_rate,
+                },
+            )
+            .boxed()
     }
 }
 
@@ -112,8 +115,8 @@ impl PropertySignalGenerator {
 
         for i in 0..num_samples {
             let t = i as f32 / self.params.sample_rate;
-            let sample = self.params.amplitude *
-                (2.0 * PI * self.params.frequency * t + self.params.phase).sin();
+            let sample = self.params.amplitude
+                * (2.0 * PI * self.params.frequency * t + self.params.phase).sin();
             samples.push(sample);
         }
     }
@@ -160,7 +163,7 @@ impl PropertySignalGenerator {
     }
 
     fn generate_white_noise(&self, samples: &mut Vec<f32>) {
-        use rand::{Rng, SeedableRng, rngs::StdRng};
+        use rand::{rngs::StdRng, Rng, SeedableRng};
 
         let num_samples = (self.params.duration * self.params.sample_rate) as usize;
         let mut rng = StdRng::seed_from_u64(42); // Fixed seed for reproducibility
@@ -172,7 +175,7 @@ impl PropertySignalGenerator {
     }
 
     fn generate_pink_noise(&self, samples: &mut Vec<f32>) {
-        use rand::{Rng, SeedableRng, rngs::StdRng};
+        use rand::{rngs::StdRng, Rng, SeedableRng};
 
         let num_samples = (self.params.duration * self.params.sample_rate) as usize;
         let mut rng = StdRng::seed_from_u64(42);
@@ -339,7 +342,8 @@ mod quickcheck_tests {
             let expected_rms = params.amplitude / (2.0_f32).sqrt();
             let relative_error = (rms - expected_rms).abs() / expected_rms;
 
-            if relative_error > 0.01 { // 1% tolerance
+            if relative_error > 0.01 {
+                // 1% tolerance
                 return TestResult::failed();
             }
         }
@@ -381,11 +385,17 @@ mod quickcheck_tests {
     #[quickcheck]
     fn qc_frequency_detection_property(params: SignalParams) -> TestResult {
         // Only test deterministic periodic signals
-        if !matches!(params.signal_type, SignalType::Sine | SignalType::Square | SignalType::Triangle | SignalType::Sawtooth) {
+        if !matches!(
+            params.signal_type,
+            SignalType::Sine | SignalType::Square | SignalType::Triangle | SignalType::Sawtooth
+        ) {
             return TestResult::discard();
         }
 
-        if params.frequency < 50.0 || params.frequency > params.sample_rate / 4.0 || params.duration < 1.0 {
+        if params.frequency < 50.0
+            || params.frequency > params.sample_rate / 4.0
+            || params.duration < 1.0
+        {
             return TestResult::discard();
         }
 

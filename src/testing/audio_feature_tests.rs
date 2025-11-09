@@ -4,18 +4,18 @@
 // playback, effects, signal generation, and audio processing quality.
 
 use crate::{
-    testing::{TestResult, TestSuite, approx_equal, calculate_rms, calculate_peak},
+    testing::{approx_equal, calculate_peak, calculate_rms, TestResult, TestSuite},
     ui::{
-        signal_generator::{SignalGeneratorPanel, GeneratorState},
+        signal_generator::{GeneratorState, SignalGeneratorPanel},
         theme::{Theme, ThemeManager},
     },
 };
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 use web_audio_api::{
     context::{AudioContext, BaseAudioContext},
-    node::{AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType, AnalyserNode},
+    node::{AnalyserNode, AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType},
 };
-use std::time::{Duration, Instant};
-use std::collections::HashMap;
 
 /// Audio feature test result
 #[derive(Debug, Clone)]
@@ -106,7 +106,9 @@ impl AudioFeatureTestSuite {
     }
 
     pub fn average_quality_score(&self) -> f32 {
-        let quality_results: Vec<f32> = self.results.iter()
+        let quality_results: Vec<f32> = self
+            .results
+            .iter()
             .filter_map(|r| r.audio_quality_score)
             .collect();
 
@@ -123,47 +125,80 @@ impl AudioFeatureTestSuite {
         println!("Passed: {}", self.passed_count());
         println!("Failed: {}", self.failed_count());
         println!("Success rate: {:.1}%", self.success_rate() * 100.0);
-        println!("Average audio quality: {:.1}%", self.average_quality_score() * 100.0);
-        println!("Total execution time: {:.2}s", self.total_duration.as_secs_f32());
+        println!(
+            "Average audio quality: {:.1}%",
+            self.average_quality_score() * 100.0
+        );
+        println!(
+            "Total execution time: {:.2}s",
+            self.total_duration.as_secs_f32()
+        );
 
         // Group results by feature
         let mut by_feature: HashMap<String, Vec<&AudioFeatureTestResult>> = HashMap::new();
         for result in &self.results {
-            by_feature.entry(result.feature_name.clone()).or_default().push(result);
+            by_feature
+                .entry(result.feature_name.clone())
+                .or_default()
+                .push(result);
         }
 
         for (feature, tests) in by_feature {
             let passed = tests.iter().filter(|t| t.passed).count();
             let total = tests.len();
-            let avg_quality = tests.iter()
+            let avg_quality = tests
+                .iter()
                 .filter_map(|t| t.audio_quality_score)
-                .sum::<f32>() / tests.len() as f32;
+                .sum::<f32>()
+                / tests.len() as f32;
 
-            println!("\n🎵 Feature: {} ({}/{} passed, {:.1}% quality)",
-                feature, passed, total, avg_quality * 100.0);
+            println!(
+                "\n🎵 Feature: {} ({}/{} passed, {:.1}% quality)",
+                feature,
+                passed,
+                total,
+                avg_quality * 100.0
+            );
 
             for test in tests {
                 let status = if test.passed { "✅" } else { "❌" };
                 let time = format!("{:.1}ms", test.execution_time.as_secs_f32() * 1000.0);
-                let quality = test.audio_quality_score
+                let quality = test
+                    .audio_quality_score
                     .map(|q| format!(" (Q: {:.1}%)", q * 100.0))
                     .unwrap_or_default();
 
-                println!("   {} {} - {:.3} {} (expected: {:.3} ± {:.3}) ({}){}",
-                    status, test.test_name, test.measured_value, test.units,
-                    test.expected_value, test.tolerance, time, quality);
+                println!(
+                    "   {} {} - {:.3} {} (expected: {:.3} ± {:.3}) ({}){}",
+                    status,
+                    test.test_name,
+                    test.measured_value,
+                    test.units,
+                    test.expected_value,
+                    test.tolerance,
+                    time,
+                    quality
+                );
 
                 if !test.passed {
                     let error = (test.measured_value - test.expected_value).abs();
-                    println!("      Error: {:.3} {} (exceeds tolerance by {:.3})",
-                        error, test.units, error - test.tolerance);
+                    println!(
+                        "      Error: {:.3} {} (exceeds tolerance by {:.3})",
+                        error,
+                        test.units,
+                        error - test.tolerance
+                    );
                 }
             }
         }
 
         // Performance summary
         let avg_time = if !self.results.is_empty() {
-            self.results.iter().map(|r| r.execution_time.as_secs_f32()).sum::<f32>() / self.results.len() as f32
+            self.results
+                .iter()
+                .map(|r| r.execution_time.as_secs_f32())
+                .sum::<f32>()
+                / self.results.len() as f32
         } else {
             0.0
         };
@@ -171,15 +206,19 @@ impl AudioFeatureTestSuite {
         println!("\n⚡ Performance Summary:");
         println!("   Average test execution: {:.1}ms", avg_time * 1000.0);
 
-        let slow_tests: Vec<_> = self.results.iter()
+        let slow_tests: Vec<_> = self
+            .results
+            .iter()
             .filter(|r| r.execution_time.as_millis() > 100)
             .collect();
 
         if !slow_tests.is_empty() {
             println!("   Slow tests (>100ms): {}", slow_tests.len());
             for test in slow_tests {
-                println!("     - {}.{}: {:.0}ms",
-                    test.feature_name, test.test_name,
+                println!(
+                    "     - {}.{}: {:.0}ms",
+                    test.feature_name,
+                    test.test_name,
                     test.execution_time.as_secs_f32() * 1000.0
                 );
             }
@@ -210,7 +249,9 @@ impl AudioPlaybackTester {
         let duration_seconds = 1.0;
         let buffer_length = (sample_rate * duration_seconds) as usize;
 
-        let buffer = self.audio_context.create_buffer(2, buffer_length, sample_rate);
+        let buffer = self
+            .audio_context
+            .create_buffer(2, buffer_length, sample_rate);
         let actual_duration = buffer.duration();
         let actual_sample_rate = buffer.sample_rate();
         let actual_channels = buffer.number_of_channels();
@@ -464,7 +505,8 @@ impl SignalGeneratorTester {
                 0.001,
                 "linear",
                 start_time.elapsed(),
-            ).with_quality_score(0.95);
+            )
+            .with_quality_score(0.95);
 
             let peak_result = AudioFeatureTestResult::new(
                 "SignalGenerator",
@@ -474,7 +516,8 @@ impl SignalGeneratorTester {
                 0.001,
                 "linear",
                 start_time.elapsed(),
-            ).with_quality_score(0.95);
+            )
+            .with_quality_score(0.95);
 
             self.suite.add_result(rms_result);
             self.suite.add_result(peak_result);
@@ -504,7 +547,8 @@ impl SignalGeneratorTester {
                 1.0, // 1Hz tolerance
                 "Hz",
                 start_time.elapsed(),
-            ).with_quality_score(0.98);
+            )
+            .with_quality_score(0.98);
 
             self.suite.add_result(result);
         }
@@ -528,7 +572,8 @@ impl SignalGeneratorTester {
             self.generator_panel.generate_signal();
 
             let samples = &self.generator_panel.generated_samples;
-            let generated_successfully = !samples.is_empty() && samples.iter().any(|&x| x.abs() > 0.001);
+            let generated_successfully =
+                !samples.is_empty() && samples.iter().any(|&x| x.abs() > 0.001);
 
             let result = AudioFeatureTestResult::new(
                 "SignalGenerator",
@@ -538,7 +583,8 @@ impl SignalGeneratorTester {
                 0.0,
                 "boolean",
                 start_time.elapsed(),
-            ).with_quality_score(if generated_successfully { 0.9 } else { 0.0 });
+            )
+            .with_quality_score(if generated_successfully { 0.9 } else { 0.0 });
 
             self.suite.add_result(result);
         }
@@ -835,12 +881,26 @@ mod tests {
         let mut suite = AudioFeatureTestSuite::new();
 
         let result1 = AudioFeatureTestResult::new(
-            "Feature1", "Test1", 1.0, 1.0, 0.1, "units", Duration::from_millis(5)
-        ).with_quality_score(0.9);
+            "Feature1",
+            "Test1",
+            1.0,
+            1.0,
+            0.1,
+            "units",
+            Duration::from_millis(5),
+        )
+        .with_quality_score(0.9);
 
         let result2 = AudioFeatureTestResult::new(
-            "Feature2", "Test2", 2.0, 1.0, 0.1, "units", Duration::from_millis(10)
-        ).with_quality_score(0.8);
+            "Feature2",
+            "Test2",
+            2.0,
+            1.0,
+            0.1,
+            "units",
+            Duration::from_millis(10),
+        )
+        .with_quality_score(0.8);
 
         suite.add_result(result1);
         suite.add_result(result2);

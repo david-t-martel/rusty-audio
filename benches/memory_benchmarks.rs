@@ -1,11 +1,11 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use std::time::Duration;
-use std::collections::VecDeque;
+use bytes::Bytes;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use parking_lot::Mutex;
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use parking_lot::Mutex;
-use bytes::Bytes;
+use std::time::Duration;
 
 const SAMPLE_RATE: f32 = 48000.0;
 const RENDER_QUANTUM_SIZE: usize = 128;
@@ -49,7 +49,12 @@ unsafe impl GlobalAlloc for TrackingAllocator {
             // Update peak memory if necessary
             let mut peak = self.peak_memory.load(Ordering::SeqCst);
             while current_usage > peak {
-                match self.peak_memory.compare_exchange_weak(peak, current_usage, Ordering::SeqCst, Ordering::SeqCst) {
+                match self.peak_memory.compare_exchange_weak(
+                    peak,
+                    current_usage,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                ) {
                     Ok(_) => break,
                     Err(x) => peak = x,
                 }
@@ -172,15 +177,11 @@ fn bench_buffer_allocation(c: &mut Criterion) {
     let mut group = c.benchmark_group("buffer_allocation");
 
     for &size in &[512, 1024, 4096, 16384, 65536] {
-        group.bench_with_input(
-            BenchmarkId::new("buffer_size", size),
-            &size,
-            |b, &size| {
-                b.iter(|| {
-                    let _buffer: Vec<f32> = vec![0.0; black_box(size)];
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("buffer_size", size), &size, |b, &size| {
+            b.iter(|| {
+                let _buffer: Vec<f32> = vec![0.0; black_box(size)];
+            });
+        });
     }
 
     group.bench_function("audio_buffer_with_capacity", |b| {
@@ -197,7 +198,9 @@ fn bench_circular_buffer(c: &mut Criterion) {
     let mut group = c.benchmark_group("circular_buffer");
 
     let mut buffer = CircularAudioBuffer::new(4096);
-    let test_data: Vec<f32> = (0..RENDER_QUANTUM_SIZE).map(|i| i as f32 / RENDER_QUANTUM_SIZE as f32).collect();
+    let test_data: Vec<f32> = (0..RENDER_QUANTUM_SIZE)
+        .map(|i| i as f32 / RENDER_QUANTUM_SIZE as f32)
+        .collect();
 
     group.bench_function("push_samples", |b| {
         b.iter(|| {
@@ -464,7 +467,7 @@ fn bench_cache_patterns(c: &mut Criterion) {
     });
 
     group.bench_function("random_access", |b| {
-        use rand::{Rng, SeedableRng, rngs::StdRng};
+        use rand::{rngs::StdRng, Rng, SeedableRng};
         let mut rng = StdRng::seed_from_u64(42);
         let indices: Vec<usize> = (0..1000).map(|_| rng.gen_range(0..size)).collect();
 

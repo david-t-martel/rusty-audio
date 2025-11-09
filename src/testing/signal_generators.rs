@@ -3,8 +3,8 @@
 // This module provides mathematically accurate test signal generators
 // for verifying audio processing algorithms.
 
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::f32::consts::PI;
-use rand::{Rng, SeedableRng, rngs::StdRng};
 
 /// Type alias for audio samples
 pub type Samples = Vec<f32>;
@@ -340,10 +340,10 @@ impl SignalGenerator for SweepGenerator {
             let freq = self.start_freq + (self.end_freq - self.start_freq) * t_norm;
 
             // Instantaneous phase (integral of frequency)
-            let phase = 2.0 * PI * (
-                self.start_freq * t +
-                0.5 * (self.end_freq - self.start_freq) * t * t / duration
-            );
+            let phase = 2.0
+                * PI
+                * (self.start_freq * t
+                    + 0.5 * (self.end_freq - self.start_freq) * t * t / duration);
 
             let sample = self.amplitude * phase.sin();
             samples.push(sample);
@@ -445,8 +445,8 @@ pub mod presets {
 
     /// Generate multi-tone signal for IMD testing
     pub fn imd_test_signal() -> MultiToneGenerator {
-        MultiToneGenerator::new(vec![1000.0, 1001.0])
-            .with_amplitudes(vec![0.707, 0.707]) // -3 dBFS each
+        MultiToneGenerator::new(vec![1000.0, 1001.0]).with_amplitudes(vec![0.707, 0.707])
+        // -3 dBFS each
     }
 
     /// Generate harmonic test signal (fundamental + harmonics)
@@ -514,8 +514,7 @@ mod tests {
 
     #[test]
     fn test_multi_tone_generator() {
-        let gen = MultiToneGenerator::new(vec![1000.0, 2000.0])
-            .with_amplitudes(vec![0.5, 0.3]);
+        let gen = MultiToneGenerator::new(vec![1000.0, 2000.0]).with_amplitudes(vec![0.5, 0.3]);
         let samples = gen.generate(0.001, 44100.0);
 
         // At t=0, both sines are 0, so sum should be 0

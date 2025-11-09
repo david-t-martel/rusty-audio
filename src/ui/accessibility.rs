@@ -1,8 +1,8 @@
-use egui::{Ui, Vec2, Rect, Pos2, Color32, Response, RichText, Key, Modifiers, CursorIcon, Id};
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
 use super::theme::ThemeColors;
 use super::utils::{AnimationState, ColorUtils, DrawUtils};
+use egui::{Color32, CursorIcon, Id, Key, Modifiers, Pos2, Rect, Response, RichText, Ui, Vec2};
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 /// Comprehensive accessibility system for the audio application
 #[derive(Debug, Clone)]
@@ -113,7 +113,13 @@ impl AccessibilityManager {
     }
 
     /// Check if a control has focus and draw focus indicator
-    pub fn draw_focus_indicator(&mut self, ui: &Ui, id: Id, rect: Rect, colors: &ThemeColors) -> bool {
+    pub fn draw_focus_indicator(
+        &mut self,
+        ui: &Ui,
+        id: Id,
+        rect: Rect,
+        colors: &ThemeColors,
+    ) -> bool {
         let has_focus = self.focus_manager.is_focused(id);
         if has_focus {
             self.draw_focus_outline(ui, rect, colors);
@@ -289,10 +295,7 @@ impl TooltipManager {
             return;
         }
 
-        let tooltip_pos = Pos2::new(
-            anchor_rect.max.x + 10.0,
-            anchor_rect.min.y,
-        );
+        let tooltip_pos = Pos2::new(anchor_rect.max.x + 10.0, anchor_rect.min.y);
 
         egui::Area::new("accessibility_tooltip".into())
             .fixed_pos(tooltip_pos)
@@ -326,7 +329,9 @@ impl TooltipManager {
                             ui.add_space(6.0);
                             ui.label(RichText::new("Shortcuts:").strong());
                             for shortcut in &info.shortcuts {
-                                ui.label(RichText::new(shortcut).family(egui::FontFamily::Monospace));
+                                ui.label(
+                                    RichText::new(shortcut).family(egui::FontFamily::Monospace),
+                                );
                             }
                         }
 
@@ -454,7 +459,8 @@ impl FocusManager {
 
     pub fn register_control(&mut self, id: Id, control_type: FocusableControlType, rect: Rect) {
         if !self.focus_animations.contains_key(&id) {
-            self.focus_animations.insert(id, AnimationState::new(0.0, 10.0));
+            self.focus_animations
+                .insert(id, AnimationState::new(0.0, 10.0));
         }
     }
 
@@ -532,7 +538,8 @@ impl ScreenReaderManager {
         self.last_announcement = Some(Instant::now());
 
         // Keep only recent announcements
-        self.announcements.retain(|a| a.timestamp.elapsed() < Duration::from_secs(30));
+        self.announcements
+            .retain(|a| a.timestamp.elapsed() < Duration::from_secs(30));
     }
 }
 
@@ -633,72 +640,78 @@ impl HelpSystem {
         let mut help_topics = HashMap::new();
 
         // Add default help topics
-        help_topics.insert("playback".to_string(), HelpTopic {
-            title: "Playback Controls".to_string(),
-            description: "Control audio playback and file operations".to_string(),
-            controls: vec![
-                ControlHelp {
-                    name: "Play/Pause Button".to_string(),
-                    description: "Start or pause audio playback".to_string(),
-                    usage: "Click to toggle, or press Space".to_string(),
-                },
-                ControlHelp {
-                    name: "Stop Button".to_string(),
-                    description: "Stop playback and return to beginning".to_string(),
-                    usage: "Click to stop, or press S".to_string(),
-                },
-                ControlHelp {
-                    name: "Volume Slider".to_string(),
-                    description: "Adjust playback volume".to_string(),
-                    usage: "Drag slider or use arrow keys when focused".to_string(),
-                },
-            ],
-            shortcuts: vec![
-                ShortcutHelp {
-                    keys: "Space".to_string(),
-                    description: "Play/Pause".to_string(),
-                },
-                ShortcutHelp {
-                    keys: "S".to_string(),
-                    description: "Stop".to_string(),
-                },
-                ShortcutHelp {
-                    keys: "↑/↓".to_string(),
-                    description: "Volume Up/Down".to_string(),
-                },
-                ShortcutHelp {
-                    keys: "←/→".to_string(),
-                    description: "Seek -5s/+5s".to_string(),
-                },
-            ],
-        });
+        help_topics.insert(
+            "playback".to_string(),
+            HelpTopic {
+                title: "Playback Controls".to_string(),
+                description: "Control audio playback and file operations".to_string(),
+                controls: vec![
+                    ControlHelp {
+                        name: "Play/Pause Button".to_string(),
+                        description: "Start or pause audio playback".to_string(),
+                        usage: "Click to toggle, or press Space".to_string(),
+                    },
+                    ControlHelp {
+                        name: "Stop Button".to_string(),
+                        description: "Stop playback and return to beginning".to_string(),
+                        usage: "Click to stop, or press S".to_string(),
+                    },
+                    ControlHelp {
+                        name: "Volume Slider".to_string(),
+                        description: "Adjust playback volume".to_string(),
+                        usage: "Drag slider or use arrow keys when focused".to_string(),
+                    },
+                ],
+                shortcuts: vec![
+                    ShortcutHelp {
+                        keys: "Space".to_string(),
+                        description: "Play/Pause".to_string(),
+                    },
+                    ShortcutHelp {
+                        keys: "S".to_string(),
+                        description: "Stop".to_string(),
+                    },
+                    ShortcutHelp {
+                        keys: "↑/↓".to_string(),
+                        description: "Volume Up/Down".to_string(),
+                    },
+                    ShortcutHelp {
+                        keys: "←/→".to_string(),
+                        description: "Seek -5s/+5s".to_string(),
+                    },
+                ],
+            },
+        );
 
-        help_topics.insert("eq".to_string(), HelpTopic {
-            title: "Equalizer".to_string(),
-            description: "Adjust frequency response and audio characteristics".to_string(),
-            controls: vec![
-                ControlHelp {
-                    name: "EQ Knobs".to_string(),
-                    description: "Adjust gain for specific frequency bands".to_string(),
-                    usage: "Drag to adjust, or use arrow keys when focused".to_string(),
-                },
-                ControlHelp {
-                    name: "Reset Button".to_string(),
-                    description: "Reset all EQ bands to flat response".to_string(),
-                    usage: "Click to reset all bands to 0dB".to_string(),
-                },
-            ],
-            shortcuts: vec![
-                ShortcutHelp {
-                    keys: "Tab".to_string(),
-                    description: "Navigate between EQ bands".to_string(),
-                },
-                ShortcutHelp {
-                    keys: "←/→".to_string(),
-                    description: "Fine adjust focused band".to_string(),
-                },
-            ],
-        });
+        help_topics.insert(
+            "eq".to_string(),
+            HelpTopic {
+                title: "Equalizer".to_string(),
+                description: "Adjust frequency response and audio characteristics".to_string(),
+                controls: vec![
+                    ControlHelp {
+                        name: "EQ Knobs".to_string(),
+                        description: "Adjust gain for specific frequency bands".to_string(),
+                        usage: "Drag to adjust, or use arrow keys when focused".to_string(),
+                    },
+                    ControlHelp {
+                        name: "Reset Button".to_string(),
+                        description: "Reset all EQ bands to flat response".to_string(),
+                        usage: "Click to reset all bands to 0dB".to_string(),
+                    },
+                ],
+                shortcuts: vec![
+                    ShortcutHelp {
+                        keys: "Tab".to_string(),
+                        description: "Navigate between EQ bands".to_string(),
+                    },
+                    ShortcutHelp {
+                        keys: "←/→".to_string(),
+                        description: "Fine adjust focused band".to_string(),
+                    },
+                ],
+            },
+        );
 
         Self {
             overlay_visible: false,
@@ -713,7 +726,8 @@ impl HelpSystem {
 
     pub fn toggle_overlay(&mut self) {
         self.overlay_visible = !self.overlay_visible;
-        self.fade_animation.set_target(if self.overlay_visible { 1.0 } else { 0.0 });
+        self.fade_animation
+            .set_target(if self.overlay_visible { 1.0 } else { 0.0 });
     }
 
     pub fn is_overlay_visible(&self) -> bool {
@@ -759,7 +773,11 @@ impl HelpSystem {
                                         ui.label("-");
                                         ui.label(&control.description);
                                     });
-                                    ui.label(RichText::new(&control.usage).italics().color(colors.text_secondary));
+                                    ui.label(
+                                        RichText::new(&control.usage)
+                                            .italics()
+                                            .color(colors.text_secondary),
+                                    );
                                     ui.add_space(4.0);
                                 }
                             }
@@ -769,9 +787,11 @@ impl HelpSystem {
                                 ui.label(RichText::new("Keyboard Shortcuts:").strong());
                                 for shortcut in &topic.shortcuts {
                                     ui.horizontal(|ui| {
-                                        ui.label(RichText::new(&shortcut.keys)
-                                            .family(egui::FontFamily::Monospace)
-                                            .background_color(colors.surface));
+                                        ui.label(
+                                            RichText::new(&shortcut.keys)
+                                                .family(egui::FontFamily::Monospace)
+                                                .background_color(colors.surface),
+                                        );
                                         ui.label("-");
                                         ui.label(&shortcut.description);
                                     });
@@ -791,7 +811,11 @@ impl HelpSystem {
                         ui.label("• Hover controls for detailed tooltips");
 
                         ui.add_space(8.0);
-                        ui.label(RichText::new("⚠️ Safety Features:").strong().color(colors.warning));
+                        ui.label(
+                            RichText::new("⚠️ Safety Features:")
+                                .strong()
+                                .color(colors.warning),
+                        );
                         ui.label("• Volume limiting prevents hearing damage");
                         ui.label("• Visual warnings for high volume levels");
                         ui.label("• Escape key immediately reduces volume");

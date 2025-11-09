@@ -1,17 +1,17 @@
 // Integration Tests for Complete Audio Pipeline
 // Tests the entire audio processing chain from input to output
 
-use std::time::{Duration, Instant};
-use std::sync::{Arc, Mutex};
+use approx::{assert_abs_diff_eq, assert_relative_eq};
+use rustfft::{num_complex::Complex32, FftPlanner};
+use serial_test::serial;
 use std::collections::VecDeque;
+use std::f32::consts::PI;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use tokio_test;
 use web_audio_api::context::{AudioContext, BaseAudioContext, OfflineAudioContext};
 use web_audio_api::node::{AudioNode, AudioScheduledSourceNode};
 use web_audio_api::AudioBuffer;
-use rustfft::{FftPlanner, num_complex::Complex32};
-use approx::{assert_relative_eq, assert_abs_diff_eq};
-use serial_test::serial;
-use tokio_test;
-use std::f32::consts::PI;
 
 const SAMPLE_RATE: f32 = 48000.0;
 const RENDER_QUANTUM_SIZE: usize = 128;
@@ -88,7 +88,11 @@ struct AudioPipeline {
 impl AudioPipeline {
     fn new(config: PipelineTestConfig) -> Self {
         let sample_count = (config.test_duration * config.sample_rate) as usize;
-        let context = OfflineAudioContext::new(config.channels as usize, sample_count, config.sample_rate as usize);
+        let context = OfflineAudioContext::new(
+            config.channels as usize,
+            sample_count,
+            config.sample_rate as usize,
+        );
 
         Self {
             context,
@@ -99,7 +103,11 @@ impl AudioPipeline {
 
     fn create_test_signal(&self, frequency: f32, amplitude: f32) -> AudioBuffer {
         let sample_count = (self.config.test_duration * self.config.sample_rate) as usize;
-        let mut buffer = self.context.create_buffer(self.config.channels as usize, sample_count, self.config.sample_rate as usize);
+        let mut buffer = self.context.create_buffer(
+            self.config.channels as usize,
+            sample_count,
+            self.config.sample_rate as usize,
+        );
 
         for channel in 0..self.config.channels {
             let mut data = Vec::with_capacity(sample_count);
@@ -118,15 +126,17 @@ impl AudioPipeline {
 
     fn create_complex_test_signal(&self) -> AudioBuffer {
         let sample_count = (self.config.test_duration * self.config.sample_rate) as usize;
-        let mut buffer = self.context.create_buffer(self.config.channels, sample_count, self.config.sample_rate);
+        let mut buffer =
+            self.context
+                .create_buffer(self.config.channels, sample_count, self.config.sample_rate);
 
         // Create a complex signal with multiple harmonics
         let fundamental_freq = 440.0; // A4
         let harmonics = vec![
-            (1.0, 1.0),     // Fundamental
-            (2.0, 0.3),     // 2nd harmonic
-            (3.0, 0.1),     // 3rd harmonic
-            (4.0, 0.05),    // 4th harmonic
+            (1.0, 1.0),  // Fundamental
+            (2.0, 0.3),  // 2nd harmonic
+            (3.0, 0.1),  // 3rd harmonic
+            (4.0, 0.05), // 4th harmonic
         ];
 
         for channel in 0..self.config.channels {
@@ -154,7 +164,10 @@ impl AudioPipeline {
         buffer
     }
 
-    fn create_processing_chain(&self, input_buffer: AudioBuffer) -> web_audio_api::node::AudioDestinationNode {
+    fn create_processing_chain(
+        &self,
+        input_buffer: AudioBuffer,
+    ) -> web_audio_api::node::AudioDestinationNode {
         // Create buffer source
         let mut source = self.context.create_buffer_source();
         source.set_buffer(input_buffer);
@@ -239,7 +252,10 @@ impl AudioPipeline {
         Ok(output_buffer)
     }
 
-    fn analyze_output(&self, output_buffer: &AudioBuffer) -> Result<(), Box<dyn std::error::Error>> {
+    fn analyze_output(
+        &self,
+        output_buffer: &AudioBuffer,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut metrics = self.metrics.lock().unwrap();
 
         // Analyze each channel
@@ -349,13 +365,21 @@ mod tests {
 
         let output_buffer = result.unwrap();
         assert_eq!(output_buffer.number_of_channels(), config.channels);
-        assert_eq!(output_buffer.length(), (config.test_duration * config.sample_rate) as usize);
+        assert_eq!(
+            output_buffer.length(),
+            (config.test_duration * config.sample_rate) as usize
+        );
 
         // Verify output is not silent
         for channel in 0..output_buffer.number_of_channels() {
             let channel_data = output_buffer.get_channel_data(channel);
             let rms = calculate_rms(channel_data);
-            assert!(rms > 0.01, "Channel {} appears to be silent: RMS = {:.6}", channel, rms);
+            assert!(
+                rms > 0.01,
+                "Channel {} appears to be silent: RMS = {:.6}",
+                channel,
+                rms
+            );
         }
 
         let metrics = pipeline.get_metrics();
@@ -377,8 +401,11 @@ mod tests {
         let metrics = pipeline.get_metrics();
 
         // Should be faster without effects
-        assert!(metrics.cpu_usage_percent < 50.0,
-            "CPU usage too high without effects: {:.1}%", metrics.cpu_usage_percent);
+        assert!(
+            metrics.cpu_usage_percent < 50.0,
+            "CPU usage too high without effects: {:.1}%",
+            metrics.cpu_usage_percent
+        );
 
         println!("Pipeline without effects metrics: {:#?}", metrics);
     }
@@ -396,7 +423,11 @@ mod tests {
         assert!(result.is_ok());
 
         let latency_ms = total_latency.as_millis() as f32;
-        assert!(latency_ms < 1000.0, "Pipeline latency too high: {:.1} ms", latency_ms);
+        assert!(
+            latency_ms < 1000.0,
+            "Pipeline latency too high: {:.1} ms",
+            latency_ms
+        );
 
         println!("Pipeline latency: {:.1} ms", latency_ms);
     }
@@ -434,9 +465,15 @@ mod tests {
                 // Expected RMS for 0.5 amplitude sine wave
                 let expected_rms = 0.5 / 2.0f32.sqrt();
 
-                assert_relative_eq!(output_rms, expected_rms, epsilon = 0.1,
+                assert_relative_eq!(
+                    output_rms,
+                    expected_rms,
+                    epsilon = 0.1,
                     "Frequency response failed at {:.0} Hz: expected RMS {:.3}, got {:.3}",
-                    frequency, expected_rms, output_rms);
+                    frequency,
+                    expected_rms,
+                    output_rms
+                );
             }
         }
     }
@@ -456,15 +493,23 @@ mod tests {
         let metrics = pipeline.get_metrics();
 
         // THD should be reasonable for clean signal processing
-        assert!(metrics.thd_percent < 1.0,
-            "THD too high: {:.3}%", metrics.thd_percent);
+        assert!(
+            metrics.thd_percent < 1.0,
+            "THD too high: {:.3}%",
+            metrics.thd_percent
+        );
 
         // SNR should be good
-        assert!(metrics.snr_db > 40.0,
-            "SNR too low: {:.1} dB", metrics.snr_db);
+        assert!(
+            metrics.snr_db > 40.0,
+            "SNR too low: {:.1} dB",
+            metrics.snr_db
+        );
 
-        println!("Audio quality metrics: THD = {:.3}%, SNR = {:.1} dB",
-            metrics.thd_percent, metrics.snr_db);
+        println!(
+            "Audio quality metrics: THD = {:.3}%, SNR = {:.1} dB",
+            metrics.thd_percent, metrics.snr_db
+        );
     }
 
     #[test]
@@ -492,9 +537,13 @@ mod tests {
 
         // Should be different due to stereo effect in create_complex_test_signal
         let rms_ratio = (left_rms / right_rms - 1.0).abs();
-        assert!(rms_ratio > 0.1,
+        assert!(
+            rms_ratio > 0.1,
             "Stereo channels too similar: L={:.3}, R={:.3}, ratio diff={:.3}",
-            left_rms, right_rms, rms_ratio);
+            left_rms,
+            right_rms,
+            rms_ratio
+        );
     }
 
     #[test]
@@ -509,13 +558,20 @@ mod tests {
             let mut pipeline = AudioPipeline::new(config.clone());
             let result = pipeline.run_pipeline_test();
 
-            assert!(result.is_ok(),
-                "Pipeline failed with buffer size {}: {:?}", buffer_size, result.err());
+            assert!(
+                result.is_ok(),
+                "Pipeline failed with buffer size {}: {:?}",
+                buffer_size,
+                result.err()
+            );
 
             let metrics = pipeline.get_metrics();
-            assert!(metrics.cpu_usage_percent < 80.0,
+            assert!(
+                metrics.cpu_usage_percent < 80.0,
                 "CPU usage too high with buffer size {}: {:.1}%",
-                buffer_size, metrics.cpu_usage_percent);
+                buffer_size,
+                metrics.cpu_usage_percent
+            );
         }
     }
 
@@ -531,13 +587,21 @@ mod tests {
             let mut pipeline = AudioPipeline::new(config.clone());
             let result = pipeline.run_pipeline_test();
 
-            assert!(result.is_ok(),
-                "Pipeline failed with sample rate {}: {:?}", sample_rate, result.err());
+            assert!(
+                result.is_ok(),
+                "Pipeline failed with sample rate {}: {:?}",
+                sample_rate,
+                result.err()
+            );
 
             let output_buffer = result.unwrap();
             let expected_length = (config.test_duration * sample_rate) as usize;
-            assert_eq!(output_buffer.length(), expected_length,
-                "Incorrect output length for sample rate {}", sample_rate);
+            assert_eq!(
+                output_buffer.length(),
+                expected_length,
+                "Incorrect output length for sample rate {}",
+                sample_rate
+            );
         }
     }
 
@@ -558,8 +622,11 @@ mod tests {
         let metrics = pipeline.get_metrics();
 
         // Even under stress, should maintain real-time performance
-        assert!(metrics.cpu_usage_percent < 150.0,
-            "CPU usage too high under stress: {:.1}%", metrics.cpu_usage_percent);
+        assert!(
+            metrics.cpu_usage_percent < 150.0,
+            "CPU usage too high under stress: {:.1}%",
+            metrics.cpu_usage_percent
+        );
 
         // No buffer issues
         assert_eq!(metrics.buffer_underruns, 0, "Buffer underruns detected");
@@ -597,11 +664,16 @@ mod tests {
         let memory_increase = peak_memory - baseline_memory;
 
         // Memory usage should be reasonable
-        assert!(memory_increase < 100.0,
-            "Memory usage too high: {:.1} MB increase", memory_increase);
+        assert!(
+            memory_increase < 100.0,
+            "Memory usage too high: {:.1} MB increase",
+            memory_increase
+        );
 
-        println!("Memory usage: baseline = {:.1} MB, peak = {:.1} MB, increase = {:.1} MB",
-            baseline_memory, peak_memory, memory_increase);
+        println!(
+            "Memory usage: baseline = {:.1} MB, peak = {:.1} MB, increase = {:.1} MB",
+            baseline_memory, peak_memory, memory_increase
+        );
     }
 
     #[tokio::test]
@@ -610,11 +682,15 @@ mod tests {
         let mut pipeline = AudioPipeline::new(config);
 
         // Run pipeline in async context
-        let result = tokio::task::spawn_blocking(move || {
-            pipeline.run_pipeline_test()
-        }).await.unwrap();
+        let result = tokio::task::spawn_blocking(move || pipeline.run_pipeline_test())
+            .await
+            .unwrap();
 
-        assert!(result.is_ok(), "Async pipeline test failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Async pipeline test failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -631,8 +707,12 @@ mod tests {
                 let mut pipeline = AudioPipeline::new(config);
                 let result = pipeline.run_pipeline_test();
 
-                assert!(result.is_ok(),
-                    "Concurrent instance {} failed: {:?}", i, result.err());
+                assert!(
+                    result.is_ok(),
+                    "Concurrent instance {} failed: {:?}",
+                    i,
+                    result.err()
+                );
 
                 pipeline.get_metrics()
             });
@@ -649,19 +729,24 @@ mod tests {
         assert_eq!(all_metrics.len(), num_instances);
 
         // Check that performance is consistent across instances
-        let avg_cpu_usage: f32 = all_metrics.iter()
-            .map(|m| m.cpu_usage_percent)
-            .sum::<f32>() / num_instances as f32;
+        let avg_cpu_usage: f32 =
+            all_metrics.iter().map(|m| m.cpu_usage_percent).sum::<f32>() / num_instances as f32;
 
         for (i, metrics) in all_metrics.iter().enumerate() {
             let cpu_diff = (metrics.cpu_usage_percent - avg_cpu_usage).abs();
-            assert!(cpu_diff < avg_cpu_usage * 0.5,
+            assert!(
+                cpu_diff < avg_cpu_usage * 0.5,
                 "Instance {} CPU usage varies too much from average: {:.1}% vs {:.1}%",
-                i, metrics.cpu_usage_percent, avg_cpu_usage);
+                i,
+                metrics.cpu_usage_percent,
+                avg_cpu_usage
+            );
         }
 
-        println!("Concurrent test: {} instances, average CPU usage: {:.1}%",
-            num_instances, avg_cpu_usage);
+        println!(
+            "Concurrent test: {} instances, average CPU usage: {:.1}%",
+            num_instances, avg_cpu_usage
+        );
     }
 }
 

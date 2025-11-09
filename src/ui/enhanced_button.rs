@@ -1,9 +1,9 @@
-use egui::{
-    Ui, Vec2, Rect, Color32, Response, Sense, CursorIcon, Id, Key, RichText, Pos2,
+use super::accessibility::{
+    AccessibilityManager, AnnouncementPriority, FocusableControlType, TooltipInfo,
 };
-use super::utils::{AnimationState, ColorUtils, DrawUtils};
 use super::theme::ThemeColors;
-use super::accessibility::{AccessibilityManager, TooltipInfo, FocusableControlType, AnnouncementPriority};
+use super::utils::{AnimationState, ColorUtils, DrawUtils};
+use egui::{Color32, CursorIcon, Id, Key, Pos2, Rect, Response, RichText, Sense, Ui, Vec2};
 
 /// Enhanced button with comprehensive accessibility support
 pub struct AccessibleButton {
@@ -110,14 +110,21 @@ impl AccessibleButton {
         accessibility: &mut AccessibilityManager,
     ) -> Response {
         // Calculate button size
-        let text = if self.loading { "Loading..." } else { &self.text };
-        let text_size = ui.painter().layout_no_wrap(
-            text.to_string(),
-            egui::FontId::default(),
-            Color32::WHITE,
-        ).size();
+        let text = if self.loading {
+            "Loading..."
+        } else {
+            &self.text
+        };
+        let text_size = ui
+            .painter()
+            .layout_no_wrap(text.to_string(), egui::FontId::default(), Color32::WHITE)
+            .size();
 
-        let icon_size = if self.icon.is_some() { Vec2::new(16.0, 16.0) } else { Vec2::ZERO };
+        let icon_size = if self.icon.is_some() {
+            Vec2::new(16.0, 16.0)
+        } else {
+            Vec2::ZERO
+        };
         let spacing = if self.icon.is_some() { 8.0 } else { 0.0 };
 
         let content_size = Vec2::new(
@@ -163,13 +170,25 @@ impl AccessibleButton {
         // Update animations
         let dt = ui.ctx().input(|i| i.stable_dt);
 
-        self.hover_animation.set_target(if response.hovered() && !self.is_disabled { 1.0 } else { 0.0 });
+        self.hover_animation
+            .set_target(if response.hovered() && !self.is_disabled {
+                1.0
+            } else {
+                0.0
+            });
         self.hover_animation.update(dt);
 
-        self.press_animation.set_target(if response.is_pointer_button_down_on() && !self.is_disabled { 1.0 } else { 0.0 });
+        self.press_animation.set_target(
+            if response.is_pointer_button_down_on() && !self.is_disabled {
+                1.0
+            } else {
+                0.0
+            },
+        );
         self.press_animation.update(dt);
 
-        self.focus_animation.set_target(if self.is_focused { 1.0 } else { 0.0 });
+        self.focus_animation
+            .set_target(if self.is_focused { 1.0 } else { 0.0 });
         self.focus_animation.update(dt);
 
         if self.loading {
@@ -258,10 +277,8 @@ impl AccessibleButton {
         // Draw shadow if enabled and not disabled
         if self.style.shadow && !self.is_disabled {
             let shadow_offset = Vec2::new(2.0, 2.0) * (1.0 - press_factor * 0.5);
-            let shadow_rect = Rect::from_center_size(
-                scaled_rect.center() + shadow_offset,
-                scaled_rect.size(),
-            );
+            let shadow_rect =
+                Rect::from_center_size(scaled_rect.center() + shadow_offset, scaled_rect.size());
             painter.rect_filled(
                 shadow_rect,
                 self.style.rounding,
@@ -324,7 +341,12 @@ impl AccessibleButton {
                 hover_factor,
             )
         };
-        painter.rect_stroke(scaled_rect, self.style.rounding, egui::Stroke::new(border_width, border_color), egui::epaint::StrokeKind::Outside);
+        painter.rect_stroke(
+            scaled_rect,
+            self.style.rounding,
+            egui::Stroke::new(border_width, border_color),
+            egui::epaint::StrokeKind::Outside,
+        );
 
         // Draw focus ring
         if focus_factor > 0.0 {
@@ -351,25 +373,22 @@ impl AccessibleButton {
                 let a = angle + (i as f32 * std::f32::consts::PI * 2.0 / 8.0);
                 let alpha = (1.0 + (a * 2.0).sin()) * 0.5;
                 let pos = content_pos + Vec2::angled(a) * spinner_radius;
-                painter.circle_filled(
-                    pos,
-                    2.0,
-                    ColorUtils::with_alpha(colors.text, alpha),
-                );
+                painter.circle_filled(pos, 2.0, ColorUtils::with_alpha(colors.text, alpha));
             }
         } else {
             // Draw icon if present
             if let Some(icon) = &self.icon {
-                let icon_pos = Pos2::new(
-                    content_pos.x - 8.0,
-                    content_pos.y,
-                );
+                let icon_pos = Pos2::new(content_pos.x - 8.0, content_pos.y);
                 painter.text(
                     icon_pos,
                     egui::Align2::CENTER_CENTER,
                     icon,
                     egui::FontId::default(),
-                    if self.style.high_contrast { Color32::BLACK } else { colors.text },
+                    if self.style.high_contrast {
+                        Color32::BLACK
+                    } else {
+                        colors.text
+                    },
                 );
                 content_pos.x += 12.0;
             }
@@ -452,7 +471,12 @@ impl ProgressIndicator {
 
         // Draw background
         painter.rect_filled(rect, 4.0, colors.surface);
-        painter.rect_stroke(rect, 4.0, egui::Stroke::new(1.0, colors.text_secondary), egui::epaint::StrokeKind::Outside);
+        painter.rect_stroke(
+            rect,
+            4.0,
+            egui::Stroke::new(1.0, colors.text_secondary),
+            egui::epaint::StrokeKind::Outside,
+        );
 
         // Draw progress bar
         let progress_value = if self.indeterminate {
@@ -536,9 +560,13 @@ impl VolumeSafetyIndicator {
         };
 
         // Update pulse animation for warnings
-        if matches!(status, VolumeSafetyStatus::Warning | VolumeSafetyStatus::Danger) {
+        if matches!(
+            status,
+            VolumeSafetyStatus::Warning | VolumeSafetyStatus::Danger
+        ) {
             let time = ui.ctx().input(|i| i.time) as f32;
-            self.pulse_animation.set_target((time * 4.0).sin() * 0.5 + 0.5);
+            self.pulse_animation
+                .set_target((time * 4.0).sin() * 0.5 + 0.5);
         } else {
             self.pulse_animation.set_target(0.0);
         }
@@ -559,7 +587,7 @@ impl VolumeSafetyIndicator {
                 ui.label(
                     RichText::new(message)
                         .color(ColorUtils::with_alpha(color, alpha))
-                        .strong()
+                        .strong(),
                 );
             });
 
@@ -567,7 +595,7 @@ impl VolumeSafetyIndicator {
                 ui.label(
                     RichText::new("Press ESC to reduce volume immediately")
                         .size(12.0)
-                        .color(colors.error)
+                        .color(colors.error),
                 );
             }
         }

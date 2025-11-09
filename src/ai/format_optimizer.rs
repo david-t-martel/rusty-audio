@@ -3,8 +3,8 @@
 //! Intelligently optimizes audio format, codec selection, and bitrate
 //! based on content analysis and quality requirements.
 
-use anyhow::{Result, Context};
 use crate::ai::feature_extractor::AudioFeatures;
+use anyhow::{Context, Result};
 
 /// Format optimizer for intelligent codec and bitrate selection
 pub struct FormatOptimizer {
@@ -23,7 +23,11 @@ impl FormatOptimizer {
     }
 
     /// Optimize audio format based on content analysis
-    pub fn optimize(&mut self, buffer: &[f32], features: &AudioFeatures) -> Result<OptimizationResult> {
+    pub fn optimize(
+        &mut self,
+        buffer: &[f32],
+        features: &AudioFeatures,
+    ) -> Result<OptimizationResult> {
         // Analyze current quality
         let quality = self.quality_analyzer.analyze(buffer, features)?;
 
@@ -31,7 +35,9 @@ impl FormatOptimizer {
         let codec = self.codec_selector.select(&quality, features)?;
 
         // Calculate optimal bitrate
-        let bitrate = self.bitrate_optimizer.calculate(&quality, &codec, features)?;
+        let bitrate = self
+            .bitrate_optimizer
+            .calculate(&quality, &codec, features)?;
 
         // Determine sample rate
         let sample_rate = self.determine_optimal_sample_rate(features)?;
@@ -186,7 +192,8 @@ impl CodecSelector {
     }
 
     fn is_speech(&self, features: &AudioFeatures) -> bool {
-        features.spectral_centroid
+        features
+            .spectral_centroid
             .map(|c| c > 500.0 && c < 3000.0)
             .unwrap_or(false)
     }
@@ -225,7 +232,12 @@ impl BitrateOptimizer {
         Self
     }
 
-    fn calculate(&self, quality: &AudioQuality, codec: &AudioCodec, features: &AudioFeatures) -> Result<u32> {
+    fn calculate(
+        &self,
+        quality: &AudioQuality,
+        codec: &AudioCodec,
+        features: &AudioFeatures,
+    ) -> Result<u32> {
         let base_bitrate = match codec {
             AudioCodec::FLAC => return Ok(0), // Lossless
             AudioCodec::AAC => 128000,
@@ -244,7 +256,8 @@ impl BitrateOptimizer {
             1.0
         };
 
-        let optimal_bitrate = (base_bitrate as f32 * quality_multiplier * frequency_multiplier) as u32;
+        let optimal_bitrate =
+            (base_bitrate as f32 * quality_multiplier * frequency_multiplier) as u32;
 
         // Snap to standard bitrates
         Ok(self.snap_to_standard_bitrate(optimal_bitrate))

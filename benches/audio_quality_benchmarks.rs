@@ -1,8 +1,8 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use std::time::Duration;
-use rustfft::{FftPlanner, num_complex::Complex32};
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use rand::{rngs::StdRng, Rng, SeedableRng};
+use rustfft::{num_complex::Complex32, FftPlanner};
 use std::f32::consts::PI;
+use std::time::Duration;
 
 const SAMPLE_RATE: f32 = 48000.0;
 const TEST_DURATION: f32 = 1.0;
@@ -131,7 +131,12 @@ fn calculate_rms(samples: &[f32]) -> f32 {
 }
 
 /// Calculate THD (Total Harmonic Distortion)
-fn calculate_thd(spectrum: &[f32], fundamental_bin: usize, sample_rate: f32, fft_size: usize) -> f32 {
+fn calculate_thd(
+    spectrum: &[f32],
+    fundamental_bin: usize,
+    sample_rate: f32,
+    fft_size: usize,
+) -> f32 {
     if fundamental_bin >= spectrum.len() {
         return 0.0;
     }
@@ -175,7 +180,8 @@ fn bench_sine_generation(c: &mut Criterion) {
             |b, &freq| {
                 let generator = SineGenerator::new(freq);
                 b.iter(|| {
-                    let _samples = generator.generate(black_box(TEST_DURATION), black_box(SAMPLE_RATE));
+                    let _samples =
+                        generator.generate(black_box(TEST_DURATION), black_box(SAMPLE_RATE));
                 });
             },
         );
@@ -260,7 +266,7 @@ fn bench_thd_calculation(c: &mut Criterion) {
                 black_box(&spectrum),
                 black_box(fundamental_bin),
                 black_box(SAMPLE_RATE),
-                black_box(fft_size)
+                black_box(fft_size),
             );
         });
     });
@@ -320,7 +326,8 @@ fn bench_frequency_response(c: &mut Criterion) {
 
     // Test multiple frequencies
     let test_frequencies = vec![100.0, 440.0, 1000.0, 2000.0, 4000.0, 8000.0];
-    let test_signals: Vec<_> = test_frequencies.iter()
+    let test_signals: Vec<_> = test_frequencies
+        .iter()
         .map(|&freq| {
             let generator = SineGenerator::new(freq).with_amplitude(1.0);
             generator.generate(TEST_DURATION, SAMPLE_RATE)
@@ -333,7 +340,8 @@ fn bench_frequency_response(c: &mut Criterion) {
             for samples in black_box(&test_signals) {
                 let spectrum = analyzer.analyze(samples);
                 // Find peak frequency
-                let max_bin = spectrum.iter()
+                let max_bin = spectrum
+                    .iter()
                     .enumerate()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
                     .map(|(i, _)| i)
@@ -377,7 +385,7 @@ fn bench_audio_quality_metrics(c: &mut Criterion) {
                 black_box(&spectrum),
                 black_box(fundamental_bin),
                 black_box(SAMPLE_RATE),
-                black_box(fft_size)
+                black_box(fft_size),
             );
 
             // Dynamic range

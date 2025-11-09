@@ -3,8 +3,8 @@
 //! Provides secure file path validation to prevent directory traversal attacks
 //! and enforce file type and size restrictions.
 
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 /// File validator for secure file operations
@@ -41,7 +41,8 @@ impl FileValidator {
     /// Validate a file path for security
     pub fn validate_file_path(&self, path: &Path) -> Result<PathBuf, SecurityError> {
         // Step 1: Canonicalize the path to resolve any symlinks and relative components
-        let canonical = path.canonicalize()
+        let canonical = path
+            .canonicalize()
             .map_err(|e| SecurityError::InvalidPath {
                 path: path.display().to_string(),
                 reason: e.to_string(),
@@ -51,7 +52,8 @@ impl FileValidator {
         if !self.is_within_sandbox(&canonical) {
             tracing::error!(
                 "Path traversal attempt detected: {:?} (sandbox: {:?})",
-                canonical, self.sandbox_root
+                canonical,
+                self.sandbox_root
             );
             return Err(SecurityError::PathTraversal {
                 attempted_path: canonical.display().to_string(),
@@ -59,7 +61,8 @@ impl FileValidator {
         }
 
         // Step 3: Check file extension
-        let ext = canonical.extension()
+        let ext = canonical
+            .extension()
             .and_then(|s| s.to_str())
             .ok_or_else(|| SecurityError::InvalidFileType {
                 path: canonical.display().to_string(),
@@ -74,11 +77,10 @@ impl FileValidator {
         }
 
         // Step 4: Check file size
-        let metadata = fs::metadata(&canonical)
-            .map_err(|e| SecurityError::FileAccessError {
-                path: canonical.display().to_string(),
-                reason: e.to_string(),
-            })?;
+        let metadata = fs::metadata(&canonical).map_err(|e| SecurityError::FileAccessError {
+            path: canonical.display().to_string(),
+            reason: e.to_string(),
+        })?;
 
         if metadata.len() > self.max_file_size {
             return Err(SecurityError::FileTooLarge {
@@ -109,11 +111,10 @@ impl FileValidator {
     fn validate_file_content(&self, path: &Path) -> Result<(), SecurityError> {
         use std::io::Read;
 
-        let mut file = fs::File::open(path)
-            .map_err(|e| SecurityError::FileAccessError {
-                path: path.display().to_string(),
-                reason: e.to_string(),
-            })?;
+        let mut file = fs::File::open(path).map_err(|e| SecurityError::FileAccessError {
+            path: path.display().to_string(),
+            reason: e.to_string(),
+        })?;
 
         let mut magic_bytes = [0u8; 16];
         file.read_exact(&mut magic_bytes)
@@ -132,7 +133,7 @@ impl FileValidator {
             [0x52, 0x49, 0x46, 0x46] => {
                 // Check for WAVE signature at offset 8
                 &magic_bytes[8..12] == b"WAVE"
-            },
+            }
             // FLAC
             [0x66, 0x4C, 0x61, 0x43] => true,
             // OGG
@@ -266,7 +267,7 @@ mod tests {
             let sanitized = FileValidator::sanitize_filename(input);
             assert_eq!(sanitized, expected, "Failed to sanitize: {}", input);
         }
-        
+
         // Test very long filename separately
         let long_input = format!("very*long*name*{}", "x".repeat(300));
         let expected_long = format!("very_long_name_{}", "x".repeat(238));

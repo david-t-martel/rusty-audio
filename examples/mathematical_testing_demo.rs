@@ -3,9 +3,9 @@
 // This example demonstrates the comprehensive mathematical testing framework
 // for rusty-audio without requiring the full UI to compile.
 
+use rand::{rngs::StdRng, Rng, SeedableRng};
+use rustfft::{num_complex::Complex32, FftPlanner};
 use std::f32::consts::PI;
-use rustfft::{FftPlanner, num_complex::Complex32};
-use rand::{Rng, SeedableRng, rngs::StdRng};
 
 /// Mathematical constants for audio testing
 const SAMPLE_RATE: f32 = 44100.0;
@@ -80,11 +80,9 @@ impl TestSuite {
             println!("\n=== Failed Tests ===");
             for result in &self.results {
                 if !result.passed {
-                    println!("{}: expected {:.6}, got {:.6} (error: {:.6})",
-                        result.test_name,
-                        result.expected,
-                        result.actual,
-                        result.error_magnitude
+                    println!(
+                        "{}: expected {:.6}, got {:.6} (error: {:.6})",
+                        result.test_name, result.expected, result.actual, result.error_magnitude
                     );
                 }
             }
@@ -208,7 +206,8 @@ impl FftAnalyzer {
         let mut max_magnitude = 0.0;
         let mut max_bin = 0;
 
-        for i in 1..half_size { // Skip DC bin
+        for i in 1..half_size {
+            // Skip DC bin
             let magnitude = buffer[i].norm();
             if magnitude > max_magnitude {
                 max_magnitude = magnitude;
@@ -279,7 +278,9 @@ fn run_mathematical_tests() -> TestSuite {
         let freq_gen = SineGenerator::new(freq);
         let freq_samples = freq_gen.generate(2.0, SAMPLE_RATE); // 2 second signal for better resolution
 
-        if let Some((detected_freq, magnitude)) = analyzer.analyze_and_find_peak(&freq_samples, SAMPLE_RATE) {
+        if let Some((detected_freq, magnitude)) =
+            analyzer.analyze_and_find_peak(&freq_samples, SAMPLE_RATE)
+        {
             let freq_result = TestResult::new(
                 &format!("FFT frequency detection: {:.1} Hz", freq),
                 freq,
@@ -296,8 +297,10 @@ fn run_mathematical_tests() -> TestSuite {
             );
             master_suite.add_result(mag_result);
 
-            println!("   {:.1} Hz: detected {:.1} Hz, magnitude {:.3}",
-                freq, detected_freq, magnitude);
+            println!(
+                "   {:.1} Hz: detected {:.1} Hz, magnitude {:.3}",
+                freq, detected_freq, magnitude
+            );
         }
     }
 
@@ -316,7 +319,7 @@ fn run_mathematical_tests() -> TestSuite {
         "White noise RMS",
         expected_noise_rms,
         noise_rms,
-        expected_noise_rms * 0.5 // 50% tolerance due to randomness
+        expected_noise_rms * 0.5, // 50% tolerance due to randomness
     );
     master_suite.add_result(noise_rms_result);
 
@@ -324,11 +327,14 @@ fn run_mathematical_tests() -> TestSuite {
         "White noise peak bounds",
         0.5,
         noise_peak,
-        0.1 // Peak should be close to but not exceed amplitude
+        0.1, // Peak should be close to but not exceed amplitude
     );
     master_suite.add_result(noise_peak_result);
 
-    println!("   RMS: {:.6} (expected ~{:.6})", noise_rms, expected_noise_rms);
+    println!(
+        "   RMS: {:.6} (expected ~{:.6})",
+        noise_rms, expected_noise_rms
+    );
     println!("   Peak: {:.6} (should be ≤ 0.5)", noise_peak);
 
     // Test 4: Signal Processing Mathematical Properties
@@ -348,12 +354,14 @@ fn run_mathematical_tests() -> TestSuite {
         "Energy conservation with gain",
         expected_energy_after,
         energy_after,
-        TOLERANCE
+        TOLERANCE,
     );
     master_suite.add_result(energy_result);
 
-    println!("   Energy before: {:.6}, after: {:.6} (expected: {:.6})",
-        energy_before, energy_after, expected_energy_after);
+    println!(
+        "   Energy before: {:.6}, after: {:.6} (expected: {:.6})",
+        energy_before, energy_after, expected_energy_after
+    );
 
     master_suite
 }
@@ -367,7 +375,9 @@ fn main() {
     suite.print_summary();
 
     if suite.success_rate() >= 0.95 {
-        println!("🎉 EXCELLENT: Mathematical accuracy > 95% - Audio processing is mathematically sound!");
+        println!(
+            "🎉 EXCELLENT: Mathematical accuracy > 95% - Audio processing is mathematically sound!"
+        );
         std::process::exit(0);
     } else if suite.success_rate() >= 0.85 {
         println!("✅ GOOD: Mathematical accuracy > 85% - Audio processing is reliable with minor issues.");

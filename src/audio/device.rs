@@ -4,8 +4,8 @@
 //! using the cpal library for native audio device access.
 
 use super::backend::{
-    AudioBackend, AudioBackendError, AudioConfig, AudioStream,
-    DeviceInfo, Result, SampleFormat, StreamDirection, StreamStatus,
+    AudioBackend, AudioBackendError, AudioConfig, AudioStream, DeviceInfo, Result, SampleFormat,
+    StreamDirection, StreamStatus,
 };
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use parking_lot::RwLock;
@@ -25,7 +25,7 @@ impl CpalBackend {
             initialized: false,
         }
     }
-    
+
     /// Create output stream with custom ring buffer callback
     pub fn create_output_stream_with_callback<F>(
         &mut self,
@@ -39,20 +39,22 @@ impl CpalBackend {
         let device = self
             .host
             .output_devices()
-            .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e)))?
+            .map_err(|e| {
+                AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e))
+            })?
             .find(|d| d.name().ok().as_deref() == Some(device_id))
             .ok_or_else(|| AudioBackendError::DeviceNotFound(device_id.to_string()))?;
-        
+
         let stream_config = cpal::StreamConfig {
             channels: config.channels,
             sample_rate: cpal::SampleRate(config.sample_rate),
             buffer_size: cpal::BufferSize::Fixed(config.buffer_size as u32),
         };
-        
+
         // Wrap callback in Arc<Mutex> for thread-safe access
         let callback = Arc::new(parking_lot::Mutex::new(callback));
         let callback_clone = callback.clone();
-        
+
         // Enable real-time thread priority for audio callback
         use std::sync::atomic::{AtomicBool, Ordering};
         let priority_set = Arc::new(AtomicBool::new(false));
@@ -84,15 +86,17 @@ impl CpalBackend {
                 },
                 None,
             )
-            .map_err(|e| AudioBackendError::StreamError(format!("Failed to build output stream: {}", e)))?;
-        
+            .map_err(|e| {
+                AudioBackendError::StreamError(format!("Failed to build output stream: {}", e))
+            })?;
+
         Ok(Box::new(CpalOutputStream {
             stream,
             config,
             status: StreamStatus::Stopped,
         }))
     }
-    
+
     /// Create input stream with custom callback for recording
     pub fn create_input_stream_with_callback<F>(
         &mut self,
@@ -106,20 +110,22 @@ impl CpalBackend {
         let device = self
             .host
             .input_devices()
-            .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e)))?
+            .map_err(|e| {
+                AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e))
+            })?
             .find(|d| d.name().ok().as_deref() == Some(device_id))
             .ok_or_else(|| AudioBackendError::DeviceNotFound(device_id.to_string()))?;
-        
+
         let stream_config = cpal::StreamConfig {
             channels: config.channels,
             sample_rate: cpal::SampleRate(config.sample_rate),
             buffer_size: cpal::BufferSize::Fixed(config.buffer_size as u32),
         };
-        
+
         // Wrap callback in Arc<Mutex> for thread-safe access
         let callback = Arc::new(parking_lot::Mutex::new(callback));
         let callback_clone = callback.clone();
-        
+
         let stream = device
             .build_input_stream(
                 &stream_config,
@@ -132,15 +138,17 @@ impl CpalBackend {
                 },
                 None,
             )
-            .map_err(|e| AudioBackendError::StreamError(format!("Failed to build input stream: {}", e)))?;
-        
+            .map_err(|e| {
+                AudioBackendError::StreamError(format!("Failed to build input stream: {}", e))
+            })?;
+
         Ok(Box::new(CpalInputStream {
             stream,
             config,
             status: StreamStatus::Stopped,
         }))
     }
-    
+
     /// Convert cpal sample format to our SampleFormat
     fn convert_sample_format(format: cpal::SampleFormat) -> SampleFormat {
         match format {
@@ -150,7 +158,7 @@ impl CpalBackend {
             _ => SampleFormat::F32, // Default to F32 for unsupported formats
         }
     }
-    
+
     /// Convert our SampleFormat to cpal sample format
     fn to_cpal_sample_format(format: SampleFormat) -> cpal::SampleFormat {
         match format {
@@ -159,33 +167,31 @@ impl CpalBackend {
             SampleFormat::F32 => cpal::SampleFormat::F32,
         }
     }
-    
+
     /// Build DeviceInfo from a cpal device
-    fn build_device_info(
-        &self,
-        device: &cpal::Device,
-        is_default: bool,
-    ) -> Result<DeviceInfo> {
-        let name = device
-            .name()
-            .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot get device name: {}", e)))?;
-        
+    fn build_device_info(&self, device: &cpal::Device, is_default: bool) -> Result<DeviceInfo> {
+        let name = device.name().map_err(|e| {
+            AudioBackendError::DeviceUnavailable(format!("Cannot get device name: {}", e))
+        })?;
+
         // Get supported configurations
         let supported_configs: Vec<_> = device
             .supported_output_configs()
-            .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot query configs: {}", e)))?
+            .map_err(|e| {
+                AudioBackendError::DeviceUnavailable(format!("Cannot query configs: {}", e))
+            })?
             .collect();
-        
+
         let mut configs = Vec::new();
         let mut min_rate = u32::MAX;
         let mut max_rate = 0u32;
         let mut max_channels = 0u16;
-        
+
         for config_range in &supported_configs {
             min_rate = min_rate.min(config_range.min_sample_rate().0);
             max_rate = max_rate.max(config_range.max_sample_rate().0);
             max_channels = max_channels.max(config_range.channels());
-            
+
             // Add a few common sample rates from this range
             for &rate in &[44100, 48000, 88200, 96000] {
                 if rate >= config_range.min_sample_rate().0
@@ -200,7 +206,7 @@ impl CpalBackend {
                 }
             }
         }
-        
+
         Ok(DeviceInfo {
             id: name.clone(),
             name,
@@ -224,53 +230,57 @@ impl AudioBackend for CpalBackend {
     fn name(&self) -> &'static str {
         "cpal"
     }
-    
+
     fn is_available(&self) -> bool {
         // CPAL is available on all supported platforms
         true
     }
-    
+
     fn initialize(&mut self) -> Result<()> {
         if self.initialized {
             return Ok(());
         }
-        
+
         // Test that we can access the default device
-        self.host
-            .default_output_device()
-            .ok_or_else(|| AudioBackendError::InitializationFailed(
-                "No default output device available".to_string()
-            ))?;
-        
+        self.host.default_output_device().ok_or_else(|| {
+            AudioBackendError::InitializationFailed(
+                "No default output device available".to_string(),
+            )
+        })?;
+
         self.initialized = true;
         Ok(())
     }
-    
+
     fn enumerate_devices(&self, direction: StreamDirection) -> Result<Vec<DeviceInfo>> {
         let devices: Vec<_> = match direction {
-            StreamDirection::Output => self
-                .host
-                .output_devices()
-                .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate output devices: {}", e)))?,
-            StreamDirection::Input => self
-                .host
-                .input_devices()
-                .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate input devices: {}", e)))?,
+            StreamDirection::Output => self.host.output_devices().map_err(|e| {
+                AudioBackendError::DeviceUnavailable(format!(
+                    "Cannot enumerate output devices: {}",
+                    e
+                ))
+            })?,
+            StreamDirection::Input => self.host.input_devices().map_err(|e| {
+                AudioBackendError::DeviceUnavailable(format!(
+                    "Cannot enumerate input devices: {}",
+                    e
+                ))
+            })?,
         }
         .collect();
-        
+
         let default_device = match direction {
             StreamDirection::Output => self.host.default_output_device(),
             StreamDirection::Input => self.host.default_input_device(),
         };
-        
+
         let default_name = default_device.as_ref().and_then(|d| d.name().ok());
-        
+
         let mut device_infos = Vec::new();
         for device in devices {
             let device_name = device.name().ok();
             let is_default = device_name.as_ref() == default_name.as_ref();
-            
+
             match self.build_device_info(&device, is_default) {
                 Ok(info) => device_infos.push(info),
                 Err(e) => {
@@ -279,31 +289,29 @@ impl AudioBackend for CpalBackend {
                 }
             }
         }
-        
+
         Ok(device_infos)
     }
-    
+
     fn default_device(&self, direction: StreamDirection) -> Result<DeviceInfo> {
         let device = match direction {
-            StreamDirection::Output => self
-                .host
-                .default_output_device()
-                .ok_or_else(|| AudioBackendError::DeviceNotFound("No default output device".to_string()))?,
-            StreamDirection::Input => self
-                .host
-                .default_input_device()
-                .ok_or_else(|| AudioBackendError::DeviceNotFound("No default input device".to_string()))?,
+            StreamDirection::Output => self.host.default_output_device().ok_or_else(|| {
+                AudioBackendError::DeviceNotFound("No default output device".to_string())
+            })?,
+            StreamDirection::Input => self.host.default_input_device().ok_or_else(|| {
+                AudioBackendError::DeviceNotFound("No default input device".to_string())
+            })?,
         };
-        
+
         self.build_device_info(&device, true)
     }
-    
+
     fn test_device(&self, device_id: &str) -> Result<bool> {
         let devices = match self.host.output_devices() {
             Ok(d) => d,
             Err(_) => return Ok(false),
         };
-        
+
         for device in devices {
             if let Ok(name) = device.name() {
                 if name == device_id {
@@ -312,16 +320,15 @@ impl AudioBackend for CpalBackend {
                 }
             }
         }
-        
+
         Ok(false)
     }
-    
+
     fn supported_configs(&self, device_id: &str) -> Result<Vec<AudioConfig>> {
-        let devices = self
-            .host
-            .output_devices()
-            .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e)))?;
-        
+        let devices = self.host.output_devices().map_err(|e| {
+            AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e))
+        })?;
+
         for device in devices {
             if let Ok(name) = device.name() {
                 if name == device_id {
@@ -330,10 +337,10 @@ impl AudioBackend for CpalBackend {
                 }
             }
         }
-        
+
         Err(AudioBackendError::DeviceNotFound(device_id.to_string()))
     }
-    
+
     fn create_output_stream(
         &mut self,
         device_id: &str,
@@ -342,16 +349,18 @@ impl AudioBackend for CpalBackend {
         let device = self
             .host
             .output_devices()
-            .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e)))?
+            .map_err(|e| {
+                AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e))
+            })?
             .find(|d| d.name().ok().as_deref() == Some(device_id))
             .ok_or_else(|| AudioBackendError::DeviceNotFound(device_id.to_string()))?;
-        
+
         let stream_config = cpal::StreamConfig {
             channels: config.channels,
             sample_rate: cpal::SampleRate(config.sample_rate),
             buffer_size: cpal::BufferSize::Fixed(config.buffer_size as u32),
         };
-        
+
         // Enable real-time thread priority for audio callback
         use std::sync::atomic::{AtomicBool, Ordering};
         let priority_set = Arc::new(AtomicBool::new(false));
@@ -386,15 +395,17 @@ impl AudioBackend for CpalBackend {
                 },
                 None,
             )
-            .map_err(|e| AudioBackendError::StreamError(format!("Failed to build output stream: {}", e)))?;
-        
+            .map_err(|e| {
+                AudioBackendError::StreamError(format!("Failed to build output stream: {}", e))
+            })?;
+
         Ok(Box::new(CpalOutputStream {
             stream,
             config,
             status: StreamStatus::Stopped,
         }))
     }
-    
+
     fn create_input_stream(
         &mut self,
         device_id: &str,
@@ -403,16 +414,18 @@ impl AudioBackend for CpalBackend {
         let device = self
             .host
             .input_devices()
-            .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e)))?
+            .map_err(|e| {
+                AudioBackendError::DeviceUnavailable(format!("Cannot enumerate devices: {}", e))
+            })?
             .find(|d| d.name().ok().as_deref() == Some(device_id))
             .ok_or_else(|| AudioBackendError::DeviceNotFound(device_id.to_string()))?;
-        
+
         let stream_config = cpal::StreamConfig {
             channels: config.channels,
             sample_rate: cpal::SampleRate(config.sample_rate),
             buffer_size: cpal::BufferSize::Fixed(config.buffer_size as u32),
         };
-        
+
         // Create a simple input stream that captures data
         let stream = device
             .build_input_stream(
@@ -426,8 +439,10 @@ impl AudioBackend for CpalBackend {
                 },
                 None,
             )
-            .map_err(|e| AudioBackendError::StreamError(format!("Failed to build input stream: {}", e)))?;
-        
+            .map_err(|e| {
+                AudioBackendError::StreamError(format!("Failed to build input stream: {}", e))
+            })?;
+
         Ok(Box::new(CpalInputStream {
             stream,
             config,
@@ -455,15 +470,15 @@ impl AudioStream for CpalOutputStream {
         self.status = StreamStatus::Playing;
         Ok(())
     }
-    
+
     fn pause(&mut self) -> Result<()> {
-        self.stream
-            .pause()
-            .map_err(|e| AudioBackendError::StreamError(format!("Failed to pause stream: {}", e)))?;
+        self.stream.pause().map_err(|e| {
+            AudioBackendError::StreamError(format!("Failed to pause stream: {}", e))
+        })?;
         self.status = StreamStatus::Paused;
         Ok(())
     }
-    
+
     fn stop(&mut self) -> Result<()> {
         self.stream
             .pause()
@@ -471,15 +486,15 @@ impl AudioStream for CpalOutputStream {
         self.status = StreamStatus::Stopped;
         Ok(())
     }
-    
+
     fn status(&self) -> StreamStatus {
         self.status
     }
-    
+
     fn config(&self) -> &AudioConfig {
         &self.config
     }
-    
+
     fn latency_samples(&self) -> Option<usize> {
         // CPAL doesn't provide direct latency info, estimate from buffer size
         Some(self.config.buffer_size)
@@ -499,37 +514,37 @@ unsafe impl Send for CpalInputStream {}
 
 impl AudioStream for CpalInputStream {
     fn play(&mut self) -> Result<()> {
-        self.stream
-            .play()
-            .map_err(|e| AudioBackendError::StreamError(format!("Failed to start recording: {}", e)))?;
+        self.stream.play().map_err(|e| {
+            AudioBackendError::StreamError(format!("Failed to start recording: {}", e))
+        })?;
         self.status = StreamStatus::Playing;
         Ok(())
     }
-    
+
     fn pause(&mut self) -> Result<()> {
-        self.stream
-            .pause()
-            .map_err(|e| AudioBackendError::StreamError(format!("Failed to pause recording: {}", e)))?;
+        self.stream.pause().map_err(|e| {
+            AudioBackendError::StreamError(format!("Failed to pause recording: {}", e))
+        })?;
         self.status = StreamStatus::Paused;
         Ok(())
     }
-    
+
     fn stop(&mut self) -> Result<()> {
-        self.stream
-            .pause()
-            .map_err(|e| AudioBackendError::StreamError(format!("Failed to stop recording: {}", e)))?;
+        self.stream.pause().map_err(|e| {
+            AudioBackendError::StreamError(format!("Failed to stop recording: {}", e))
+        })?;
         self.status = StreamStatus::Stopped;
         Ok(())
     }
-    
+
     fn status(&self) -> StreamStatus {
         self.status
     }
-    
+
     fn config(&self) -> &AudioConfig {
         &self.config
     }
-    
+
     fn latency_samples(&self) -> Option<usize> {
         Some(self.config.buffer_size)
     }

@@ -41,12 +41,12 @@ impl WebAudioBridge {
             config,
         }
     }
-    
+
     /// Connect the bridge to the audio graph
     ///
     /// NOTE: The current web-audio-api crate doesn't expose ScriptProcessorNode.
     /// This is a placeholder for future implementation.
-    /// 
+    ///
     /// For now, the bridge is set up but audio routing happens through
     /// the existing web-audio-api destination.
     ///
@@ -54,32 +54,28 @@ impl WebAudioBridge {
     /// ```ignore
     /// bridge.connect_to_graph(&audio_context, &analyser);
     /// ```
-    pub fn connect_to_graph<N: AudioNode>(
-        &self,
-        _context: &AudioContext,
-        _source_node: &N,
-    ) {
+    pub fn connect_to_graph<N: AudioNode>(&self, _context: &AudioContext, _source_node: &N) {
         // TODO: Implement actual audio bridging once web-audio-api crate
         // exposes ScriptProcessorNode or AudioWorkletNode
-        // 
+        //
         // For now, the ring buffer infrastructure is in place for when
         // the API becomes available.
         println!("ℹ️ WebAudioBridge: Infrastructure ready, waiting for ScriptProcessor API");
     }
-    
+
     /// Get the current buffer fill level (0.0 to 1.0)
     pub fn buffer_fill_level(&self) -> f32 {
         let available = self.ring_buffer.available();
         let capacity = self.config.buffer_size * self.config.input_channels as usize * 8; // 8x buffer
         (available as f32) / (capacity as f32)
     }
-    
+
     /// Check if the buffer is healthy (not too empty or too full)
     pub fn is_buffer_healthy(&self) -> bool {
         let fill = self.buffer_fill_level();
         fill > 0.1 && fill < 0.9 // Healthy range: 10% to 90%
     }
-    
+
     /// Get buffer health status message
     pub fn buffer_health_message(&self) -> &'static str {
         let fill = self.buffer_fill_level();
@@ -101,26 +97,26 @@ impl WebAudioBridge {
 mod tests {
     use super::*;
     use crate::audio::hybrid::AudioRingBuffer;
-    
+
     #[test]
     fn test_bridge_creation() {
         let ring_buffer = Arc::new(AudioRingBuffer::new(8192));
         let bridge = WebAudioBridge::new(ring_buffer, WebAudioBridgeConfig::default());
         assert!(bridge.buffer_fill_level() >= 0.0);
     }
-    
+
     #[test]
     fn test_buffer_health() {
         let ring_buffer = Arc::new(AudioRingBuffer::new(8192));
         let bridge = WebAudioBridge::new(ring_buffer.clone(), WebAudioBridgeConfig::default());
-        
+
         // Empty buffer should be unhealthy
         assert!(!bridge.is_buffer_healthy());
-        
+
         // Fill to 50%
         let samples = vec![0.0; 4096];
         ring_buffer.write(&samples);
-        
+
         // Should now be healthy
         assert!(bridge.is_buffer_healthy());
     }
