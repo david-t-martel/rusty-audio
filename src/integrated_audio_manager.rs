@@ -2,16 +2,27 @@
 //!
 //! Provides a high-level interface for the UI to interact with the audio routing system.
 //! Manages audio sources, destinations, and routing for playback, recording, and signal generation.
+//!
+//! Supports both native (CPAL/ASIO) and WASM (Web Audio API) backends.
 
+// Common imports (both platforms)
 use super::audio::{
-    AudioBackend, AudioConfig, AudioDestination, AudioRouter, AudioSource, BackendSelector, DestId,
-    FileRecorderDestination, LevelMeterDestination, OutputDeviceDestination, Route, RouteId,
-    SignalGeneratorSource, SourceId, StreamDirection,
+    AudioBackend, AudioConfig, AudioDestination, AudioRouter, AudioSource, DestId,
+    LevelMeterDestination, Route, RouteId, SignalGeneratorSource, SourceId, StreamDirection,
 };
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Arc;
+
+// Native-only imports
+#[cfg(not(target_arch = "wasm32"))]
+use super::audio::{BackendSelector, FileRecorderDestination, OutputDeviceDestination};
+
+// WASM-only imports
+#[cfg(target_arch = "wasm32")]
+use super::audio::web_audio_backend::WebAudioBackend;
+#[cfg(target_arch = "wasm32")]
+use super::audio::web_audio_destination::WebAudioDestination;
 
 /// Audio manager errors
 #[derive(Debug, thiserror::Error)]
@@ -99,11 +110,12 @@ pub struct IntegratedAudioManager {
 }
 
 impl IntegratedAudioManager {
-    /// Create a new integrated audio manager
+    /// Create a new integrated audio manager (Native version)
     ///
     /// # Arguments
     /// * `buffer_size` - Router buffer size (typically 512 or 1024)
     /// * `config` - Audio configuration (sample rate, channels, etc.)
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(buffer_size: usize, config: AudioConfig) -> Result<Self> {
         let router = AudioRouter::new(buffer_size);
 
@@ -114,6 +126,35 @@ impl IntegratedAudioManager {
         Ok(Self {
             router,
             backend,
+            config: config.clone(),
+            output_device: None,
+            signal_generator_source: None,
+            input_device_source: None,
+            file_playback_source: None,
+            active_routes: HashMap::new(),
+            playback_state: PlaybackState::Stopped,
+            signal_generator_playing: false,
+            default_sample_rate: config.sample_rate,
+            default_channels: config.channels,
+        })
+    }
+
+    /// Create a new integrated audio manager (WASM version)
+    ///
+    /// # Arguments
+    /// * `buffer_size` - Router buffer size (typically 512 or 1024)
+    /// * `config` - Audio configuration (sample rate, channels, etc.)
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(buffer_size: usize, config: AudioConfig) -> Result<Self> {
+        let router = AudioRouter::new(buffer_size);
+
+        // Create Web Audio backend
+        let mut backend = WebAudioBackend::new();
+        backend.initialize()?;
+
+        Ok(Self {
+            router,
+            backend: Box::new(backend),
             config: config.clone(),
             output_device: None,
             signal_generator_source: None,
@@ -144,7 +185,7 @@ impl IntegratedAudioManager {
             self.backend.default_device(StreamDirection::Output)?
         };
 
-        // Create output destination
+        // Create output destination (Native)
         #[cfg(not(target_arch = "wasm32"))]
         {
             let output = OutputDeviceDestination::new(
@@ -156,6 +197,29 @@ impl IntegratedAudioManager {
 
             let dest_id = self.router.add_destination(Box::new(output));
             self.output_device = Some(dest_id);
+        }
+
+        // Create output destination (WASM)
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Create Web Audio context if not already done
+            if let Ok(context) = web_sys::AudioContext::new() {
+                let output = WebAudioDestination::new(
+                    context,
+                    self.config.sample_rate,
+                    self.config.channels,
+                    0.1, // 100ms buffer duration
+                );
+
+                let dest_id = self.router.add_destination(Box::new(output));
+                self.output_device = Some(dest_id);
+            } else {
+                return Err(AudioManagerError::Backend(
+                    super::audio::AudioBackendError::InitializationFailed(
+                        "Failed to create Web Audio context".to_string(),
+                    ),
+                ));
+            }
         }
 
         Ok(())

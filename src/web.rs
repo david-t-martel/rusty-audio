@@ -10,17 +10,87 @@ use wasm_bindgen::prelude::*;
 use eframe::egui;
 
 #[cfg(target_arch = "wasm32")]
-/// Minimal WASM application stub
-/// This will be expanded to match AudioPlayerApp functionality
+use rusty_audio::{
+    audio::AudioConfig,
+    integrated_audio_manager::{IntegratedAudioManager, PlaybackState},
+    ui::{
+        signal_generator::SignalGeneratorPanel,
+        theme::{Theme, ThemeManager},
+    },
+};
+
+#[cfg(target_arch = "wasm32")]
+use std::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+/// WASM Audio Player Application
+///
+/// Web-compatible version of the Rusty Audio player using IntegratedAudioManager
+/// with Web Audio API backend
 struct WasmAudioApp {
-    message: String,
+    // Audio management
+    audio_manager: Option<IntegratedAudioManager>,
+    initialization_error: Option<String>,
+
+    // UI state
+    signal_generator_panel: SignalGeneratorPanel,
+    theme_manager: ThemeManager,
+
+    // Playback state
+    volume: f32,
+    error_message: Option<String>,
+
+    // Status
+    last_update: Instant,
 }
 
 #[cfg(target_arch = "wasm32")]
 impl Default for WasmAudioApp {
     fn default() -> Self {
+        log::info!("Initializing WASM Audio Player...");
+
+        // Initialize audio manager with Web Audio backend
+        let audio_config = AudioConfig {
+            sample_rate: 48000,
+            channels: 2,
+            buffer_size: 512,
+            exclusive_mode: false, // Not applicable to WASM
+            ..Default::default()
+        };
+
+        let (audio_manager, initialization_error) =
+            match IntegratedAudioManager::new(512, audio_config) {
+                Ok(mut manager) => {
+                    log::info!("IntegratedAudioManager created successfully");
+
+                    // Initialize output device (Web Audio context)
+                    match manager.initialize_output_device(None) {
+                        Ok(_) => {
+                            log::info!("Web Audio output initialized");
+                            (Some(manager), None)
+                        }
+                        Err(e) => {
+                            let error = format!("Failed to initialize Web Audio output: {}", e);
+                            log::error!("{}", error);
+                            (None, Some(error))
+                        }
+                    }
+                }
+                Err(e) => {
+                    let error = format!("Failed to create audio manager: {}", e);
+                    log::error!("{}", error);
+                    (None, Some(error))
+                }
+            };
+
         Self {
-            message: "Rusty Audio - WASM Version Loading...".to_string(),
+            audio_manager,
+            initialization_error,
+            signal_generator_panel: SignalGeneratorPanel::new(),
+            theme_manager: ThemeManager::new(Theme::StudioDark),
+            volume: 0.5,
+            error_message: None,
+            last_update: Instant::now(),
         }
     }
 }
@@ -28,18 +98,136 @@ impl Default for WasmAudioApp {
 #[cfg(target_arch = "wasm32")]
 impl eframe::App for WasmAudioApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("🎵 Rusty Audio Player");
-            ui.separator();
-            ui.label(&self.message);
-            ui.add_space(20.0);
-            ui.label("WASM Version - UI Framework Active");
-            ui.label("Audio functionality coming soon...");
+        let now = Instant::now();
+        let _dt = (now - self.last_update).as_secs_f32();
+        self.last_update = now;
 
-            if ui.button("Click me!").clicked() {
-                self.message = format!("Button clicked at {:?}!", std::time::Instant::now());
-                log::info!("Button clicked in WASM app");
+        // Apply theme
+        let theme = self.theme_manager.current_theme();
+        ctx.set_visuals(theme.to_egui_visuals());
+
+        // Request repaint for animations
+        ctx.request_repaint();
+
+        // Top panel with title and status
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.heading("🎵 Rusty Audio Player (WASM)");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if let Some(ref manager) = self.audio_manager {
+                        let playback_state = manager.playback_state();
+                        let status_text = match playback_state {
+                            PlaybackState::Playing => "▶ Playing",
+                            PlaybackState::Stopped => "⏸ Stopped",
+                            PlaybackState::Paused => "⏸ Paused",
+                        };
+                        ui.label(status_text);
+                    } else {
+                        ui.colored_label(egui::Color32::RED, "⚠ Audio Unavailable");
+                    }
+                });
+            });
+        });
+
+        // Main content panel
+        egui::CentralPanel::default().show(ctx, |ui| {
+            // Show initialization error if any
+            if let Some(ref error) = self.initialization_error {
+                ui.colored_label(
+                    egui::Color32::RED,
+                    format!("Initialization Error: {}", error),
+                );
+                ui.label("The audio system failed to initialize. Audio features will not work.");
+                ui.separator();
             }
+
+            // Show current error message if any
+            if let Some(ref error) = self.error_message {
+                ui.colored_label(egui::Color32::YELLOW, format!("Error: {}", error));
+                ui.separator();
+            }
+
+            ui.heading("Signal Generator");
+            ui.separator();
+
+            // Signal generator panel
+            if let Some(ref mut audio_manager) = self.audio_manager {
+                // Draw signal generator UI
+                self.signal_generator_panel.show(ui);
+
+                // Handle signal generator routing intents
+                if let Some(intent) = self.signal_generator_panel.take_route_intent() {
+                    log::info!(
+                        "Processing route intent: {} -> {:?}",
+                        intent.label,
+                        intent.mode
+                    );
+
+                    if let Some(output) = self.signal_generator_panel.output_snapshot() {
+                        match audio_manager.play_signal_generator(
+                            output.samples,
+                            output.sample_rate,
+                            false, // Don't loop for now
+                        ) {
+                            Ok(_) => {
+                                log::info!("Signal generator started successfully");
+                                self.error_message = None;
+                            }
+                            Err(e) => {
+                                let error = format!("Failed to start playback: {}", e);
+                                log::error!("{}", error);
+                                self.error_message = Some(error);
+                            }
+                        }
+                    }
+                }
+
+                // Stop button
+                ui.add_space(10.0);
+                if ui.button("⏹ Stop Playback").clicked() {
+                    match audio_manager.stop_signal_generator() {
+                        Ok(_) => {
+                            log::info!("Playback stopped");
+                            self.error_message = None;
+                        }
+                        Err(e) => {
+                            let error = format!("Failed to stop playback: {}", e);
+                            log::error!("{}", error);
+                            self.error_message = Some(error);
+                        }
+                    }
+                }
+
+                // Volume control
+                ui.add_space(10.0);
+                ui.label("Master Volume:");
+                ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));
+
+                // Audio processing (call process periodically)
+                if let Err(e) = audio_manager.process() {
+                    log::error!("Audio processing error: {}", e);
+                }
+            } else {
+                ui.label("Audio system not available");
+                ui.label("Please check the console for initialization errors");
+            }
+
+            ui.add_space(20.0);
+            ui.separator();
+
+            // Status information
+            ui.heading("System Information");
+            ui.label(format!(
+                "Web Audio API: {}",
+                if self.audio_manager.is_some() {
+                    "Active"
+                } else {
+                    "Unavailable"
+                }
+            ));
+            ui.label("Sample Rate: 48000 Hz");
+            ui.label("Channels: 2 (Stereo)");
+            ui.label("Buffer Size: 512 samples");
         });
     }
 }

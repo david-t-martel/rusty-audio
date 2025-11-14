@@ -21,6 +21,12 @@ pub mod router;
 pub mod sources;
 pub mod web_bridge;
 
+// WASM Web Audio API backend (Phase 3.5)
+#[cfg(target_arch = "wasm32")]
+pub mod web_audio_backend;
+#[cfg(target_arch = "wasm32")]
+pub mod web_audio_destination;
+
 // Windows ASIO backend (Phase 1.1)
 #[cfg(target_os = "windows")]
 pub mod asio_backend;
@@ -58,10 +64,16 @@ pub use destinations::{
 };
 pub use sources::{RingBufferSource, RingBufferWriter, SignalGeneratorSource, SilenceSource};
 
-// Device-based sources and destinations
+// Device-based sources and destinations (Native only)
 #[cfg(not(target_arch = "wasm32"))]
 pub use device_destination::OutputDeviceDestination;
 #[cfg(not(target_arch = "wasm32"))]
 pub use device_source::InputDeviceSource;
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_recorder::FileRecorderDestination;
+
+// Web Audio API backend and destination (WASM only)
+#[cfg(target_arch = "wasm32")]
+pub use web_audio_backend::WebAudioBackend;
+#[cfg(target_arch = "wasm32")]
+pub use web_audio_destination::WebAudioDestination;
