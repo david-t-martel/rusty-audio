@@ -116,6 +116,35 @@ pub enum GeneratorState {
     Generating,
 }
 
+/// Routing mode for generated signals
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeneratorRoutingMode {
+    /// Route generated signal to audio output device
+    Output,
+    /// Route generated signal to recorder (virtual take)
+    Recorder,
+    /// Route to both output and recorder
+    Both,
+}
+
+/// Intent to route generated signal
+#[derive(Debug, Clone)]
+pub struct RouteIntent {
+    pub mode: GeneratorRoutingMode,
+    pub label: String,
+    pub timestamp: std::time::Instant,
+}
+
+/// Snapshot of generator output for routing
+#[derive(Debug, Clone)]
+pub struct GeneratorOutput {
+    pub samples: Vec<f32>,
+    pub sample_rate: f32,
+    pub channels: usize,
+    pub duration: f32,
+    pub signal_type: SignalType,
+}
+
 pub struct SignalGeneratorPanel {
     pub signal_type: SignalType,
     pub parameters: SignalParameters,
@@ -145,6 +174,9 @@ pub struct SignalGeneratorPanel {
     // Animations
     generation_animation: AnimationState,
     preview_animation: AnimationState,
+
+    // Routing
+    pending_route_intent: Option<RouteIntent>,
 }
 
 impl SignalGeneratorPanel {
@@ -215,6 +247,7 @@ impl SignalGeneratorPanel {
 
             generation_animation: AnimationState::new(0.0, 8.0),
             preview_animation: AnimationState::new(0.0, 5.0),
+            pending_route_intent: None,
         }
     }
 
@@ -1059,6 +1092,43 @@ impl SignalGeneratorPanel {
         } else {
             0.0
         }
+    }
+
+    /// Take pending route intent (returns and clears it)
+    pub fn take_route_intent(&mut self) -> Option<RouteIntent> {
+        self.pending_route_intent.take()
+    }
+
+    /// Get a snapshot of the current generator output
+    pub fn output_snapshot(&self) -> Option<GeneratorOutput> {
+        if self.generated_samples.is_empty() {
+            return None;
+        }
+
+        Some(GeneratorOutput {
+            samples: self.generated_samples.clone(),
+            sample_rate: self.parameters.sample_rate,
+            channels: 1, // Mono output
+            duration: self.generated_samples.len() as f32 / self.parameters.sample_rate,
+            signal_type: self.signal_type.clone(),
+        })
+    }
+
+    /// Request to route generated signal to a destination
+    pub fn route_to(&mut self, mode: GeneratorRoutingMode, label: Option<String>) {
+        let label = label.unwrap_or_else(|| {
+            format!(
+                "{} {}Hz",
+                self.signal_type.display_name(),
+                self.parameters.frequency as u32
+            )
+        });
+
+        self.pending_route_intent = Some(RouteIntent {
+            mode,
+            label,
+            timestamp: std::time::Instant::now(),
+        });
     }
 }
 
