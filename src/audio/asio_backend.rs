@@ -541,7 +541,7 @@ impl AudioBackend for AsioBackend {
                                     sample_rate: c.sample_rate().0,
                                     channels: c.channels(),
                                     sample_format: SampleFormat::F32,
-                                    buffer_size: 512, // Default, will be configurable
+                                    buffer_size: 512, // TODO: Make buffer_size configurable (see issue #XXX or roadmap)
                                 }]
                             })
                             .unwrap_or_default(),
