@@ -11,6 +11,9 @@ pub mod backend;
 pub mod backend_selector;
 pub mod destinations;
 pub mod device;
+pub mod device_destination;
+pub mod device_source;
+pub mod file_recorder;
 pub mod hybrid;
 pub mod manager;
 pub mod recorder;
@@ -54,3 +57,11 @@ pub use destinations::{
     SplitterDestination,
 };
 pub use sources::{RingBufferSource, RingBufferWriter, SignalGeneratorSource, SilenceSource};
+
+// Device-based sources and destinations
+#[cfg(not(target_arch = "wasm32"))]
+pub use device_destination::OutputDeviceDestination;
+#[cfg(not(target_arch = "wasm32"))]
+pub use device_source::InputDeviceSource;
+#[cfg(not(target_arch = "wasm32"))]
+pub use file_recorder::FileRecorderDestination;
