@@ -9,10 +9,13 @@
 
 pub mod backend;
 pub mod backend_selector;
+pub mod destinations;
 pub mod device;
 pub mod hybrid;
 pub mod manager;
 pub mod recorder;
+pub mod router;
+pub mod sources;
 pub mod web_bridge;
 
 // Windows ASIO backend (Phase 1.1)
@@ -42,3 +45,12 @@ pub use backend_selector::{BackendInfo, BackendSelector};
 
 #[cfg(target_os = "windows")]
 pub use mmcss::{MmcssHandle, MmcssTaskCategory};
+
+pub use router::{AudioDestination, AudioRouter, AudioSource, DestId, Route, RouteId, SourceId};
+
+// Audio sources and destinations
+pub use destinations::{
+    LevelMeterDestination, NullDestination, RingBufferDestination, RingBufferReader,
+    SplitterDestination,
+};
+pub use sources::{RingBufferSource, RingBufferWriter, SignalGeneratorSource, SilenceSource};
