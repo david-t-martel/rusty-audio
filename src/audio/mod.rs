@@ -8,11 +8,20 @@
 //! - Advanced format support (Phase 3.4)
 
 pub mod backend;
+pub mod backend_selector;
 pub mod device;
 pub mod hybrid;
 pub mod manager;
 pub mod recorder;
 pub mod web_bridge;
+
+// Windows ASIO backend (Phase 1.1)
+#[cfg(target_os = "windows")]
+pub mod asio_backend;
+
+// Windows MMCSS integration (Phase 1.2)
+#[cfg(target_os = "windows")]
+pub mod mmcss;
 
 // Re-export commonly used types
 pub use backend::{
@@ -26,3 +35,10 @@ pub use recorder::{
     AudioRecorder, MonitoringMode, RecordingConfig, RecordingFormat, RecordingState,
 };
 pub use web_bridge::{WebAudioBridge, WebAudioBridgeConfig};
+
+#[cfg(target_os = "windows")]
+pub use asio_backend::{AsioBackend, WindowsBackendType};
+pub use backend_selector::{BackendInfo, BackendSelector};
+
+#[cfg(target_os = "windows")]
+pub use mmcss::{MmcssHandle, MmcssTaskCategory};

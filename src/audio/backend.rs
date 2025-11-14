@@ -48,6 +48,11 @@ pub struct AudioConfig {
     pub channels: u16,
     pub sample_format: SampleFormat,
     pub buffer_size: usize,
+    /// Exclusive mode flag (Windows WASAPI, macOS CoreAudio, Linux ALSA)
+    /// - true: Exclusive mode for lowest latency, blocks other applications
+    /// - false: Shared mode, allows other applications to use audio device
+    /// Note: ASIO is always exclusive
+    pub exclusive_mode: bool,
 }
 
 impl Default for AudioConfig {
@@ -57,7 +62,51 @@ impl Default for AudioConfig {
             channels: 2,
             sample_format: SampleFormat::F32,
             buffer_size: 512,
+            exclusive_mode: false, // Default to shared mode for compatibility
         }
+    }
+}
+
+impl AudioConfig {
+    /// Create a low-latency configuration for professional audio work
+    /// - 48kHz sample rate
+    /// - Stereo (2 channels)
+    /// - 128 sample buffer (≈2.7ms latency at 48kHz)
+    /// - Exclusive mode enabled
+    pub fn low_latency() -> Self {
+        Self {
+            sample_rate: 48000,
+            channels: 2,
+            sample_format: SampleFormat::F32,
+            buffer_size: 128,
+            exclusive_mode: true,
+        }
+    }
+
+    /// Create an ultra-low-latency configuration for ASIO interfaces
+    /// - 48kHz sample rate
+    /// - Stereo (2 channels)
+    /// - 64 sample buffer (≈1.3ms latency at 48kHz)
+    /// - Exclusive mode enabled
+    pub fn ultra_low_latency() -> Self {
+        Self {
+            sample_rate: 48000,
+            channels: 2,
+            sample_format: SampleFormat::F32,
+            buffer_size: 64,
+            exclusive_mode: true,
+        }
+    }
+
+    /// Calculate theoretical latency in milliseconds
+    pub fn latency_ms(&self) -> f32 {
+        (self.buffer_size as f32 / self.sample_rate as f32) * 1000.0
+    }
+
+    /// Check if configuration is suitable for real-time audio
+    /// (latency < 10ms)
+    pub fn is_realtime(&self) -> bool {
+        self.latency_ms() < 10.0
     }
 }
 
