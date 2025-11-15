@@ -15,7 +15,7 @@ use rusty_audio::{
     integrated_audio_manager::{IntegratedAudioManager, PlaybackState},
     ui::{
         signal_generator::SignalGeneratorPanel,
-        theme::{Theme, ThemeManager},
+        theme::{Theme, ThemeColors, ThemeManager},
     },
 };
 
@@ -68,6 +68,9 @@ struct WasmAudioApp {
     signal_generator_panel: SignalGeneratorPanel,
     theme_manager: ThemeManager,
     active_tab: AppTab,
+
+    // EQ state (Phase 2) - 8 bands: 60Hz, 120Hz, 240Hz, 480Hz, 960Hz, 1.9kHz, 3.8kHz, 7.7kHz
+    eq_gains: [f32; 8],
 
     // Playback state
     volume: f32,
@@ -122,6 +125,7 @@ impl Default for WasmAudioApp {
             signal_generator_panel: SignalGeneratorPanel::new(),
             theme_manager: ThemeManager::new(Theme::StudioDark),
             active_tab: AppTab::Generator,
+            eq_gains: [0.0; 8], // All bands start at 0 dB (flat response)
             volume: 0.5,
             error_message: None,
             last_update: Instant::now(),
@@ -305,23 +309,90 @@ impl WasmAudioApp {
         ui.label("Buffer Size: 512 samples");
     }
 
-    /// Draw equalizer panel (placeholder for Phase 2)
-    /// Will be implemented in Phase 2 with code from src/main.rs:889-982
+    /// Draw equalizer panel
+    /// Source: Adapted from src/main.rs:889-982 (AudioPlayerApp::draw_eq_panel)
     fn draw_equalizer_panel(&mut self, ui: &mut egui::Ui) {
-        ui.heading("📊 Equalizer");
-        ui.separator();
-        ui.add_space(20.0);
+        let colors = self.theme_manager.current_theme().colors();
 
-        ui.vertical_centered(|ui| {
-            ui.label("8-Band Parametric Equalizer");
-            ui.add_space(10.0);
-            ui.label("Coming in Phase 2...");
-            ui.add_space(10.0);
-            ui.label("Features:");
-            ui.label("• 8 frequency bands (60Hz - 7.7kHz)");
-            ui.label("• ±12 dB gain per band");
-            ui.label("• Real-time audio processing");
-            ui.label("• Reset all bands functionality");
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.heading(egui::RichText::new("📊 Equalizer").color(colors.text));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Reset All").clicked() {
+                        // Reset all EQ bands to 0.0 dB
+                        for i in 0..8 {
+                            self.eq_gains[i] = 0.0;
+                            // TODO: Set EQ band in audio backend
+                            if let Some(ref mut _audio_manager) = self.audio_manager {
+                                // Will be implemented when backend supports it
+                                log::info!("Resetting EQ band {} to 0 dB", i);
+                            }
+                        }
+                        log::info!("All EQ bands reset to flat response");
+                    }
+                });
+            });
+
+            ui.add_space(15.0);
+
+            // EQ bands with vertical sliders
+            ui.horizontal(|ui| {
+                for i in 0..8 {
+                    ui.vertical(|ui| {
+                        // Frequency label
+                        let freq = 60.0 * 2.0_f32.powi(i as i32);
+                        let freq_label = if freq < 1000.0 {
+                            format!("{:.0} Hz", freq)
+                        } else {
+                            format!("{:.1}k Hz", freq / 1000.0)
+                        };
+                        ui.label(
+                            egui::RichText::new(&freq_label)
+                                .color(colors.text)
+                                .size(12.0),
+                        );
+
+                        // Vertical slider for EQ gain
+                        let slider_response = ui.add(
+                            egui::Slider::new(&mut self.eq_gains[i], -12.0..=12.0)
+                                .vertical()
+                                .show_value(false)
+                                .fixed_decimals(1),
+                        );
+
+                        if slider_response.changed() {
+                            let gain_value = self.eq_gains[i];
+                            // TODO: Set EQ band in audio backend
+                            if let Some(ref mut _audio_manager) = self.audio_manager {
+                                // Will be implemented when backend supports set_eq_band
+                                log::info!("EQ band {} set to {:.1} dB", i, gain_value);
+                            }
+                        }
+
+                        // Gain value display
+                        ui.label(
+                            egui::RichText::new(format!("{:.1}dB", self.eq_gains[i]))
+                                .color(colors.text_secondary)
+                                .size(10.0),
+                        );
+                    });
+
+                    if i < 7 {
+                        ui.add_space(5.0);
+                    }
+                }
+            });
+
+            ui.add_space(20.0);
+
+            // Status info
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("Status:").color(colors.text));
+                ui.label(
+                    egui::RichText::new("EQ UI Ready - Backend integration pending")
+                        .color(colors.text_secondary),
+                );
+            });
         });
     }
 
