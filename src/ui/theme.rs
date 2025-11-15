@@ -399,6 +399,33 @@ impl Theme {
             Theme::Custom(custom) => &custom.name,
         }
     }
+
+    pub fn colors(&self) -> ThemeColors {
+        match self {
+            Theme::Custom(custom) => custom.colors.clone(),
+            _ => ThemeColors::default(), // Use default colors for built-in themes
+        }
+    }
+
+    pub fn to_egui_visuals(&self) -> Visuals {
+        let colors = self.colors();
+        let mut visuals = if matches!(self, Theme::Light | Theme::Latte) {
+            Visuals::light()
+        } else {
+            Visuals::dark()
+        };
+
+        // Apply theme colors
+        visuals.widgets.noninteractive.bg_fill = colors.surface;
+        visuals.widgets.inactive.bg_fill = colors.surface;
+        visuals.widgets.hovered.bg_fill = colors.primary.linear_multiply(0.3);
+        visuals.widgets.active.bg_fill = colors.primary.linear_multiply(0.5);
+        visuals.extreme_bg_color = colors.background;
+        visuals.faint_bg_color = colors.surface;
+        visuals.panel_fill = colors.background;
+
+        visuals
+    }
 }
 
 impl CustomTheme {

@@ -14,14 +14,26 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
-use web_sys::{AudioContext, AudioDestinationNode};
+use web_sys::{AnalyserNode, AudioContext, AudioDestinationNode, BiquadFilterNode, BiquadFilterType};
 
-/// Web Audio API backend
+/// Web Audio API backend with EQ and spectrum analysis support
 #[cfg(target_arch = "wasm32")]
 pub struct WebAudioBackend {
     context: Option<AudioContext>,
     initialized: bool,
+    /// 8-band parametric EQ using BiquadFilterNode (peaking filters)
+    /// Frequencies: 60Hz, 120Hz, 240Hz, 480Hz, 960Hz, 1.9kHz, 3.8kHz, 7.7kHz
+    eq_filters: Vec<BiquadFilterNode>,
+    /// Spectrum analyser for real-time frequency analysis
+    analyser: Option<AnalyserNode>,
 }
+
+// SAFETY: WebAudioBackend is safe to Send/Sync in WASM context
+// WASM runs single-threaded in the browser, so no actual multi-threading occurs
+#[cfg(target_arch = "wasm32")]
+unsafe impl Send for WebAudioBackend {}
+#[cfg(target_arch = "wasm32")]
+unsafe impl Sync for WebAudioBackend {}
 
 #[cfg(target_arch = "wasm32")]
 impl WebAudioBackend {
@@ -30,6 +42,8 @@ impl WebAudioBackend {
         Self {
             context: None,
             initialized: false,
+            eq_filters: Vec::new(),
+            analyser: None,
         }
     }
 
@@ -53,6 +67,166 @@ impl WebAudioBackend {
     fn get_sample_rate(&mut self) -> Result<u32> {
         let context = self.get_context()?;
         Ok(context.sample_rate() as u32)
+    }
+
+    /// Create 8-band parametric EQ filter chain
+    /// Source: Based on WASM_CODE_BORROWING_GUIDE.md Phase 2 recommendations
+    pub fn create_eq_chain(&mut self) -> Result<()> {
+        // Get context and clone to avoid borrow checker issues
+        let context = self.get_context()?.clone();
+
+        // Clear existing filters if any
+        self.eq_filters.clear();
+
+        // Create 8 peaking filters (one per frequency band)
+        for i in 0..8 {
+            let filter = context.create_biquad_filter().map_err(|e| {
+                AudioBackendError::InitializationFailed(format!(
+                    "Failed to create biquad filter: {:?}",
+                    e
+                ))
+            })?;
+
+            // Set filter type to peaking (parametric EQ)
+            filter.set_type(BiquadFilterType::Peaking);
+
+            // Set center frequency: 60Hz × 2^i
+            let freq = 60.0 * 2.0_f32.powi(i);
+            filter.frequency().set_value(freq);
+
+            // Set Q factor (bandwidth) - typical value for parametric EQ
+            filter.q().set_value(1.0);
+
+            // Initial gain: 0 dB (flat response)
+            filter.gain().set_value(0.0);
+
+            self.eq_filters.push(filter);
+        }
+
+        log::info!("Created 8-band parametric EQ chain");
+        Ok(())
+    }
+
+    /// Set EQ band gain
+    /// Source: Based on WASM_CODE_BORROWING_GUIDE.md Phase 2 recommendations
+    ///
+    /// # Arguments
+    /// * `band` - Band index (0-7)
+    /// * `gain_db` - Gain in decibels (±12 dB range)
+    pub fn set_eq_band(&mut self, band: usize, gain_db: f32) -> Result<()> {
+        if band >= self.eq_filters.len() {
+            return Err(AudioBackendError::UnsupportedFormat(format!(
+                "Invalid EQ band: {}. Must be 0-7",
+                band
+            )));
+        }
+
+        // Clamp gain to safe range (±12 dB)
+        let clamped_gain = gain_db.clamp(-12.0, 12.0);
+
+        // Set the gain on the BiquadFilterNode
+        self.eq_filters[band].gain().set_value(clamped_gain);
+
+        log::debug!("EQ band {} set to {:.1} dB", band, clamped_gain);
+        Ok(())
+    }
+
+    /// Get EQ band gain
+    ///
+    /// # Arguments
+    /// * `band` - Band index (0-7)
+    pub fn get_eq_band(&self, band: usize) -> Result<f32> {
+        if band >= self.eq_filters.len() {
+            return Err(AudioBackendError::UnsupportedFormat(format!(
+                "Invalid EQ band: {}. Must be 0-7",
+                band
+            )));
+        }
+
+        Ok(self.eq_filters[band].gain().value())
+    }
+
+    /// Reset all EQ bands to 0 dB (flat response)
+    pub fn reset_eq(&mut self) -> Result<()> {
+        for (i, filter) in self.eq_filters.iter().enumerate() {
+            filter.gain().set_value(0.0);
+            log::debug!("Reset EQ band {} to 0 dB", i);
+        }
+
+        log::info!("All EQ bands reset to flat response");
+        Ok(())
+    }
+
+    /// Get reference to EQ filters for audio graph connection
+    pub fn eq_filters(&self) -> &[BiquadFilterNode] {
+        &self.eq_filters
+    }
+
+    /// Create spectrum analyser
+    /// Source: Based on WASM_CODE_BORROWING_GUIDE.md Phase 3 recommendations
+    ///
+    /// # Arguments
+    /// * `fft_size` - FFT size (must be power of 2, typically 512, 1024, 2048, 4096)
+    /// * `smoothing_time_constant` - Smoothing (0.0 to 1.0, default 0.8)
+    pub fn create_analyser(&mut self, fft_size: u32, smoothing_time_constant: f32) -> Result<()> {
+        let context = self.get_context()?.clone();
+
+        let analyser = context.create_analyser().map_err(|e| {
+            AudioBackendError::InitializationFailed(format!(
+                "Failed to create AnalyserNode: {:?}",
+                e
+            ))
+        })?;
+
+        // Set FFT size (must be power of 2)
+        analyser.set_fft_size(fft_size);
+
+        // Set smoothing time constant (0.0 = no smoothing, 1.0 = max smoothing)
+        analyser.set_smoothing_time_constant(smoothing_time_constant.clamp(0.0, 1.0) as f64);
+
+        // Store min/max decibels for proper scaling
+        analyser.set_min_decibels(-100.0);
+        analyser.set_max_decibels(0.0);
+
+        self.analyser = Some(analyser);
+        log::info!(
+            "Created spectrum analyser: FFT size {}, smoothing {:.2}",
+            fft_size,
+            smoothing_time_constant
+        );
+        Ok(())
+    }
+
+    /// Get frequency data from analyser
+    ///
+    /// Returns frequency bin amplitudes in decibels
+    pub fn get_frequency_data(&self) -> Result<Vec<f32>> {
+        let analyser = self.analyser.as_ref().ok_or_else(|| {
+            AudioBackendError::UnsupportedFormat(
+                "Analyser not created. Call create_analyser() first".to_string(),
+            )
+        })?;
+
+        let frequency_bin_count = analyser.frequency_bin_count();
+        let mut data = vec![0u8; frequency_bin_count as usize];
+
+        // Get frequency data as unsigned bytes (0-255)
+        analyser.get_byte_frequency_data(&mut data);
+
+        // Convert to normalized float values (0.0 to 1.0)
+        let float_data: Vec<f32> = data.iter().map(|&b| b as f32 / 255.0).collect();
+
+        Ok(float_data)
+    }
+
+    /// Get analyser reference for audio graph connection
+    pub fn analyser(&self) -> Option<&AnalyserNode> {
+        self.analyser.as_ref()
+    }
+
+    /// Get frequency bin count (half of FFT size)
+    pub fn frequency_bin_count(&self) -> Option<u32> {
+        self.analyser.as_ref().map(|a| a.frequency_bin_count())
     }
 }
 
@@ -127,7 +301,11 @@ impl AudioBackend for WebAudioBackend {
         Ok(self.context.is_some())
     }
 
-    fn supported_configs(&self, _device_id: &str) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(
+        &self,
+        _device_id: &str,
+        _direction: StreamDirection,
+    ) -> Result<Vec<AudioConfig>> {
         let sample_rate = if let Some(ref ctx) = self.context {
             ctx.sample_rate() as u32
         } else {
@@ -177,6 +355,36 @@ impl AudioBackend for WebAudioBackend {
             "Input streams not yet supported in Web Audio API backend".to_string(),
         ))
     }
+
+    fn create_output_stream_with_callback(
+        &mut self,
+        device_id: &str,
+        config: AudioConfig,
+        _callback: Box<dyn FnMut(&mut [f32]) + Send + 'static>,
+    ) -> Result<Box<dyn AudioStream>> {
+        // For now, just create a regular output stream
+        // Callback-based streams are not yet implemented for Web Audio
+        self.create_output_stream(device_id, config)
+    }
+
+    fn create_input_stream_with_callback(
+        &mut self,
+        _device_id: &str,
+        _config: AudioConfig,
+        _callback: Box<dyn FnMut(&[f32]) + Send + 'static>,
+    ) -> Result<Box<dyn AudioStream>> {
+        Err(AudioBackendError::UnsupportedFormat(
+            "Input streams with callbacks not yet supported in Web Audio API backend".to_string(),
+        ))
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Web Audio output stream
@@ -186,6 +394,11 @@ struct WebAudioOutputStream {
     config: AudioConfig,
     status: StreamStatus,
 }
+
+// SAFETY: WebAudioOutputStream is safe to Send in WASM context
+// WASM runs single-threaded in the browser
+#[cfg(target_arch = "wasm32")]
+unsafe impl Send for WebAudioOutputStream {}
 
 #[cfg(target_arch = "wasm32")]
 impl AudioStream for WebAudioOutputStream {

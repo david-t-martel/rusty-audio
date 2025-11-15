@@ -8,17 +8,28 @@
 //! - Advanced format support (Phase 3.4)
 
 pub mod backend;
-pub mod backend_selector;
 pub mod destinations;
-pub mod device;
-pub mod device_destination;
-pub mod device_source;
-pub mod file_recorder;
-pub mod hybrid;
-pub mod manager;
-pub mod recorder;
 pub mod router;
 pub mod sources;
+
+// Native-only modules (use CPAL or other desktop-specific dependencies)
+#[cfg(not(target_arch = "wasm32"))]
+pub mod backend_selector;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod device;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod device_destination;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod device_source;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod file_recorder;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod hybrid;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod manager;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod recorder;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod web_bridge;
 
 // WASM Web Audio API backend (Phase 3.5)
@@ -40,22 +51,28 @@ pub use backend::{
     AudioBackend, AudioBackendError, AudioBuffer, AudioConfig, AudioStream, DeviceInfo, Result,
     SampleFormat, StreamDirection, StreamStatus,
 };
+pub use router::{AudioDestination, AudioRouter, AudioSource, DestId, Route, RouteId, SourceId};
+
+// Native-only re-exports
+#[cfg(not(target_arch = "wasm32"))]
+pub use backend_selector::{BackendInfo, BackendSelector};
+#[cfg(not(target_arch = "wasm32"))]
 pub use device::CpalBackend;
+#[cfg(not(target_arch = "wasm32"))]
 pub use hybrid::{BackendHealth, FallbackPolicy, HybridAudioBackend, HybridMode, HybridRingBuffer};
+#[cfg(not(target_arch = "wasm32"))]
 pub use manager::AudioDeviceManager;
+#[cfg(not(target_arch = "wasm32"))]
 pub use recorder::{
     AudioRecorder, MonitoringMode, RecordingConfig, RecordingFormat, RecordingState,
 };
+#[cfg(not(target_arch = "wasm32"))]
 pub use web_bridge::{WebAudioBridge, WebAudioBridgeConfig};
 
 #[cfg(target_os = "windows")]
 pub use asio_backend::{AsioBackend, WindowsBackendType};
-pub use backend_selector::{BackendInfo, BackendSelector};
-
 #[cfg(target_os = "windows")]
 pub use mmcss::{MmcssHandle, MmcssTaskCategory};
-
-pub use router::{AudioDestination, AudioRouter, AudioSource, DestId, Route, RouteId, SourceId};
 
 // Audio sources and destinations
 pub use destinations::{

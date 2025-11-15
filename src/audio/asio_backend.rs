@@ -644,7 +644,11 @@ impl AudioBackend for AsioBackend {
         Ok(true)
     }
 
-    fn supported_configs(&self, device_id: &str, direction: StreamDirection) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(
+        &self,
+        device_id: &str,
+        direction: StreamDirection,
+    ) -> Result<Vec<AudioConfig>> {
         #[cfg(target_os = "windows")]
         {
             let host = self.host.as_ref().ok_or_else(|| {
@@ -765,6 +769,14 @@ impl AudioBackend for AsioBackend {
     {
         // Delegate to existing implementation
         AsioBackend::create_input_stream_with_callback(self, device_id, config, callback)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 
