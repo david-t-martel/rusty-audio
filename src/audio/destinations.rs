@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 /// Ring buffer destination
 ///
-/// Writes audio to a lock-free ring buffer (useful for output devices or processing chains)
+/// Writes audio to a thread-safe, mutex-protected buffer (useful for output devices or processing chains)
 pub struct RingBufferDestination {
     buffer: Arc<Mutex<Vec<f32>>>,
     sample_rate: u32,

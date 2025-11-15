@@ -139,13 +139,8 @@ impl AudioDestination for FileRecorderDestination {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-impl Drop for FileRecorderDestination {
-    fn drop(&mut self) {
-        // Finalize is called automatically, but errors are ignored in drop
-        let _ = self.writer.flush();
-    }
-}
+// Note: Drop implementation removed - hound::WavWriter automatically handles
+// finalization in its own Drop implementation
 
 // WASM stub (file I/O not supported)
 #[cfg(target_arch = "wasm32")]

@@ -447,7 +447,27 @@ impl AudioRouter {
             dest_buffers.insert(*dest_id, vec![0.0f32; self.buffer_size]);
         }
 
-        // Process each route
+        // Cache for source samples (read each source once for proper fan-out)
+        // Key: source_id, Value: (samples_read, Vec<f32>)
+        let mut source_cache: HashMap<SourceId, (usize, Vec<f32>)> = HashMap::new();
+
+        // First pass: Read from each unique source once
+        for route in state.routes.values() {
+            if !route.enabled {
+                continue;
+            }
+
+            // Only read if we haven't already cached this source
+            if !source_cache.contains_key(&route.source) {
+                if let Some(source) = state.sources.get_mut(&route.source) {
+                    let samples_read = source.read_samples(&mut source_buffer);
+                    // Store a copy of the samples
+                    source_cache.insert(route.source, (samples_read, source_buffer.clone()));
+                }
+            }
+        }
+
+        // Second pass: Route cached samples to destinations
         for route in state.routes.values() {
             if !route.enabled {
                 continue;
@@ -458,15 +478,13 @@ impl AudioRouter {
                 continue;
             }
 
-            // Read from source
-            if let Some(source) = state.sources.get_mut(&route.source) {
-                let samples_read = source.read_samples(&mut source_buffer);
-
-                if samples_read > 0 {
+            // Use cached samples from source
+            if let Some((samples_read, source_samples)) = source_cache.get(&route.source) {
+                if *samples_read > 0 {
                     // Mix into destination buffer with gain
                     if let Some(dest_buffer) = dest_buffers.get_mut(&route.destination) {
-                        for i in 0..samples_read.min(self.buffer_size) {
-                            dest_buffer[i] += source_buffer[i] * gain;
+                        for i in 0..*samples_read.min(&self.buffer_size) {
+                            dest_buffer[i] += source_samples[i] * gain;
                         }
                     }
                 }

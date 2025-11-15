@@ -252,6 +252,10 @@ impl AsioBackend {
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     // Set real-time priority on first callback (runs in audio thread)
                     if !priority_set_clone.load(Ordering::Relaxed) {
+                        // TODO: Implement audio thread priority optimizations
+                        // The feature flag 'audio-optimizations' and module
+                        // 'crate::audio_optimizations::AudioThreadPriority' are not yet defined.
+                        // This block is a placeholder for future work.
                         #[cfg(feature = "audio-optimizations")]
                         {
                             use crate::audio_optimizations::AudioThreadPriority;
@@ -268,7 +272,7 @@ impl AsioBackend {
                     cb(data);
                 },
                 move |err| {
-                    eprintln!("Stream error: {}", err);
+                    log::error!("Stream error: {}", err);
                 },
                 None,
             )
@@ -322,6 +326,7 @@ impl AsioBackend {
                 &stream_config,
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
                     if !priority_set_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                        // TODO: Implement audio thread priority optimizations if needed
                         #[cfg(feature = "audio-optimizations")]
                         {
                             use crate::audio_optimizations::AudioThreadPriority;
@@ -337,7 +342,7 @@ impl AsioBackend {
                     cb(data);
                 },
                 move |err| {
-                    eprintln!("Input stream error: {}", err);
+                    log::error!("Input stream error: {}", err);
                 },
                 None,
             )
@@ -514,7 +519,10 @@ impl AudioBackend for AsioBackend {
 
             for device in devices {
                 if let Ok(name) = device.name() {
-                    let default_config = device.default_output_config().ok();
+                    let default_config = match direction {
+                        StreamDirection::Output => device.default_output_config().ok(),
+                        StreamDirection::Input => device.default_input_config().ok(),
+                    };
                     let is_default = match direction {
                         StreamDirection::Output => {
                             host.default_output_device()
@@ -590,7 +598,10 @@ impl AudioBackend for AsioBackend {
                 AudioBackendError::DeviceUnavailable(format!("Cannot get device name: {}", e))
             })?;
 
-            let default_config = device.default_output_config().ok();
+            let default_config = match direction {
+                StreamDirection::Output => device.default_output_config().ok(),
+                StreamDirection::Input => device.default_input_config().ok(),
+            };
 
             Ok(DeviceInfo {
                 id: name.clone(),
@@ -633,14 +644,18 @@ impl AudioBackend for AsioBackend {
         Ok(true)
     }
 
-    fn supported_configs(&self, device_id: &str) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(&self, device_id: &str, direction: StreamDirection) -> Result<Vec<AudioConfig>> {
         #[cfg(target_os = "windows")]
         {
             let host = self.host.as_ref().ok_or_else(|| {
                 AudioBackendError::InitializationFailed("Backend not initialized".to_string())
             })?;
 
-            let devices = host.output_devices().map_err(|e| {
+            let devices = match direction {
+                StreamDirection::Output => host.output_devices(),
+                StreamDirection::Input => host.input_devices(),
+            }
+            .map_err(|e| {
                 AudioBackendError::DeviceUnavailable(format!("Cannot enumerate: {}", e))
             })?;
 
@@ -650,7 +665,11 @@ impl AudioBackend for AsioBackend {
                 .ok_or_else(|| AudioBackendError::DeviceNotFound(device_id.to_string()))?
                 .0;
 
-            let config = device.default_output_config().map_err(|e| {
+            let config = match direction {
+                StreamDirection::Output => device.default_output_config(),
+                StreamDirection::Input => device.default_input_config(),
+            }
+            .map_err(|e| {
                 AudioBackendError::UnsupportedFormat(format!("Cannot get config: {}", e))
             })?;
 
@@ -720,6 +739,32 @@ impl AudioBackend for AsioBackend {
                 "Not available on this platform".to_string(),
             ))
         }
+    }
+
+    fn create_output_stream_with_callback<F>(
+        &mut self,
+        device_id: &str,
+        config: AudioConfig,
+        callback: F,
+    ) -> Result<Box<dyn AudioStream>>
+    where
+        F: FnMut(&mut [f32]) + Send + 'static,
+    {
+        // Delegate to existing implementation
+        AsioBackend::create_output_stream_with_callback(self, device_id, config, callback)
+    }
+
+    fn create_input_stream_with_callback<F>(
+        &mut self,
+        device_id: &str,
+        config: AudioConfig,
+        callback: F,
+    ) -> Result<Box<dyn AudioStream>>
+    where
+        F: FnMut(&[f32]) + Send + 'static,
+    {
+        // Delegate to existing implementation
+        AsioBackend::create_input_stream_with_callback(self, device_id, config, callback)
     }
 }
 

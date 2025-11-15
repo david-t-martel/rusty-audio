@@ -32,7 +32,7 @@ impl OutputDeviceDestination {
     /// # Returns
     /// A new output device destination that continuously writes to the device
     pub fn new(
-        _backend: &mut dyn AudioBackend,
+        backend: &mut dyn AudioBackend,
         device_id: &str,
         config: AudioConfig,
         buffer_size: usize,
@@ -50,9 +50,22 @@ impl OutputDeviceDestination {
         let reader = ring_buffer.get_reader();
 
         // Create output stream with callback that reads from ring buffer
-        // TODO: Implement proper backend integration
-        // For now, we'll use a placeholder stream
-        let stream = Arc::new(Mutex::new(None));
+        let stream = backend.create_output_stream_with_callback(
+            device_id,
+            config.clone(),
+            move |output_buffer: &mut [f32]| {
+                // Read samples from ring buffer and write to output
+                let samples_read = reader.read(output_buffer);
+
+                // Fill remaining buffer with silence if not enough samples
+                if samples_read < output_buffer.len() {
+                    output_buffer[samples_read..].fill(0.0);
+                }
+            },
+        )?;
+
+        // Store stream to keep it alive
+        let stream = Arc::new(Mutex::new(Some(stream)));
 
         Ok(Self {
             ring_buffer,

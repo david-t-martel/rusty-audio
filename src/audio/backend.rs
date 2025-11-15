@@ -160,7 +160,7 @@ pub trait AudioBackend: Send + Sync {
     fn test_device(&self, device_id: &str) -> Result<bool>;
 
     /// Get supported configurations for a device
-    fn supported_configs(&self, device_id: &str) -> Result<Vec<AudioConfig>>;
+    fn supported_configs(&self, device_id: &str, direction: StreamDirection) -> Result<Vec<AudioConfig>>;
 
     /// Create an output stream with the specified device and config
     fn create_output_stream(
@@ -175,6 +175,30 @@ pub trait AudioBackend: Send + Sync {
         device_id: &str,
         config: AudioConfig,
     ) -> Result<Box<dyn AudioStream>>;
+
+    /// Create an output stream with custom callback
+    ///
+    /// The callback receives a mutable buffer to fill with audio samples
+    fn create_output_stream_with_callback<F>(
+        &mut self,
+        device_id: &str,
+        config: AudioConfig,
+        callback: F,
+    ) -> Result<Box<dyn AudioStream>>
+    where
+        F: FnMut(&mut [f32]) + Send + 'static;
+
+    /// Create an input stream with custom callback
+    ///
+    /// The callback receives audio samples from the input device
+    fn create_input_stream_with_callback<F>(
+        &mut self,
+        device_id: &str,
+        config: AudioConfig,
+        callback: F,
+    ) -> Result<Box<dyn AudioStream>>
+    where
+        F: FnMut(&[f32]) + Send + 'static;
 }
 
 /// Trait for audio streams (playback or recording)

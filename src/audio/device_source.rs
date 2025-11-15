@@ -40,31 +40,16 @@ impl InputDeviceSource {
         let writer = ring_buffer.get_writer();
 
         // Create input stream with callback that writes to ring buffer
-        let stream = if let Ok(cpal_backend) = backend.downcast_ref::<super::device::CpalBackend>()
-        {
-            // Use CPAL backend directly for custom callback
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                cpal_backend.create_input_stream_with_callback(
-                    device_id,
-                    config.clone(),
-                    move |data: &[f32]| {
-                        writer.write(data);
-                    },
-                )?
-            }
-            #[cfg(target_arch = "wasm32")]
-            {
-                return Err(AudioBackendError::BackendNotAvailable(
-                    "Input devices not supported on WASM".to_string(),
-                ));
-            }
-        } else {
-            // Fallback: create standard input stream
-            backend.create_input_stream(device_id, config.clone())?
-        };
+        let stream = backend.create_input_stream_with_callback(
+            device_id,
+            config.clone(),
+            move |data: &[f32]| {
+                // Write samples from input device to ring buffer
+                writer.write(data);
+            },
+        )?;
 
-        // Start the stream immediately
+        // Store stream to keep it alive
         let stream = Arc::new(Mutex::new(Some(stream)));
 
         Ok(Self {
@@ -114,19 +99,8 @@ impl AudioSource for InputDeviceSource {
     }
 }
 
-/// Helper trait for downcasting AudioBackend to concrete types
-trait AudioBackendDowncast {
-    fn downcast_ref<T: 'static>(&self) -> Result<&T>;
-}
-
-impl AudioBackendDowncast for dyn AudioBackend {
-    fn downcast_ref<T: 'static>(&self) -> Result<&T> {
-        // This is a simplified version - in production, you'd want proper downcast support
-        Err(AudioBackendError::Other(anyhow::anyhow!(
-            "Backend downcasting not fully implemented"
-        )))
-    }
-}
+// Note: Downcast helper trait no longer needed since we added
+// create_input_stream_with_callback to the AudioBackend trait
 
 #[cfg(test)]
 mod tests {

@@ -201,7 +201,15 @@ impl eframe::App for WasmAudioApp {
                 // Volume control
                 ui.add_space(10.0);
                 ui.label("Master Volume:");
-                ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));
+                let volume_response = ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));
+
+                // Apply volume changes to audio engine
+                if volume_response.changed() {
+                    use crate::integrated_audio_manager::RouteType;
+                    if let Err(e) = audio_manager.set_route_gain(RouteType::SignalGeneratorPlayback, self.volume) {
+                        log::error!("Failed to set volume: {}", e);
+                    }
+                }
 
                 // Audio processing (call process periodically)
                 if let Err(e) = audio_manager.process() {
