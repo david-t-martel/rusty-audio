@@ -1,0 +1,38 @@
+// Windows resource file for Rusty Audio
+#include <windows.h>
+
+// Application icon
+1 ICON "C:\\Users\\david\\rusty-audio\\assets\\icon.ico"
+
+// Windows manifest
+1 RT_MANIFEST "C:\\Users\\david\\rusty-audio\\assets\\rusty-audio.manifest"
+
+// Version information
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     0,1,0,0
+PRODUCTVERSION  0,1,0,0
+FILEFLAGSMASK   0x3fL
+FILEFLAGS       0x0L
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "Rusty Audio Project"
+            VALUE "FileDescription", "Rusty Audio - Car-stereo style audio player"
+            VALUE "FileVersion", "0.1.0"
+            VALUE "InternalName", "rusty-audio"
+            VALUE "LegalCopyright", "MIT License"
+            VALUE "OriginalFilename", "rusty-audio.exe"
+            VALUE "ProductName", "Rusty Audio"
+            VALUE "ProductVersion", "0.1.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
