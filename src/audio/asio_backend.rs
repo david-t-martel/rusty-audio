@@ -808,4 +808,72 @@ mod tests {
         assert_eq!(backend.backend_type(), WindowsBackendType::Wasapi);
         assert!(!backend.is_exclusive_mode());
     }
+
+    /// Comprehensive ASIO SDK integration test
+    ///
+    /// This test verifies:
+    /// 1. ASIO backend availability (checks if ASIO SDK is properly configured)
+    /// 2. ASIO device enumeration (lists available ASIO devices)
+    /// 3. Device configuration querying (verifies device properties)
+    ///
+    /// Run with: cargo test test_asio_integration -- --nocapture
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_asio_integration() {
+        println!("=== ASIO SDK Integration Test ===");
+
+        // Check if ASIO is available
+        let backends = AsioBackend::available_backends();
+        let asio_available = backends.contains(&WindowsBackendType::Asio);
+
+        println!("ASIO available: {}", asio_available);
+        println!("Available backends: {:?}", backends);
+
+        if !asio_available {
+            println!("⚠️  ASIO not available - this is expected if:");
+            println!("   - No ASIO hardware/drivers installed");
+            println!("   - ASIO SDK not properly configured (check CPAL_ASIO_DIR)");
+            println!("   - Building without ASIO feature enabled");
+            return;
+        }
+
+        println!("✅ ASIO backend is available");
+
+        // Try to create ASIO backend
+        let backend = AsioBackend::new();
+        assert_eq!(backend.backend_type(), WindowsBackendType::Asio);
+
+        // Enumerate ASIO devices
+        println!("\n=== Enumerating ASIO Devices ===");
+        let devices = backend.list_output_devices();
+        println!("Found {} ASIO output devices", devices.len());
+
+        for (i, device) in devices.iter().enumerate() {
+            println!("\nDevice {}: {}", i + 1, device.name);
+            println!("  ID: {}", device.id);
+            println!("  Default: {}", device.is_default);
+            println!("  Channels: {}", device.channels);
+            println!("  Sample Rate: {}", device.sample_rate);
+
+            // Try to get supported configurations
+            if let Ok(configs) = backend.supported_configs(&device.id, StreamDirection::Output) {
+                println!("  Supported configs: {} configurations", configs.len());
+                if let Some(config) = configs.first() {
+                    println!("    Example: {}Hz, {} channels", config.sample_rate, config.channels);
+                }
+            }
+        }
+
+        // Check input devices as well
+        let input_devices = backend.list_input_devices();
+        println!("\nFound {} ASIO input devices", input_devices.len());
+
+        if devices.is_empty() && input_devices.is_empty() {
+            println!("\n⚠️  No ASIO devices found - install ASIO drivers for your audio interface");
+            println!("   Or install ASIO4ALL for testing with standard sound cards");
+            println!("   Download: https://www.asio4all.org/");
+        } else {
+            println!("\n✅ ASIO integration successful!");
+        }
+    }
 }

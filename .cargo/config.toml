@@ -1,6 +1,15 @@
 # Cargo configuration for rusty-audio
 # Dual-target: Windows desktop (primary) + WASM/PWA (web deployment)
 
+# ============================================================================
+# ASIO SDK CONFIGURATION (Windows Professional Audio)
+# ============================================================================
+
+[env]
+# ASIO SDK location for Windows builds
+# Points to local SDK to avoid download attempts during build
+CPAL_ASIO_DIR = { value = "T:\\projects\\asiovst\\asiosdk", force = true, relative = false }
+
 [build]
 jobs = 8
 incremental = true

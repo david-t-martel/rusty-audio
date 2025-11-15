@@ -282,10 +282,12 @@ pwa-verify:
 
 # === Platform-Specific ===
 
-# Build for Windows with ASIO support (future)
+# Build for Windows with ASIO support
+# Note: ASIO support is automatically enabled on Windows via Cargo.toml dependencies
 build-windows-asio:
     @echo "🪟 Building for Windows with ASIO..."
-    cargo build --release --features asio
+    @echo "📍 ASIO SDK: %CPAL_ASIO_DIR% (from .cargo/config.toml)"
+    cargo build --release
 
 # === Advanced ===
 
