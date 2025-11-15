@@ -186,7 +186,7 @@ tempfile = "3.8"       # Temporary file handling
 # File dialogs and audio
 rfd = "0.14.1"                                       # File dialogs
 web-audio-api = { version = "1.2.0", features = ["default"] }  # Audio processing
-cpal = { version = "0.15", features = [] }           # Cross-platform audio I/O
+cpal = { version = "0.15", features = [] }           # Cross-platform audio I/O (ASIO added in Windows section)
 rodio = { version = "0.17", default-features = false, features = ["wav", "vorbis", "flac", "mp3"] }
 symphonia = { version = "0.5", features = ["all", "opt-simd"] }  # Professional audio decoding
 rubato = "0.15"                                      # Sample rate conversion
@@ -195,8 +195,16 @@ wmidi = "4.0"                                        # MIDI message parsing
 hound = "3.5"                                         # WAV file I/O for recording
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.58", features = ["Win32_System_Threading", "Win32_Foundation"] }
+windows = { version = "0.58", features = [
+    "Win32_System_Threading",
+    "Win32_Foundation",
+    "Win32_Media",
+    "Win32_Media_Audio",          # Audio APIs
+    "Win32_System_SystemServices", # MMCSS APIs
+] }
 # sys-info = "0.9"  # DISABLED: Requires Windows SDK headers for cross-compilation
+# ASIO support for professional audio interfaces
+cpal = { version = "0.15", features = ["asio"] }  # Override with ASIO support on Windows
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
