@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 use eframe::egui;
 
 #[cfg(target_arch = "wasm32")]
-use rusty_audio::{
+use crate::{
     audio::AudioConfig,
     integrated_audio_manager::{IntegratedAudioManager, PlaybackState},
     ui::{
@@ -221,7 +221,8 @@ impl WasmAudioApp {
         // Signal generator panel
         if let Some(ref mut audio_manager) = self.audio_manager {
             // Draw signal generator UI
-            self.signal_generator_panel.show(ui);
+            let colors = self.theme_manager.current_theme().colors();
+            self.signal_generator_panel.show(ui, &colors);
 
             // Handle signal generator routing intents
             if let Some(intent) = self.signal_generator_panel.take_route_intent() {
@@ -319,16 +320,20 @@ impl WasmAudioApp {
                 ui.heading(egui::RichText::new("📊 Equalizer").color(colors.text));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("Reset All").clicked() {
-                        // Reset all EQ bands to 0.0 dB
+                        // Reset all EQ bands to 0.0 dB in UI
                         for i in 0..8 {
                             self.eq_gains[i] = 0.0;
-                            // TODO: Set EQ band in audio backend
-                            if let Some(ref mut _audio_manager) = self.audio_manager {
-                                // Will be implemented when backend supports it
-                                log::info!("Resetting EQ band {} to 0 dB", i);
+                        }
+
+                        // Reset EQ in audio backend
+                        if let Some(ref mut audio_manager) = self.audio_manager {
+                            if let Err(e) = audio_manager.reset_eq() {
+                                self.error_message = Some(format!("Failed to reset EQ: {}", e));
+                                log::error!("Failed to reset EQ: {}", e);
+                            } else {
+                                log::info!("All EQ bands reset to flat response");
                             }
                         }
-                        log::info!("All EQ bands reset to flat response");
                     }
                 });
             });
@@ -362,10 +367,15 @@ impl WasmAudioApp {
 
                         if slider_response.changed() {
                             let gain_value = self.eq_gains[i];
-                            // TODO: Set EQ band in audio backend
-                            if let Some(ref mut _audio_manager) = self.audio_manager {
-                                // Will be implemented when backend supports set_eq_band
-                                log::info!("EQ band {} set to {:.1} dB", i, gain_value);
+                            // Set EQ band in audio backend
+                            if let Some(ref mut audio_manager) = self.audio_manager {
+                                if let Err(e) = audio_manager.set_eq_band(i, gain_value) {
+                                    self.error_message =
+                                        Some(format!("Failed to set EQ band {}: {}", i, e));
+                                    log::error!("Failed to set EQ band {}: {}", i, e);
+                                } else {
+                                    log::debug!("EQ band {} set to {:.1} dB", i, gain_value);
+                                }
                             }
                         }
 
@@ -388,10 +398,17 @@ impl WasmAudioApp {
             // Status info
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("Status:").color(colors.text));
-                ui.label(
-                    egui::RichText::new("EQ UI Ready - Backend integration pending")
-                        .color(colors.text_secondary),
-                );
+                let status_text = if self.audio_manager.is_some() {
+                    "✓ EQ Active (Web Audio API)"
+                } else {
+                    "⚠ EQ Not Initialized"
+                };
+                let status_color = if self.audio_manager.is_some() {
+                    egui::Color32::from_rgb(100, 200, 100)
+                } else {
+                    colors.text_secondary
+                };
+                ui.label(egui::RichText::new(status_text).color(status_color));
             });
         });
     }

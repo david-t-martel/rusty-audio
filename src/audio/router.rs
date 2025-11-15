@@ -451,18 +451,21 @@ impl AudioRouter {
         // Key: source_id, Value: (samples_read, Vec<f32>)
         let mut source_cache: HashMap<SourceId, (usize, Vec<f32>)> = HashMap::new();
 
-        // First pass: Read from each unique source once
-        for route in state.routes.values() {
-            if !route.enabled {
-                continue;
-            }
+        // Collect unique enabled source IDs first (to avoid borrow conflict)
+        let source_ids: Vec<SourceId> = state
+            .routes
+            .values()
+            .filter(|route| route.enabled)
+            .map(|route| route.source)
+            .collect();
 
-            // Only read if we haven't already cached this source
-            if !source_cache.contains_key(&route.source) {
-                if let Some(source) = state.sources.get_mut(&route.source) {
+        // Read from each unique source once
+        for source_id in source_ids {
+            if !source_cache.contains_key(&source_id) {
+                if let Some(source) = state.sources.get_mut(&source_id) {
                     let samples_read = source.read_samples(&mut source_buffer);
                     // Store a copy of the samples
-                    source_cache.insert(route.source, (samples_read, source_buffer.clone()));
+                    source_cache.insert(source_id, (samples_read, source_buffer.clone()));
                 }
             }
         }

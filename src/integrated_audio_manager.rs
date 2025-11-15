@@ -69,7 +69,7 @@ pub struct ManagedRoute {
 }
 
 /// Type of audio route
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RouteType {
     /// Signal generator to output
     SignalGeneratorPlayback,
@@ -151,6 +151,9 @@ impl IntegratedAudioManager {
         // Create Web Audio backend
         let mut backend = WebAudioBackend::new();
         backend.initialize()?;
+
+        // Initialize 8-band EQ chain
+        backend.create_eq_chain()?;
 
         Ok(Self {
             router,
@@ -318,6 +321,66 @@ impl IntegratedAudioManager {
     /// Get available input devices
     pub fn enumerate_input_devices(&mut self) -> Result<Vec<super::audio::DeviceInfo>> {
         Ok(self.backend.enumerate_devices(StreamDirection::Input)?)
+    }
+
+    /// Set EQ band gain (WASM only)
+    ///
+    /// # Arguments
+    /// * `band` - Band index (0-7)
+    /// * `gain_db` - Gain in decibels (±12 dB range)
+    ///
+    /// Source: Based on WASM_CODE_BORROWING_GUIDE.md Phase 2 recommendations
+    #[cfg(target_arch = "wasm32")]
+    pub fn set_eq_band(&mut self, band: usize, gain_db: f32) -> Result<()> {
+        // Downcast to WebAudioBackend (safe in WASM builds)
+        let backend = self
+            .backend
+            .as_any_mut()
+            .downcast_mut::<WebAudioBackend>()
+            .ok_or_else(|| {
+                AudioManagerError::InvalidConfiguration(
+                    "Backend is not WebAudioBackend".to_string(),
+                )
+            })?;
+
+        Ok(backend.set_eq_band(band, gain_db)?)
+    }
+
+    /// Get EQ band gain (WASM only)
+    ///
+    /// # Arguments
+    /// * `band` - Band index (0-7)
+    #[cfg(target_arch = "wasm32")]
+    pub fn get_eq_band(&self, band: usize) -> Result<f32> {
+        // Downcast to WebAudioBackend (safe in WASM builds)
+        let backend = self
+            .backend
+            .as_any()
+            .downcast_ref::<WebAudioBackend>()
+            .ok_or_else(|| {
+                AudioManagerError::InvalidConfiguration(
+                    "Backend is not WebAudioBackend".to_string(),
+                )
+            })?;
+
+        Ok(backend.get_eq_band(band)?)
+    }
+
+    /// Reset all EQ bands to 0 dB (WASM only)
+    #[cfg(target_arch = "wasm32")]
+    pub fn reset_eq(&mut self) -> Result<()> {
+        // Downcast to WebAudioBackend (safe in WASM builds)
+        let backend = self
+            .backend
+            .as_any_mut()
+            .downcast_mut::<WebAudioBackend>()
+            .ok_or_else(|| {
+                AudioManagerError::InvalidConfiguration(
+                    "Backend is not WebAudioBackend".to_string(),
+                )
+            })?;
+
+        Ok(backend.reset_eq()?)
     }
 }
 

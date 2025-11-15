@@ -26,6 +26,13 @@ pub struct WebAudioBackend {
     eq_filters: Vec<BiquadFilterNode>,
 }
 
+// SAFETY: WebAudioBackend is safe to Send/Sync in WASM context
+// WASM runs single-threaded in the browser, so no actual multi-threading occurs
+#[cfg(target_arch = "wasm32")]
+unsafe impl Send for WebAudioBackend {}
+#[cfg(target_arch = "wasm32")]
+unsafe impl Sync for WebAudioBackend {}
+
 #[cfg(target_arch = "wasm32")]
 impl WebAudioBackend {
     /// Create a new Web Audio API backend
@@ -62,7 +69,8 @@ impl WebAudioBackend {
     /// Create 8-band parametric EQ filter chain
     /// Source: Based on WASM_CODE_BORROWING_GUIDE.md Phase 2 recommendations
     pub fn create_eq_chain(&mut self) -> Result<()> {
-        let context = self.get_context()?;
+        // Get context and clone to avoid borrow checker issues
+        let context = self.get_context()?.clone();
 
         // Clear existing filters if any
         self.eq_filters.clear();
@@ -223,7 +231,11 @@ impl AudioBackend for WebAudioBackend {
         Ok(self.context.is_some())
     }
 
-    fn supported_configs(&self, _device_id: &str) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(
+        &self,
+        _device_id: &str,
+        _direction: StreamDirection,
+    ) -> Result<Vec<AudioConfig>> {
         let sample_rate = if let Some(ref ctx) = self.context {
             ctx.sample_rate() as u32
         } else {
@@ -273,6 +285,36 @@ impl AudioBackend for WebAudioBackend {
             "Input streams not yet supported in Web Audio API backend".to_string(),
         ))
     }
+
+    fn create_output_stream_with_callback(
+        &mut self,
+        device_id: &str,
+        config: AudioConfig,
+        _callback: Box<dyn FnMut(&mut [f32]) + Send + 'static>,
+    ) -> Result<Box<dyn AudioStream>> {
+        // For now, just create a regular output stream
+        // Callback-based streams are not yet implemented for Web Audio
+        self.create_output_stream(device_id, config)
+    }
+
+    fn create_input_stream_with_callback(
+        &mut self,
+        _device_id: &str,
+        _config: AudioConfig,
+        _callback: Box<dyn FnMut(&[f32]) + Send + 'static>,
+    ) -> Result<Box<dyn AudioStream>> {
+        Err(AudioBackendError::UnsupportedFormat(
+            "Input streams with callbacks not yet supported in Web Audio API backend".to_string(),
+        ))
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Web Audio output stream
@@ -282,6 +324,11 @@ struct WebAudioOutputStream {
     config: AudioConfig,
     status: StreamStatus,
 }
+
+// SAFETY: WebAudioOutputStream is safe to Send in WASM context
+// WASM runs single-threaded in the browser
+#[cfg(target_arch = "wasm32")]
+unsafe impl Send for WebAudioOutputStream {}
 
 #[cfg(target_arch = "wasm32")]
 impl AudioStream for WebAudioOutputStream {

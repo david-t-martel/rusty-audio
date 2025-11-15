@@ -28,6 +28,11 @@ pub struct WebAudioDestination {
     buffer_duration: f32, // Duration in seconds
 }
 
+// SAFETY: WebAudioDestination is safe to Send in WASM context
+// WASM runs single-threaded in the browser
+#[cfg(target_arch = "wasm32")]
+unsafe impl Send for WebAudioDestination {}
+
 #[cfg(target_arch = "wasm32")]
 impl WebAudioDestination {
     /// Create a new Web Audio destination

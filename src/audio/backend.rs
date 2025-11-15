@@ -183,26 +183,28 @@ pub trait AudioBackend: Send + Sync {
     /// Create an output stream with custom callback
     ///
     /// The callback receives a mutable buffer to fill with audio samples
-    fn create_output_stream_with_callback<F>(
+    fn create_output_stream_with_callback(
         &mut self,
         device_id: &str,
         config: AudioConfig,
-        callback: F,
-    ) -> Result<Box<dyn AudioStream>>
-    where
-        F: FnMut(&mut [f32]) + Send + 'static;
+        callback: Box<dyn FnMut(&mut [f32]) + Send + 'static>,
+    ) -> Result<Box<dyn AudioStream>>;
 
     /// Create an input stream with custom callback
     ///
     /// The callback receives audio samples from the input device
-    fn create_input_stream_with_callback<F>(
+    fn create_input_stream_with_callback(
         &mut self,
         device_id: &str,
         config: AudioConfig,
-        callback: F,
-    ) -> Result<Box<dyn AudioStream>>
-    where
-        F: FnMut(&[f32]) + Send + 'static;
+        callback: Box<dyn FnMut(&[f32]) + Send + 'static>,
+    ) -> Result<Box<dyn AudioStream>>;
+
+    /// Get as Any for downcasting (used for backend-specific features)
+    fn as_any(&self) -> &dyn std::any::Any;
+
+    /// Get as Any mutable for downcasting (used for backend-specific features)
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
 /// Trait for audio streams (playback or recording)
