@@ -527,23 +527,86 @@ impl WasmAudioApp {
         });
     }
 
-    /// Draw settings panel (placeholder for Phase 4)
-    /// Will be implemented in Phase 4 with code from src/main.rs:1863-1950
+    /// Draw settings panel with theme selection
+    /// Source: Simplified from src/main.rs:1863-1950 for WASM deployment
     fn draw_settings_panel(&mut self, ui: &mut egui::Ui) {
-        ui.heading("⚙️ Settings");
-        ui.separator();
-        ui.add_space(20.0);
+        let colors = self.theme_manager.current_theme().colors();
 
-        ui.vertical_centered(|ui| {
-            ui.label("Application Settings");
-            ui.add_space(10.0);
-            ui.label("Coming in Phase 4...");
-            ui.add_space(10.0);
-            ui.label("Features:");
-            ui.label("• Theme selection (8 themes)");
-            ui.label("• Display settings");
-            ui.label("• Settings persistence (localStorage)");
-            ui.label("• About information");
+        ui.vertical(|ui| {
+            ui.heading(egui::RichText::new("⚙️ Settings").color(colors.text));
+            ui.separator();
+            ui.add_space(15.0);
+
+            // Theme Selection
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new("Theme:")
+                        .color(colors.text)
+                        .size(16.0),
+                );
+            });
+            ui.add_space(5.0);
+
+            // Theme buttons grid
+            ui.columns(2, |columns| {
+                let themes = crate::ui::theme::Theme::all();
+                let half = (themes.len() + 1) / 2;
+
+                for (i, theme) in themes.iter().enumerate() {
+                    let column_idx = if i < half { 0 } else { 1 };
+                    let ui = &mut columns[column_idx];
+
+                    let is_current = self.theme_manager.current_theme() == theme;
+                    let button_text = if is_current {
+                        format!("✓ {}", theme.display_name())
+                    } else {
+                        theme.display_name().to_string()
+                    };
+
+                    let button = egui::Button::new(
+                        egui::RichText::new(button_text)
+                            .color(if is_current { colors.accent } else { colors.text })
+                    );
+
+                    if ui.add(button).clicked() {
+                        self.theme_manager.set_theme(theme.clone());
+                    }
+                }
+            });
+
+            ui.add_space(20.0);
+            ui.separator();
+            ui.add_space(15.0);
+
+            // About Section
+            ui.vertical(|ui| {
+                ui.label(
+                    egui::RichText::new("About Rusty Audio")
+                        .color(colors.text)
+                        .size(16.0),
+                );
+                ui.add_space(5.0);
+                ui.label(
+                    egui::RichText::new("Version: 0.1.0 (WASM)")
+                        .color(colors.text_secondary)
+                        .size(12.0),
+                );
+                ui.label(
+                    egui::RichText::new("A car-stereo-style audio player built with Rust + egui")
+                        .color(colors.text_secondary)
+                        .size(12.0),
+                );
+                ui.add_space(10.0);
+                ui.label(
+                    egui::RichText::new("Features:")
+                        .color(colors.text)
+                        .size(14.0),
+                );
+                ui.label(egui::RichText::new("• Signal Generator (Sine, Square, Sawtooth, Noise)").color(colors.text_secondary).size(11.0));
+                ui.label(egui::RichText::new("• 8-Band Parametric Equalizer").color(colors.text_secondary).size(11.0));
+                ui.label(egui::RichText::new("• Real-Time Spectrum Analyzer").color(colors.text_secondary).size(11.0));
+                ui.label(egui::RichText::new("• Multiple Themes").color(colors.text_secondary).size(11.0));
+            });
         });
     }
 }
