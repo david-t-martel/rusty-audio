@@ -23,6 +23,38 @@ use rusty_audio::{
 use std::time::Instant;
 
 #[cfg(target_arch = "wasm32")]
+/// Application tabs for navigation
+/// Source: Adapted from src/main.rs:93-160 (desktop Tab enum)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AppTab {
+    Generator,
+    Equalizer,
+    Effects,
+    Settings,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl AppTab {
+    fn label(&self) -> &'static str {
+        match self {
+            AppTab::Generator => "🎵 Generator",
+            AppTab::Equalizer => "📊 Equalizer",
+            AppTab::Effects => "🎛️ Effects",
+            AppTab::Settings => "⚙️ Settings",
+        }
+    }
+
+    fn all() -> &'static [AppTab] {
+        &[
+            AppTab::Generator,
+            AppTab::Equalizer,
+            AppTab::Effects,
+            AppTab::Settings,
+        ]
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
 /// WASM Audio Player Application
 ///
 /// Web-compatible version of the Rusty Audio player using IntegratedAudioManager
@@ -35,6 +67,7 @@ struct WasmAudioApp {
     // UI state
     signal_generator_panel: SignalGeneratorPanel,
     theme_manager: ThemeManager,
+    active_tab: AppTab,
 
     // Playback state
     volume: f32,
@@ -88,6 +121,7 @@ impl Default for WasmAudioApp {
             initialization_error,
             signal_generator_panel: SignalGeneratorPanel::new(),
             theme_manager: ThemeManager::new(Theme::StudioDark),
+            active_tab: AppTab::Generator,
             volume: 0.5,
             error_message: None,
             last_update: Instant::now(),
@@ -129,7 +163,21 @@ impl eframe::App for WasmAudioApp {
             });
         });
 
-        // Main content panel
+        // Tab navigation panel
+        // Source: Adapted from src/main.rs:400-500 (desktop tab switching)
+        egui::TopBottomPanel::top("tabs_panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                for tab in AppTab::all() {
+                    let is_active = self.active_tab == *tab;
+                    if ui.selectable_label(is_active, tab.label()).clicked() {
+                        self.active_tab = *tab;
+                        log::info!("Switched to tab: {:?}", tab);
+                    }
+                }
+            });
+        });
+
+        // Main content panel with tab-based content
         egui::CentralPanel::default().show(ctx, |ui| {
             // Show initialization error if any
             if let Some(ref error) = self.initialization_error {
@@ -147,95 +195,173 @@ impl eframe::App for WasmAudioApp {
                 ui.separator();
             }
 
-            ui.heading("Signal Generator");
-            ui.separator();
+            // Render active tab content
+            match self.active_tab {
+                AppTab::Generator => self.draw_generator_panel(ui),
+                AppTab::Equalizer => self.draw_equalizer_panel(ui),
+                AppTab::Effects => self.draw_effects_panel(ui),
+                AppTab::Settings => self.draw_settings_panel(ui),
+            }
+        });
+    }
+}
 
-            // Signal generator panel
-            if let Some(ref mut audio_manager) = self.audio_manager {
-                // Draw signal generator UI
-                self.signal_generator_panel.show(ui);
+#[cfg(target_arch = "wasm32")]
+impl WasmAudioApp {
+    /// Draw signal generator panel
+    /// Source: Refactored from original update() method lines 150-239
+    fn draw_generator_panel(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Signal Generator");
+        ui.separator();
 
-                // Handle signal generator routing intents
-                if let Some(intent) = self.signal_generator_panel.take_route_intent() {
-                    log::info!(
-                        "Processing route intent: {} -> {:?}",
-                        intent.label,
-                        intent.mode
-                    );
+        // Signal generator panel
+        if let Some(ref mut audio_manager) = self.audio_manager {
+            // Draw signal generator UI
+            self.signal_generator_panel.show(ui);
 
-                    if let Some(output) = self.signal_generator_panel.output_snapshot() {
-                        match audio_manager.play_signal_generator(
-                            output.samples,
-                            output.sample_rate,
-                            false, // Don't loop for now
-                        ) {
-                            Ok(_) => {
-                                log::info!("Signal generator started successfully");
-                                self.error_message = None;
-                            }
-                            Err(e) => {
-                                let error = format!("Failed to start playback: {}", e);
-                                log::error!("{}", error);
-                                self.error_message = Some(error);
-                            }
-                        }
-                    }
-                }
+            // Handle signal generator routing intents
+            if let Some(intent) = self.signal_generator_panel.take_route_intent() {
+                log::info!(
+                    "Processing route intent: {} -> {:?}",
+                    intent.label,
+                    intent.mode
+                );
 
-                // Stop button
-                ui.add_space(10.0);
-                if ui.button("⏹ Stop Playback").clicked() {
-                    match audio_manager.stop_signal_generator() {
+                if let Some(output) = self.signal_generator_panel.output_snapshot() {
+                    match audio_manager.play_signal_generator(
+                        output.samples,
+                        output.sample_rate,
+                        false, // Don't loop for now
+                    ) {
                         Ok(_) => {
-                            log::info!("Playback stopped");
+                            log::info!("Signal generator started successfully");
                             self.error_message = None;
                         }
                         Err(e) => {
-                            let error = format!("Failed to stop playback: {}", e);
+                            let error = format!("Failed to start playback: {}", e);
                             log::error!("{}", error);
                             self.error_message = Some(error);
                         }
                     }
                 }
-
-                // Volume control
-                ui.add_space(10.0);
-                ui.label("Master Volume:");
-                let volume_response = ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));
-
-                // Apply volume changes to audio engine
-                if volume_response.changed() {
-                    use crate::integrated_audio_manager::RouteType;
-                    if let Err(e) = audio_manager.set_route_gain(RouteType::SignalGeneratorPlayback, self.volume) {
-                        log::error!("Failed to set volume: {}", e);
-                    }
-                }
-
-                // Audio processing (call process periodically)
-                if let Err(e) = audio_manager.process() {
-                    log::error!("Audio processing error: {}", e);
-                }
-            } else {
-                ui.label("Audio system not available");
-                ui.label("Please check the console for initialization errors");
             }
 
-            ui.add_space(20.0);
-            ui.separator();
-
-            // Status information
-            ui.heading("System Information");
-            ui.label(format!(
-                "Web Audio API: {}",
-                if self.audio_manager.is_some() {
-                    "Active"
-                } else {
-                    "Unavailable"
+            // Stop button
+            ui.add_space(10.0);
+            if ui.button("⏹ Stop Playback").clicked() {
+                match audio_manager.stop_signal_generator() {
+                    Ok(_) => {
+                        log::info!("Playback stopped");
+                        self.error_message = None;
+                    }
+                    Err(e) => {
+                        let error = format!("Failed to stop playback: {}", e);
+                        log::error!("{}", error);
+                        self.error_message = Some(error);
+                    }
                 }
-            ));
-            ui.label("Sample Rate: 48000 Hz");
-            ui.label("Channels: 2 (Stereo)");
-            ui.label("Buffer Size: 512 samples");
+            }
+
+            // Volume control
+            ui.add_space(10.0);
+            ui.label("Master Volume:");
+            let volume_response =
+                ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));
+
+            // Apply volume changes to audio engine
+            if volume_response.changed() {
+                use crate::integrated_audio_manager::RouteType;
+                if let Err(e) =
+                    audio_manager.set_route_gain(RouteType::SignalGeneratorPlayback, self.volume)
+                {
+                    log::error!("Failed to set volume: {}", e);
+                }
+            }
+
+            // Audio processing (call process periodically)
+            if let Err(e) = audio_manager.process() {
+                log::error!("Audio processing error: {}", e);
+            }
+        } else {
+            ui.label("Audio system not available");
+            ui.label("Please check the console for initialization errors");
+        }
+
+        ui.add_space(20.0);
+        ui.separator();
+
+        // Status information
+        ui.heading("System Information");
+        ui.label(format!(
+            "Web Audio API: {}",
+            if self.audio_manager.is_some() {
+                "Active"
+            } else {
+                "Unavailable"
+            }
+        ));
+        ui.label("Sample Rate: 48000 Hz");
+        ui.label("Channels: 2 (Stereo)");
+        ui.label("Buffer Size: 512 samples");
+    }
+
+    /// Draw equalizer panel (placeholder for Phase 2)
+    /// Will be implemented in Phase 2 with code from src/main.rs:889-982
+    fn draw_equalizer_panel(&mut self, ui: &mut egui::Ui) {
+        ui.heading("📊 Equalizer");
+        ui.separator();
+        ui.add_space(20.0);
+
+        ui.vertical_centered(|ui| {
+            ui.label("8-Band Parametric Equalizer");
+            ui.add_space(10.0);
+            ui.label("Coming in Phase 2...");
+            ui.add_space(10.0);
+            ui.label("Features:");
+            ui.label("• 8 frequency bands (60Hz - 7.7kHz)");
+            ui.label("• ±12 dB gain per band");
+            ui.label("• Real-time audio processing");
+            ui.label("• Reset all bands functionality");
+        });
+    }
+
+    /// Draw effects/spectrum panel (placeholder for Phase 3)
+    /// Will be implemented in Phase 3 with code from src/main.rs:838-887
+    fn draw_effects_panel(&mut self, ui: &mut egui::Ui) {
+        ui.heading("🎛️ Audio Effects & Spectrum");
+        ui.separator();
+        ui.add_space(20.0);
+
+        ui.vertical_centered(|ui| {
+            ui.label("Real-Time Spectrum Analyzer");
+            ui.add_space(10.0);
+            ui.label("Coming in Phase 3...");
+            ui.add_space(10.0);
+            ui.label("Features:");
+            ui.label("• Real-time FFT spectrum display");
+            ui.label("• Multiple visualization modes (Bars, Line, Filled, Circular)");
+            ui.label("• Frequency scale options");
+            ui.label("• Peak hold and smoothing");
+        });
+    }
+
+    /// Draw settings panel (placeholder for Phase 4)
+    /// Will be implemented in Phase 4 with code from src/main.rs:1863-1950
+    fn draw_settings_panel(&mut self, ui: &mut egui::Ui) {
+        ui.heading("⚙️ Settings");
+        ui.separator();
+        ui.add_space(20.0);
+
+        ui.vertical_centered(|ui| {
+            ui.label("Application Settings");
+            ui.add_space(10.0);
+            ui.label("Coming in Phase 4...");
+            ui.add_space(10.0);
+            ui.label("Features:");
+            ui.label("• Theme selection (8 themes)");
+            ui.label("• Display settings");
+            ui.label("• Settings persistence (localStorage)");
+            ui.label("• About information");
         });
     }
 }

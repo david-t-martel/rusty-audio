@@ -644,7 +644,11 @@ impl AudioBackend for AsioBackend {
         Ok(true)
     }
 
-    fn supported_configs(&self, device_id: &str, direction: StreamDirection) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(
+        &self,
+        device_id: &str,
+        direction: StreamDirection,
+    ) -> Result<Vec<AudioConfig>> {
         #[cfg(target_os = "windows")]
         {
             let host = self.host.as_ref().ok_or_else(|| {

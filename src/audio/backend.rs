@@ -160,7 +160,11 @@ pub trait AudioBackend: Send + Sync {
     fn test_device(&self, device_id: &str) -> Result<bool>;
 
     /// Get supported configurations for a device
-    fn supported_configs(&self, device_id: &str, direction: StreamDirection) -> Result<Vec<AudioConfig>>;
+    fn supported_configs(
+        &self,
+        device_id: &str,
+        direction: StreamDirection,
+    ) -> Result<Vec<AudioConfig>>;
 
     /// Create an output stream with the specified device and config
     fn create_output_stream(

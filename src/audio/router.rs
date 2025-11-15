@@ -56,15 +56,15 @@ use std::sync::Arc;
 
 /// Unique identifier for audio sources
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SourceId(u64);
+pub struct SourceId(pub u64);
 
 /// Unique identifier for audio destinations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct DestId(u64);
+pub struct DestId(pub u64);
 
 /// Unique identifier for routes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RouteId(u64);
+pub struct RouteId(pub u64);
 
 /// Audio source trait
 ///
