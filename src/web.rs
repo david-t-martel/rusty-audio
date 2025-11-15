@@ -413,23 +413,117 @@ impl WasmAudioApp {
         });
     }
 
-    /// Draw effects/spectrum panel (placeholder for Phase 3)
-    /// Will be implemented in Phase 3 with code from src/main.rs:838-887
+    /// Draw effects/spectrum panel with real-time FFT visualization
+    /// Source: Simplified from src/ui/spectrum.rs for WASM deployment
     fn draw_effects_panel(&mut self, ui: &mut egui::Ui) {
-        ui.heading("🎛️ Audio Effects & Spectrum");
-        ui.separator();
-        ui.add_space(20.0);
+        let colors = self.theme_manager.current_theme().colors();
 
-        ui.vertical_centered(|ui| {
-            ui.label("Real-Time Spectrum Analyzer");
+        ui.vertical(|ui| {
+            ui.heading(egui::RichText::new("🎛️ Spectrum Analyzer").color(colors.text));
             ui.add_space(10.0);
-            ui.label("Coming in Phase 3...");
+
+            // Get frequency data from audio manager
+            let frequency_data = if let Some(ref audio_manager) = self.audio_manager {
+                audio_manager.get_frequency_data().unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+
+            // Draw spectrum visualizer
+            let available_width = ui.available_width();
+            let spectrum_height = 200.0;
+            let (rect, _response) =
+                ui.allocate_exact_size(egui::Vec2::new(available_width, spectrum_height), egui::Sense::hover());
+
+            if ui.is_rect_visible(rect) {
+                let painter = ui.painter();
+
+                // Draw background
+                painter.rect_filled(
+                    rect,
+                    4.0,
+                    egui::Color32::from_rgb(20, 20, 30),
+                );
+
+                // Draw spectrum bars
+                if !frequency_data.is_empty() {
+                    let num_bars = frequency_data.len().min(128); // Limit to 128 bars for performance
+                    let bar_width = rect.width() / num_bars as f32;
+                    let bar_spacing = bar_width * 0.1;
+                    let effective_bar_width = bar_width - bar_spacing;
+
+                    for (i, &magnitude) in frequency_data.iter().take(num_bars).enumerate() {
+                        let bar_height = magnitude * rect.height();
+                        let x = rect.min.x + i as f32 * bar_width;
+                        let y = rect.max.y - bar_height;
+
+                        // Color gradient from blue to red based on frequency
+                        let color_t = i as f32 / num_bars as f32;
+                        let color = if color_t < 0.5 {
+                            // Blue to cyan
+                            let t = color_t * 2.0;
+                            egui::Color32::from_rgb(
+                                (0.0 + t * 0.0) as u8,
+                                (150.0 + t * 200.0) as u8,
+                                (255.0 - t * 55.0) as u8,
+                            )
+                        } else {
+                            // Cyan to red
+                            let t = (color_t - 0.5) * 2.0;
+                            egui::Color32::from_rgb(
+                                (0.0 + t * 255.0) as u8,
+                                (200.0 - t * 200.0) as u8,
+                                (200.0 - t * 200.0) as u8,
+                            )
+                        };
+
+                        // Draw bar
+                        painter.rect_filled(
+                            egui::Rect::from_min_size(
+                                egui::Pos2::new(x, y),
+                                egui::Vec2::new(effective_bar_width, bar_height),
+                            ),
+                            2.0,
+                            color,
+                        );
+                    }
+                } else {
+                    // No data - show placeholder
+                    painter.text(
+                        rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        "No audio playing",
+                        egui::FontId::proportional(14.0),
+                        colors.text_secondary,
+                    );
+                }
+
+                // Draw grid lines
+                for i in 0..5 {
+                    let y = rect.min.y + (rect.height() / 4.0) * i as f32;
+                    painter.line_segment(
+                        [egui::Pos2::new(rect.min.x, y), egui::Pos2::new(rect.max.x, y)],
+                        egui::Stroke::new(0.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 20)),
+                    );
+                }
+            }
+
             ui.add_space(10.0);
-            ui.label("Features:");
-            ui.label("• Real-time FFT spectrum display");
-            ui.label("• Multiple visualization modes (Bars, Line, Filled, Circular)");
-            ui.label("• Frequency scale options");
-            ui.label("• Peak hold and smoothing");
+
+            // Stats display
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("FFT Size:").color(colors.text));
+                ui.label(
+                    egui::RichText::new("512")
+                        .color(colors.text_secondary),
+                );
+                ui.add_space(15.0);
+                ui.label(egui::RichText::new("Bins:").color(colors.text));
+                ui.label(
+                    egui::RichText::new(format!("{}", frequency_data.len()))
+                        .color(colors.text_secondary),
+                );
+            });
         });
     }
 

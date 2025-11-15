@@ -155,6 +155,9 @@ impl IntegratedAudioManager {
         // Initialize 8-band EQ chain
         backend.create_eq_chain()?;
 
+        // Initialize spectrum analyser (512 FFT size, 0.8 smoothing)
+        backend.create_analyser(512, 0.8)?;
+
         Ok(Self {
             router,
             backend: Box::new(backend),
@@ -381,6 +384,35 @@ impl IntegratedAudioManager {
             })?;
 
         Ok(backend.reset_eq()?)
+    }
+
+    /// Get spectrum frequency data (WASM only)
+    ///
+    /// Returns normalized frequency bin amplitudes (0.0 to 1.0)
+    #[cfg(target_arch = "wasm32")]
+    pub fn get_frequency_data(&self) -> Result<Vec<f32>> {
+        // Downcast to WebAudioBackend (safe in WASM builds)
+        let backend = self
+            .backend
+            .as_any()
+            .downcast_ref::<WebAudioBackend>()
+            .ok_or_else(|| {
+                AudioManagerError::InvalidConfiguration(
+                    "Backend is not WebAudioBackend".to_string(),
+                )
+            })?;
+
+        Ok(backend.get_frequency_data()?)
+    }
+
+    /// Get frequency bin count (WASM only)
+    #[cfg(target_arch = "wasm32")]
+    pub fn frequency_bin_count(&self) -> Option<u32> {
+        // Downcast to WebAudioBackend (safe in WASM builds)
+        self.backend
+            .as_any()
+            .downcast_ref::<WebAudioBackend>()
+            .and_then(|b| b.frequency_bin_count())
     }
 }
 

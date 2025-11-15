@@ -14,9 +14,9 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
-use web_sys::{AudioContext, AudioDestinationNode, BiquadFilterNode, BiquadFilterType};
+use web_sys::{AnalyserNode, AudioContext, AudioDestinationNode, BiquadFilterNode, BiquadFilterType};
 
-/// Web Audio API backend with EQ support
+/// Web Audio API backend with EQ and spectrum analysis support
 #[cfg(target_arch = "wasm32")]
 pub struct WebAudioBackend {
     context: Option<AudioContext>,
@@ -24,6 +24,8 @@ pub struct WebAudioBackend {
     /// 8-band parametric EQ using BiquadFilterNode (peaking filters)
     /// Frequencies: 60Hz, 120Hz, 240Hz, 480Hz, 960Hz, 1.9kHz, 3.8kHz, 7.7kHz
     eq_filters: Vec<BiquadFilterNode>,
+    /// Spectrum analyser for real-time frequency analysis
+    analyser: Option<AnalyserNode>,
 }
 
 // SAFETY: WebAudioBackend is safe to Send/Sync in WASM context
@@ -41,6 +43,7 @@ impl WebAudioBackend {
             context: None,
             initialized: false,
             eq_filters: Vec::new(),
+            analyser: None,
         }
     }
 
@@ -157,6 +160,73 @@ impl WebAudioBackend {
     /// Get reference to EQ filters for audio graph connection
     pub fn eq_filters(&self) -> &[BiquadFilterNode] {
         &self.eq_filters
+    }
+
+    /// Create spectrum analyser
+    /// Source: Based on WASM_CODE_BORROWING_GUIDE.md Phase 3 recommendations
+    ///
+    /// # Arguments
+    /// * `fft_size` - FFT size (must be power of 2, typically 512, 1024, 2048, 4096)
+    /// * `smoothing_time_constant` - Smoothing (0.0 to 1.0, default 0.8)
+    pub fn create_analyser(&mut self, fft_size: u32, smoothing_time_constant: f32) -> Result<()> {
+        let context = self.get_context()?.clone();
+
+        let analyser = context.create_analyser().map_err(|e| {
+            AudioBackendError::InitializationFailed(format!(
+                "Failed to create AnalyserNode: {:?}",
+                e
+            ))
+        })?;
+
+        // Set FFT size (must be power of 2)
+        analyser.set_fft_size(fft_size);
+
+        // Set smoothing time constant (0.0 = no smoothing, 1.0 = max smoothing)
+        analyser.set_smoothing_time_constant(smoothing_time_constant.clamp(0.0, 1.0) as f64);
+
+        // Store min/max decibels for proper scaling
+        analyser.set_min_decibels(-100.0);
+        analyser.set_max_decibels(0.0);
+
+        self.analyser = Some(analyser);
+        log::info!(
+            "Created spectrum analyser: FFT size {}, smoothing {:.2}",
+            fft_size,
+            smoothing_time_constant
+        );
+        Ok(())
+    }
+
+    /// Get frequency data from analyser
+    ///
+    /// Returns frequency bin amplitudes in decibels
+    pub fn get_frequency_data(&self) -> Result<Vec<f32>> {
+        let analyser = self.analyser.as_ref().ok_or_else(|| {
+            AudioBackendError::UnsupportedFormat(
+                "Analyser not created. Call create_analyser() first".to_string(),
+            )
+        })?;
+
+        let frequency_bin_count = analyser.frequency_bin_count();
+        let mut data = vec![0u8; frequency_bin_count as usize];
+
+        // Get frequency data as unsigned bytes (0-255)
+        analyser.get_byte_frequency_data(&mut data);
+
+        // Convert to normalized float values (0.0 to 1.0)
+        let float_data: Vec<f32> = data.iter().map(|&b| b as f32 / 255.0).collect();
+
+        Ok(float_data)
+    }
+
+    /// Get analyser reference for audio graph connection
+    pub fn analyser(&self) -> Option<&AnalyserNode> {
+        self.analyser.as_ref()
+    }
+
+    /// Get frequency bin count (half of FFT size)
+    pub fn frequency_bin_count(&self) -> Option<u32> {
+        self.analyser.as_ref().map(|a| a.frequency_bin_count())
     }
 }
 
