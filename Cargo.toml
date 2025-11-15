@@ -229,6 +229,8 @@ web-sys = { version = "0.3", features = [
     "AudioBuffer",
     "AudioBufferSourceNode",
     "BaseAudioContext",
+    "BiquadFilterNode",
+    "BiquadFilterType",
     "Window",
     "Document",
     "HtmlCanvasElement",
