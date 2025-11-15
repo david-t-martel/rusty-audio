@@ -14,13 +14,16 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
-use web_sys::{AudioContext, AudioDestinationNode};
+use web_sys::{AudioContext, AudioDestinationNode, BiquadFilterNode, BiquadFilterType};
 
-/// Web Audio API backend
+/// Web Audio API backend with EQ support
 #[cfg(target_arch = "wasm32")]
 pub struct WebAudioBackend {
     context: Option<AudioContext>,
     initialized: bool,
+    /// 8-band parametric EQ using BiquadFilterNode (peaking filters)
+    /// Frequencies: 60Hz, 120Hz, 240Hz, 480Hz, 960Hz, 1.9kHz, 3.8kHz, 7.7kHz
+    eq_filters: Vec<BiquadFilterNode>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -30,6 +33,7 @@ impl WebAudioBackend {
         Self {
             context: None,
             initialized: false,
+            eq_filters: Vec::new(),
         }
     }
 
@@ -53,6 +57,98 @@ impl WebAudioBackend {
     fn get_sample_rate(&mut self) -> Result<u32> {
         let context = self.get_context()?;
         Ok(context.sample_rate() as u32)
+    }
+
+    /// Create 8-band parametric EQ filter chain
+    /// Source: Based on WASM_CODE_BORROWING_GUIDE.md Phase 2 recommendations
+    pub fn create_eq_chain(&mut self) -> Result<()> {
+        let context = self.get_context()?;
+
+        // Clear existing filters if any
+        self.eq_filters.clear();
+
+        // Create 8 peaking filters (one per frequency band)
+        for i in 0..8 {
+            let filter = context.create_biquad_filter().map_err(|e| {
+                AudioBackendError::InitializationFailed(format!(
+                    "Failed to create biquad filter: {:?}",
+                    e
+                ))
+            })?;
+
+            // Set filter type to peaking (parametric EQ)
+            filter.set_type(BiquadFilterType::Peaking);
+
+            // Set center frequency: 60Hz × 2^i
+            let freq = 60.0 * 2.0_f32.powi(i);
+            filter.frequency().set_value(freq);
+
+            // Set Q factor (bandwidth) - typical value for parametric EQ
+            filter.q().set_value(1.0);
+
+            // Initial gain: 0 dB (flat response)
+            filter.gain().set_value(0.0);
+
+            self.eq_filters.push(filter);
+        }
+
+        log::info!("Created 8-band parametric EQ chain");
+        Ok(())
+    }
+
+    /// Set EQ band gain
+    /// Source: Based on WASM_CODE_BORROWING_GUIDE.md Phase 2 recommendations
+    ///
+    /// # Arguments
+    /// * `band` - Band index (0-7)
+    /// * `gain_db` - Gain in decibels (±12 dB range)
+    pub fn set_eq_band(&mut self, band: usize, gain_db: f32) -> Result<()> {
+        if band >= self.eq_filters.len() {
+            return Err(AudioBackendError::UnsupportedFormat(format!(
+                "Invalid EQ band: {}. Must be 0-7",
+                band
+            )));
+        }
+
+        // Clamp gain to safe range (±12 dB)
+        let clamped_gain = gain_db.clamp(-12.0, 12.0);
+
+        // Set the gain on the BiquadFilterNode
+        self.eq_filters[band].gain().set_value(clamped_gain);
+
+        log::debug!("EQ band {} set to {:.1} dB", band, clamped_gain);
+        Ok(())
+    }
+
+    /// Get EQ band gain
+    ///
+    /// # Arguments
+    /// * `band` - Band index (0-7)
+    pub fn get_eq_band(&self, band: usize) -> Result<f32> {
+        if band >= self.eq_filters.len() {
+            return Err(AudioBackendError::UnsupportedFormat(format!(
+                "Invalid EQ band: {}. Must be 0-7",
+                band
+            )));
+        }
+
+        Ok(self.eq_filters[band].gain().value())
+    }
+
+    /// Reset all EQ bands to 0 dB (flat response)
+    pub fn reset_eq(&mut self) -> Result<()> {
+        for (i, filter) in self.eq_filters.iter().enumerate() {
+            filter.gain().set_value(0.0);
+            log::debug!("Reset EQ band {} to 0 dB", i);
+        }
+
+        log::info!("All EQ bands reset to flat response");
+        Ok(())
+    }
+
+    /// Get reference to EQ filters for audio graph connection
+    pub fn eq_filters(&self) -> &[BiquadFilterNode] {
+        &self.eq_filters
     }
 }
 
