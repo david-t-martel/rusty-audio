@@ -24,9 +24,8 @@
 //! ```
 
 use super::backend::{
-    AudioBackend, AudioBackendError, AudioConfig, AudioStream, DeviceInfo, Result, SampleFormat,
-    InputCallback, OutputCallback,
-    StreamDirection, StreamStatus,
+    AudioBackend, AudioBackendError, AudioConfig, AudioStream, DeviceInfo, InputCallback,
+    OutputCallback, Result, SampleFormat, StreamDirection, StreamStatus,
 };
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -659,7 +658,11 @@ impl AudioBackend for AsioBackend {
         Ok(true)
     }
 
-    fn supported_configs(&self, device_id: &str, direction: StreamDirection) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(
+        &self,
+        device_id: &str,
+        direction: StreamDirection,
+    ) -> Result<Vec<AudioConfig>> {
         #[cfg(target_os = "windows")]
         {
             let host = self.host.as_ref().ok_or_else(|| {
@@ -769,7 +772,9 @@ impl AudioBackend for AsioBackend {
 
             let device = host
                 .output_devices()
-                .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate: {}", e)))?
+                .map_err(|e| {
+                    AudioBackendError::DeviceUnavailable(format!("Cannot enumerate: {}", e))
+                })?
                 .find(|d| d.name().ok().as_deref() == Some(device_id))
                 .ok_or_else(|| AudioBackendError::DeviceNotFound(device_id.to_string()))?;
 
@@ -818,7 +823,9 @@ impl AudioBackend for AsioBackend {
             let host = self.get_or_create_host()?;
             let device = host
                 .input_devices()
-                .map_err(|e| AudioBackendError::DeviceUnavailable(format!("Cannot enumerate: {}", e)))?
+                .map_err(|e| {
+                    AudioBackendError::DeviceUnavailable(format!("Cannot enumerate: {}", e))
+                })?
                 .find(|d| d.name().ok().as_deref() == Some(device_id))
                 .ok_or_else(|| AudioBackendError::DeviceNotFound(device_id.to_string()))?;
 
@@ -956,7 +963,10 @@ mod tests {
             if let Ok(configs) = backend.supported_configs(&device.id, StreamDirection::Output) {
                 println!("  Supported configs: {} configurations", configs.len());
                 if let Some(config) = configs.first() {
-                    println!("    Example: {}Hz, {} channels", config.sample_rate, config.channels);
+                    println!(
+                        "    Example: {}Hz, {} channels",
+                        config.sample_rate, config.channels
+                    );
                 }
             }
         }

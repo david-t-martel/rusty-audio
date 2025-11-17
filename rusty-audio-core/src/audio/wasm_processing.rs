@@ -4,11 +4,11 @@
 //! with multithreading support via Web Workers and SharedArrayBuffer.
 
 #[cfg(target_arch = "wasm32")]
-use std::sync::Arc;
-#[cfg(target_arch = "wasm32")]
 use parking_lot::Mutex;
 #[cfg(target_arch = "wasm32")]
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+#[cfg(target_arch = "wasm32")]
+use std::sync::Arc;
 
 #[cfg(target_arch = "wasm32")]
 use super::backend::Result;
@@ -17,11 +17,17 @@ use super::backend::Result;
 #[cfg(target_arch = "wasm32")]
 pub enum AudioProcessingTask {
     /// Apply FFT for spectrum analysis
-    FFT { samples: Vec<f32>, window_size: usize },
+    FFT {
+        samples: Vec<f32>,
+        window_size: usize,
+    },
     /// Apply equalizer filter
     Equalizer { samples: Vec<f32>, gains: Vec<f32> },
     /// Apply audio effects
-    Effects { samples: Vec<f32>, effect_type: EffectType },
+    Effects {
+        samples: Vec<f32>,
+        effect_type: EffectType,
+    },
     /// Volume normalization
     Normalize { samples: Vec<f32>, target_rms: f32 },
 }
@@ -76,7 +82,8 @@ impl AtomicAudioBuffer {
         buffer[..copy_len].copy_from_slice(&samples[..copy_len]);
 
         // Update write position atomically
-        self.write_position.store(copy_len as u32, Ordering::Release);
+        self.write_position
+            .store(copy_len as u32, Ordering::Release);
         self.is_ready.store(true, Ordering::Release);
 
         Ok(())

@@ -36,11 +36,11 @@ pub mod web_bridge;
 
 // WASM Web Audio API backend (Phase 3.5)
 #[cfg(target_arch = "wasm32")]
+pub mod wasm_processing;
+#[cfg(target_arch = "wasm32")]
 pub mod web_audio_backend;
 #[cfg(target_arch = "wasm32")]
 pub mod web_audio_destination;
-#[cfg(target_arch = "wasm32")]
-pub mod wasm_processing;
 
 // Windows ASIO backend (Phase 1.1)
 #[cfg(target_os = "windows")]
@@ -98,10 +98,10 @@ pub use file_recorder::FileRecorderDestination;
 
 // Web Audio API backend and destination (WASM only)
 #[cfg(target_arch = "wasm32")]
-pub use web_audio_backend::WebAudioBackend;
-#[cfg(target_arch = "wasm32")]
-pub use web_audio_destination::WebAudioDestination;
-#[cfg(target_arch = "wasm32")]
 pub use wasm_processing::{
     AtomicAudioBuffer, AudioProcessingTask, EffectType, WorkerAudioProcessor,
 };
+#[cfg(target_arch = "wasm32")]
+pub use web_audio_backend::WebAudioBackend;
+#[cfg(target_arch = "wasm32")]
+pub use web_audio_destination::WebAudioDestination;

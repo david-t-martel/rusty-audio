@@ -5,15 +5,14 @@
 
 #[cfg(target_arch = "wasm32")]
 use super::backend::{
-    AudioBackend, AudioBackendError, AudioConfig, AudioStream, DeviceInfo, Result, SampleFormat,
-    InputCallback, OutputCallback,
-    StreamDirection, StreamStatus,
+    AudioBackend, AudioBackendError, AudioConfig, AudioStream, DeviceInfo, InputCallback,
+    OutputCallback, Result, SampleFormat, StreamDirection, StreamStatus,
 };
 
 #[cfg(target_arch = "wasm32")]
-use std::sync::Arc;
-#[cfg(target_arch = "wasm32")]
 use parking_lot::Mutex;
+#[cfg(target_arch = "wasm32")]
+use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
@@ -173,7 +172,11 @@ impl AudioBackend for WebAudioBackend {
         Ok(self.context.get().is_some())
     }
 
-    fn supported_configs(&self, _device_id: &str, _direction: StreamDirection) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(
+        &self,
+        _device_id: &str,
+        _direction: StreamDirection,
+    ) -> Result<Vec<AudioConfig>> {
         let sample_rate = if let Some(ctx) = self.context.get() {
             ctx.sample_rate() as u32
         } else {

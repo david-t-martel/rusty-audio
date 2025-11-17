@@ -39,7 +39,10 @@ pub fn start() -> Result<(), JsValue> {
     init_panic_handler();
     init_logger();
 
-    log::info!("Rusty Audio Web v{} starting...", rusty_audio_core::version());
+    log::info!(
+        "Rusty Audio Web v{} starting...",
+        rusty_audio_core::version()
+    );
 
     Ok(())
 }
@@ -68,14 +71,24 @@ impl WebHandle {
     /// Initialize OAuth authentication
     #[cfg(feature = "auth")]
     #[wasm_bindgen(js_name = initAuth)]
-    pub fn init_auth(&mut self, provider: &str, client_id: &str, redirect_uri: &str) -> Result<(), JsValue> {
+    pub fn init_auth(
+        &mut self,
+        provider: &str,
+        client_id: &str,
+        redirect_uri: &str,
+    ) -> Result<(), JsValue> {
         use auth::{OAuthClient, OAuthProvider};
 
         let provider_enum = match provider {
             "google" => OAuthProvider::Google,
             "github" => OAuthProvider::GitHub,
             "microsoft" => OAuthProvider::Microsoft,
-            _ => return Err(JsValue::from_str(&format!("Unknown provider: {}", provider))),
+            _ => {
+                return Err(JsValue::from_str(&format!(
+                    "Unknown provider: {}",
+                    provider
+                )))
+            }
         };
 
         self.auth_client = Some(OAuthClient::new(
@@ -91,10 +104,14 @@ impl WebHandle {
     #[cfg(feature = "auth")]
     #[wasm_bindgen(js_name = login)]
     pub async fn login(&self) -> Result<String, JsValue> {
-        let client = self.auth_client.as_ref()
+        let client = self
+            .auth_client
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Auth not initialized"))?;
 
-        client.initiate_auth().await
+        client
+            .initiate_auth()
+            .await
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
@@ -102,24 +119,31 @@ impl WebHandle {
     #[cfg(feature = "auth")]
     #[wasm_bindgen(js_name = handleCallback)]
     pub async fn handle_callback(&self, code: &str) -> Result<JsValue, JsValue> {
-        let client = self.auth_client.as_ref()
+        let client = self
+            .auth_client
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Auth not initialized"))?;
 
-        let session = client.handle_callback(code).await
+        let session = client
+            .handle_callback(code)
+            .await
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-        serde_wasm_bindgen::to_value(&session)
-            .map_err(|e| JsValue::from_str(&e.to_string()))
+        serde_wasm_bindgen::to_value(&session).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     /// Logout and clear session
     #[cfg(feature = "auth")]
     #[wasm_bindgen(js_name = logout)]
     pub async fn logout(&self) -> Result<(), JsValue> {
-        let client = self.auth_client.as_ref()
+        let client = self
+            .auth_client
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Auth not initialized"))?;
 
-        client.logout().await
+        client
+            .logout()
+            .await
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 

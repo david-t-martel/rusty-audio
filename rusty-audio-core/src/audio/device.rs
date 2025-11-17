@@ -4,9 +4,8 @@
 //! using the cpal library for native audio device access.
 
 use super::backend::{
-    AudioBackend, AudioBackendError, AudioConfig, AudioStream, DeviceInfo, Result, SampleFormat,
-    InputCallback, OutputCallback,
-    StreamDirection, StreamStatus,
+    AudioBackend, AudioBackendError, AudioConfig, AudioStream, DeviceInfo, InputCallback,
+    OutputCallback, Result, SampleFormat, StreamDirection, StreamStatus,
 };
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use parking_lot::RwLock;
@@ -221,7 +220,11 @@ impl AudioBackend for CpalBackend {
         Ok(false)
     }
 
-    fn supported_configs(&self, device_id: &str, direction: StreamDirection) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(
+        &self,
+        device_id: &str,
+        direction: StreamDirection,
+    ) -> Result<Vec<AudioConfig>> {
         let devices = match direction {
             StreamDirection::Output => self.host.output_devices(),
             StreamDirection::Input => self.host.input_devices(),

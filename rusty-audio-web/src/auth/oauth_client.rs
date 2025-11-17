@@ -139,7 +139,10 @@ impl OAuthClient {
 
         // Store provider for callback
         self.storage
-            .store_temp("oauth_provider", &serde_json::to_string(&self.provider).unwrap())
+            .store_temp(
+                "oauth_provider",
+                &serde_json::to_string(&self.provider).unwrap(),
+            )
             .await
             .map_err(|_| OAuthError::StorageNotFound)?;
 

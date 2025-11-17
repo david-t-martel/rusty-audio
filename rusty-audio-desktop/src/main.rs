@@ -1279,7 +1279,8 @@ impl AudioPlayerApp {
             if i.key_pressed(egui::Key::L) {
                 self.is_looping = !self.is_looping;
                 if let Err(e) = self.audio_engine.set_loop(self.is_looping) {
-                    self.error_manager.add_playback_error(Some(format!("Set loop: {}", e)));
+                    self.error_manager
+                        .add_playback_error(Some(format!("Set loop: {}", e)));
                 }
             }
             if i.key_pressed(egui::Key::ArrowUp) {
@@ -1293,7 +1294,8 @@ impl AudioPlayerApp {
             if i.key_pressed(egui::Key::ArrowLeft) {
                 let new_pos = self.playback_pos.saturating_sub(Duration::from_secs(5));
                 if let Err(e) = self.audio_engine.seek(new_pos) {
-                    self.error_manager.add_playback_error(Some(format!("Seek backward: {}", e)));
+                    self.error_manager
+                        .add_playback_error(Some(format!("Seek backward: {}", e)));
                 } else {
                     self.playback_pos = new_pos;
                 }
@@ -1301,7 +1303,8 @@ impl AudioPlayerApp {
             if i.key_pressed(egui::Key::ArrowRight) {
                 let new_pos = self.playback_pos.saturating_add(Duration::from_secs(5));
                 if let Err(e) = self.audio_engine.seek(new_pos) {
-                    self.error_manager.add_playback_error(Some(format!("Seek forward: {}", e)));
+                    self.error_manager
+                        .add_playback_error(Some(format!("Seek forward: {}", e)));
                 } else {
                     self.playback_pos = new_pos;
                 }
@@ -1533,7 +1536,10 @@ impl AudioPlayerApp {
             self.update_waveform_from_samples(&samples, channels);
 
             // Use audition_buffer instead of load_buffer for generated signals
-            match self.audio_engine.audition_buffer(&samples, sample_rate, channels) {
+            match self
+                .audio_engine
+                .audition_buffer(&samples, sample_rate, channels)
+            {
                 Ok(_) => {
                     // Start playback via AudioEngine
                     if let Err(e) = self.audio_engine.play() {

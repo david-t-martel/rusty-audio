@@ -111,12 +111,10 @@ impl WorkerPool {
     fn initialize(&self) -> Result<(), JsValue> {
         // Atomic compare-and-swap: only proceed if transitioning false -> true
         // This eliminates the race condition without holding a lock
-        match self.initialized.compare_exchange(
-            false,
-            true,
-            Ordering::SeqCst,
-            Ordering::SeqCst,
-        ) {
+        match self
+            .initialized
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        {
             Ok(_) => {
                 // We won the race - proceed with initialization
                 log::info!("Initializing worker pool with {} workers", self.num_workers);
@@ -215,7 +213,10 @@ impl BufferPool {
             // Allocate new buffer
             self.total_allocated.fetch_add(1, Ordering::Relaxed);
             let buffer = Arc::new(vec![0.0f32; self.buffer_size * self.channels]);
-            log::trace!("Allocated new buffer (total: {})", self.total_allocated.load(Ordering::Relaxed));
+            log::trace!(
+                "Allocated new buffer (total: {})",
+                self.total_allocated.load(Ordering::Relaxed)
+            );
             buffer
         }
     }

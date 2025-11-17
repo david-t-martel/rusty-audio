@@ -8,11 +8,11 @@
 use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
+use parking_lot::Mutex;
+#[cfg(target_arch = "wasm32")]
 use std::panic;
 #[cfg(target_arch = "wasm32")]
 use std::sync::atomic::{AtomicU64, Ordering};
-#[cfg(target_arch = "wasm32")]
-use parking_lot::Mutex;
 #[cfg(target_arch = "wasm32")]
 use std::sync::Arc;
 
@@ -142,9 +142,9 @@ pub fn install_panic_hook() {
             "Unknown panic payload".to_string()
         };
 
-        let location = panic_info.location().map(|loc| {
-            format!("{}:{}:{}", loc.file(), loc.line(), loc.column())
-        });
+        let location = panic_info
+            .location()
+            .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column()));
 
         // Log to browser console with full details
         if let Some(loc) = &location {
@@ -244,7 +244,12 @@ pub fn get_panic_stats() -> JsValue {
     let stats = js_sys::Object::new();
     js_sys::Reflect::set(&stats, &"totalPanics".into(), &JsValue::from(total as f64)).ok();
     js_sys::Reflect::set(&stats, &"totalCaught".into(), &JsValue::from(caught as f64)).ok();
-    js_sys::Reflect::set(&stats, &"totalRecovered".into(), &JsValue::from(recovered as f64)).ok();
+    js_sys::Reflect::set(
+        &stats,
+        &"totalRecovered".into(),
+        &JsValue::from(recovered as f64),
+    )
+    .ok();
 
     JsValue::from(stats)
 }
@@ -307,9 +312,8 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn test_panic_boundary_error() {
-        let result: Result<(), JsValue> = with_panic_boundary(|| {
-            Err(JsValue::from_str("test error"))
-        });
+        let result: Result<(), JsValue> =
+            with_panic_boundary(|| Err(JsValue::from_str("test error")));
         assert!(result.is_err());
     }
 

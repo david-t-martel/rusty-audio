@@ -78,7 +78,12 @@ pub trait AudioEngineInterface {
     fn set_loop(&mut self, looping: bool) -> Result<()>;
 
     /// Load an audio buffer for playback
-    fn load_buffer(&mut self, samples: Vec<f32>, sample_rate: f32, channels: usize) -> Result<Duration>;
+    fn load_buffer(
+        &mut self,
+        samples: Vec<f32>,
+        sample_rate: f32,
+        channels: usize,
+    ) -> Result<Duration>;
 
     /// Get the audio context
     fn get_context(&self) -> &AudioContext;
@@ -391,7 +396,12 @@ impl AudioEngineInterface for WebAudioEngine {
         Ok(())
     }
 
-    fn load_buffer(&mut self, samples: Vec<f32>, sample_rate: f32, channels: usize) -> Result<Duration> {
+    fn load_buffer(
+        &mut self,
+        samples: Vec<f32>,
+        sample_rate: f32,
+        channels: usize,
+    ) -> Result<Duration> {
         // Reuse the audition_buffer logic for loading a buffer
         self.audition_buffer(&samples, sample_rate, channels)
     }

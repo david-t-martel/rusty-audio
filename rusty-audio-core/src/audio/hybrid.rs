@@ -14,8 +14,8 @@
 //! ```
 
 use super::backend::{
-    AudioBackend, AudioBackendError, AudioConfig, AudioStream, Result, StreamStatus,
-    InputCallback, OutputCallback,
+    AudioBackend, AudioBackendError, AudioConfig, AudioStream, InputCallback, OutputCallback,
+    Result, StreamStatus,
 };
 use super::device::CpalBackend;
 use anyhow::anyhow;
@@ -445,7 +445,11 @@ impl AudioBackend for HybridAudioBackend {
         }
     }
 
-    fn supported_configs(&self, device_id: &str, direction: super::backend::StreamDirection) -> Result<Vec<AudioConfig>> {
+    fn supported_configs(
+        &self,
+        device_id: &str,
+        direction: super::backend::StreamDirection,
+    ) -> Result<Vec<AudioConfig>> {
         match self.mode {
             HybridMode::WebAudioOnly => {
                 if device_id == "browser-audio" {
@@ -551,11 +555,9 @@ impl AudioBackend for HybridAudioBackend {
         callback: OutputCallback,
     ) -> Result<Box<dyn AudioStream>> {
         match self.mode {
-            HybridMode::WebAudioOnly => {
-                Err(AudioBackendError::UnsupportedFormat(
-                    "Callback streams not supported in WebAudioOnly mode".to_string(),
-                ))
-            }
+            HybridMode::WebAudioOnly => Err(AudioBackendError::UnsupportedFormat(
+                "Callback streams not supported in WebAudioOnly mode".to_string(),
+            )),
             HybridMode::HybridNative | HybridMode::CpalOnly => {
                 if let Some(backend) = &mut self.cpal_backend {
                     backend.create_output_stream_with_callback(device_id, config, callback)
@@ -575,11 +577,9 @@ impl AudioBackend for HybridAudioBackend {
         callback: InputCallback,
     ) -> Result<Box<dyn AudioStream>> {
         match self.mode {
-            HybridMode::WebAudioOnly => {
-                Err(AudioBackendError::UnsupportedFormat(
-                    "Input callback streams not supported in WebAudioOnly mode".to_string(),
-                ))
-            }
+            HybridMode::WebAudioOnly => Err(AudioBackendError::UnsupportedFormat(
+                "Input callback streams not supported in WebAudioOnly mode".to_string(),
+            )),
             HybridMode::HybridNative | HybridMode::CpalOnly => {
                 if let Some(backend) = &mut self.cpal_backend {
                     backend.create_input_stream_with_callback(device_id, config, callback)

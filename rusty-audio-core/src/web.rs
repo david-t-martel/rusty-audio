@@ -72,8 +72,9 @@ impl WorkerPool {
 
         // Initialize rayon thread pool for WASM
         // This spawns Web Workers and sets up SharedArrayBuffer communication
-        wasm_bindgen_rayon::init_thread_pool(self.num_workers)
-            .map_err(|e| JsValue::from_str(&format!("Failed to initialize worker pool: {:?}", e)))?;
+        wasm_bindgen_rayon::init_thread_pool(self.num_workers).map_err(|e| {
+            JsValue::from_str(&format!("Failed to initialize worker pool: {:?}", e))
+        })?;
 
         log::info!("Worker pool initialized with {} workers", self.num_workers);
         *initialized = true;
@@ -195,10 +196,16 @@ impl Default for WasmAudioApp {
         // Attempt to initialize the worker pool (may fail if SharedArrayBuffer not available)
         match worker_pool.initialize() {
             Ok(_) => {
-                log::info!("Worker pool initialized successfully with {} workers", worker_pool.worker_count());
+                log::info!(
+                    "Worker pool initialized successfully with {} workers",
+                    worker_pool.worker_count()
+                );
             }
             Err(e) => {
-                log::warn!("Failed to initialize worker pool: {:?}. Running in single-threaded mode.", e);
+                log::warn!(
+                    "Failed to initialize worker pool: {:?}. Running in single-threaded mode.",
+                    e
+                );
                 log::warn!("For multithreading, ensure Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy headers are set.");
             }
         }
@@ -357,12 +364,15 @@ impl eframe::App for WasmAudioApp {
                 // Volume control
                 ui.add_space(10.0);
                 ui.label("Master Volume:");
-                let volume_response = ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));
+                let volume_response =
+                    ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0).text("Volume"));
 
                 // Apply volume changes to audio engine
                 if volume_response.changed() {
                     use crate::integrated_audio_manager::RouteType;
-                    if let Err(e) = audio_manager.set_route_gain(RouteType::SignalGeneratorPlayback, self.volume) {
+                    if let Err(e) = audio_manager
+                        .set_route_gain(RouteType::SignalGeneratorPlayback, self.volume)
+                    {
                         log::error!("Failed to set volume: {}", e);
                     }
                 }
@@ -400,14 +410,14 @@ impl eframe::App for WasmAudioApp {
             if self.worker_pool.is_initialized() {
                 ui.colored_label(
                     egui::Color32::GREEN,
-                    format!("✓ Worker Pool Active ({} workers)", self.worker_pool.worker_count())
+                    format!(
+                        "✓ Worker Pool Active ({} workers)",
+                        self.worker_pool.worker_count()
+                    ),
                 );
                 ui.label("Heavy audio processing offloaded to workers");
             } else {
-                ui.colored_label(
-                    egui::Color32::YELLOW,
-                    "⚠ Single-threaded mode"
-                );
+                ui.colored_label(egui::Color32::YELLOW, "⚠ Single-threaded mode");
                 ui.label("SharedArrayBuffer not available - all processing on main thread");
                 ui.label("Set COOP/COEP headers for multithreading support");
             }

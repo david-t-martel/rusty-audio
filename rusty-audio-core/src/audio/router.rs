@@ -64,7 +64,7 @@ pub struct DestId(u64);
 
 /// Unique identifier for routes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RouteId(pub u64);  // Make field public for construction
+pub struct RouteId(pub u64); // Make field public for construction
 
 /// Audio source trait
 ///
@@ -452,7 +452,9 @@ impl AudioRouter {
         let mut source_cache: HashMap<SourceId, (usize, Vec<f32>)> = HashMap::new();
 
         // Collect unique source IDs from enabled routes first (to avoid borrow conflicts)
-        let unique_source_ids: Vec<SourceId> = state.routes.values()
+        let unique_source_ids: Vec<SourceId> = state
+            .routes
+            .values()
             .filter(|route| route.enabled)
             .map(|route| route.source)
             .collect::<std::collections::HashSet<_>>()

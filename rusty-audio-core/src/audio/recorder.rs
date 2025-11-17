@@ -695,8 +695,11 @@ impl AudioRecorder {
         };
 
         // Create input stream with callback
-        let stream =
-            backend.create_input_stream_with_callback(device_id, audio_config, Box::new(callback))?;
+        let stream = backend.create_input_stream_with_callback(
+            device_id,
+            audio_config,
+            Box::new(callback),
+        )?;
 
         // Store the stream
         self.input_stream = Some(stream);

@@ -147,7 +147,8 @@ impl PanelContent for AudioPlayerApp {
                         let response = knob.show(ui, &colors, &mut self.accessibility_manager);
                         if response.changed() {
                             if let Err(e) = self.audio_engine.set_eq_band(i, knob.value()) {
-                                self.error_manager.add_playback_error(Some(format!("EQ Band {}: {}", i, e)));
+                                self.error_manager
+                                    .add_playback_error(Some(format!("EQ Band {}: {}", i, e)));
                             }
                         }
                     });
@@ -159,7 +160,8 @@ impl PanelContent for AudioPlayerApp {
             if ui.button("Reset All Bands").clicked() {
                 for (i, knob) in self.accessible_eq_knobs.iter_mut().enumerate() {
                     if let Err(e) = self.audio_engine.set_eq_band(i, 0.0) {
-                        self.error_manager.add_playback_error(Some(format!("Reset EQ Band {}: {}", i, e)));
+                        self.error_manager
+                            .add_playback_error(Some(format!("Reset EQ Band {}: {}", i, e)));
                     }
                     knob.set_value(0.0);
                 }
@@ -195,7 +197,10 @@ impl PanelContent for AudioPlayerApp {
                 ui.label(RichText::new("Performance").color(colors.accent).strong());
                 ui.separator();
                 ui.label(format!("FPS: ~60"));
-                ui.label(format!("Spectrum Size: {} bins", self.audio_engine.get_spectrum().len()));
+                ui.label(format!(
+                    "Spectrum Size: {} bins",
+                    self.audio_engine.get_spectrum().len()
+                ));
             });
         });
     }
@@ -221,7 +226,8 @@ impl PanelContent for AudioPlayerApp {
                 if volume_response.changed() {
                     self.volume = self.accessible_volume_slider.value();
                     if let Err(e) = self.audio_engine.set_volume(self.volume) {
-                        self.error_manager.add_playback_error(Some(format!("Set volume: {}", e)));
+                        self.error_manager
+                            .add_playback_error(Some(format!("Set volume: {}", e)));
                     }
 
                     if !self.accessibility_manager.is_volume_safe(self.volume) {

@@ -10,11 +10,11 @@ use super::router::AudioDestination;
 #[cfg(target_arch = "wasm32")]
 use parking_lot::Mutex;
 #[cfg(target_arch = "wasm32")]
-use std::sync::Arc;
+use std::cell::RefCell;
 #[cfg(target_arch = "wasm32")]
 use std::rc::Rc;
 #[cfg(target_arch = "wasm32")]
-use std::cell::RefCell;
+use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]

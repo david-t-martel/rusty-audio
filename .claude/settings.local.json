@@ -17,7 +17,10 @@
       "Bash(for file in async_audio_loader.rs audio_engine.rs audio_optimizations.rs audio_performance.rs audio_performance_integration.rs audio_performance_optimized.rs audio_pipeline_integration.rs error.rs integrated_audio_manager.rs metadata.rs performance_monitor.rs platform.rs wasm_panic_handler.rs web.rs web_refactored.rs)",
       "Bash(do cp \"src/$file\" \"rusty-audio-core/src/$file\")",
       "Bash(set \"RUSTFLAGS=-C target-feature=+atomics,+bulk-memory,+mutable-globals\")",
-      "Bash(timeout 120 bash:*)"
+      "Bash(timeout 120 bash:*)",
+      "Bash(git submodule:*)",
+      "Bash(git restore:*)",
+      "Bash(git clean:*)"
     ],
     "deny": [],
     "ask": []
