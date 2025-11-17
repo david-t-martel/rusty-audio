@@ -35,7 +35,7 @@
     "wrangler": "^3.20.0"
   },
   "dependencies": {
-    "hono": "^3.11.7",
+    "hono": "^4.10.6",
     "jose": "^5.1.3",
     "itty-router": "^4.0.0"
   }
