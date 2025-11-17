@@ -20,6 +20,7 @@ pub use rusty_audio_core::*;
 pub mod auth;
 
 // Web-specific modules
+#[cfg(target_arch = "wasm32")]
 pub mod wasm_app;
 pub mod web_storage;
 
@@ -35,7 +36,7 @@ pub fn init_logger() {
 
 /// WASM entry point for the web application
 #[wasm_bindgen(start)]
-pub fn start() -> Result<(), JsValue> {
+pub fn start() -> std::result::Result<(), JsValue> {
     init_panic_handler();
     init_logger();
 
@@ -49,6 +50,7 @@ pub fn start() -> Result<(), JsValue> {
 
 /// WebHandle for WASM exports
 #[wasm_bindgen(js_name = WebHandle)]
+#[derive(Debug)]
 pub struct WebHandle {
     #[cfg(feature = "auth")]
     auth_client: Option<auth::OAuthClient>,
@@ -76,7 +78,7 @@ impl WebHandle {
         provider: &str,
         client_id: &str,
         redirect_uri: &str,
-    ) -> Result<(), JsValue> {
+    ) -> std::result::Result<(), JsValue> {
         use auth::{OAuthClient, OAuthProvider};
 
         let provider_enum = match provider {
@@ -103,7 +105,7 @@ impl WebHandle {
     /// Start OAuth login flow
     #[cfg(feature = "auth")]
     #[wasm_bindgen(js_name = login)]
-    pub async fn login(&self) -> Result<String, JsValue> {
+    pub async fn login(&self) -> std::result::Result<String, JsValue> {
         let client = self
             .auth_client
             .as_ref()
@@ -112,13 +114,13 @@ impl WebHandle {
         client
             .initiate_auth()
             .await
-            .map_err(|e| JsValue::from_str(&e.to_string()))
+            .map_err(|e| JsValue::from(e))
     }
 
     /// Handle OAuth callback
     #[cfg(feature = "auth")]
     #[wasm_bindgen(js_name = handleCallback)]
-    pub async fn handle_callback(&self, code: &str) -> Result<JsValue, JsValue> {
+    pub async fn handle_callback(&self, code: &str) -> std::result::Result<JsValue, JsValue> {
         let client = self
             .auth_client
             .as_ref()
@@ -127,7 +129,7 @@ impl WebHandle {
         let session = client
             .handle_callback(code)
             .await
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            .map_err(|e| JsValue::from(e))?;
 
         serde_wasm_bindgen::to_value(&session).map_err(|e| JsValue::from_str(&e.to_string()))
     }
@@ -135,7 +137,7 @@ impl WebHandle {
     /// Logout and clear session
     #[cfg(feature = "auth")]
     #[wasm_bindgen(js_name = logout)]
-    pub async fn logout(&self) -> Result<(), JsValue> {
+    pub async fn logout(&self) -> std::result::Result<(), JsValue> {
         let client = self
             .auth_client
             .as_ref()
@@ -144,7 +146,7 @@ impl WebHandle {
         client
             .logout()
             .await
-            .map_err(|e| JsValue::from_str(&e.to_string()))
+            .map_err(|e| JsValue::from(e))
     }
 
     /// Get library version

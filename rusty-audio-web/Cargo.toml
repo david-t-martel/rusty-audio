@@ -16,8 +16,9 @@ auth = ["oauth2", "reqwest", "base64", "sha2"]
 ai-features = ["rusty-audio-core/ai-features"]
 
 [dependencies]
-# Core library with WASM features
-rusty-audio-core = { path = "../rusty-audio-core", features = ["wasm"] }
+# Core library with both WASM and native features
+# Native features are needed for audio processing even in WASM builds
+rusty-audio-core = { path = "../rusty-audio-core", features = ["wasm", "native"] }
 
 # GUI framework
 eframe = { workspace = true, default-features = false, features = ["wgpu"] }
@@ -79,6 +80,7 @@ serde-wasm-bindgen = "0.6"
 # Utilities
 cfg-if = { workspace = true }
 chrono = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

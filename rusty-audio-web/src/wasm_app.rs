@@ -2,6 +2,8 @@
 //!
 //! Main WASM application logic and eframe integration.
 
+#![cfg(target_arch = "wasm32")]
+
 use eframe::egui;
 use wasm_bindgen::prelude::*;
 
@@ -37,7 +39,7 @@ impl eframe::App for WasmApp {
 /// # Errors
 /// Returns error if app fails to start
 #[wasm_bindgen]
-pub async fn start_app(canvas_id: &str) -> Result<(), JsValue> {
+pub async fn start_app(canvas_id: &str) -> std::result::Result<(), JsValue> {
     crate::init_panic_handler();
     crate::init_logger();
 

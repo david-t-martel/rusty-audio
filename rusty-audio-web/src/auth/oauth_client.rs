@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt;
 use wasm_bindgen::JsValue;
-use web_sys::{window, Window};
 
 /// OAuth error types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,7 +45,14 @@ impl fmt::Display for OAuthError {
 
 impl std::error::Error for OAuthError {}
 
+impl From<OAuthError> for JsValue {
+    fn from(error: OAuthError) -> Self {
+        JsValue::from_str(&error.to_string())
+    }
+}
+
 /// OAuth client with PKCE support
+#[derive(Debug)]
 pub struct OAuthClient {
     provider: OAuthProvider,
     client_id: String,
@@ -196,7 +202,7 @@ impl OAuthClient {
         self.storage
             .store_session(&session)
             .await
-            .map_err(|e| OAuthError::StorageNotFound)?;
+            .map_err(|_e| OAuthError::StorageNotFound)?;
 
         // Clean up temporary storage
         let _ = self.storage.remove_temp("oauth_state").await;
@@ -209,8 +215,8 @@ impl OAuthClient {
     /// Exchange authorization code for access token
     async fn exchange_code_for_token(
         &self,
-        code: &str,
-        verifier: &str,
+        _code: &str,
+        _verifier: &str,
         token_endpoint: &str,
     ) -> Result<TokenResponse, OAuthError> {
         // In a real implementation, this would make an HTTP request
@@ -234,7 +240,7 @@ impl OAuthClient {
     ///
     /// # Errors
     /// Returns error if refresh fails
-    pub async fn refresh_token(&self, refresh_token: &str) -> Result<Session, OAuthError> {
+    pub async fn refresh_token(&self, _refresh_token: &str) -> Result<Session, OAuthError> {
         let config = self.provider.config();
 
         // In a real implementation, this would make an HTTP request

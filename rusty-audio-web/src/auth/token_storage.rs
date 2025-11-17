@@ -5,7 +5,6 @@
 use super::session::Session;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use wasm_bindgen::JsValue;
 use web_sys::{window, Storage};
 
 /// Storage error types
@@ -35,6 +34,7 @@ impl fmt::Display for StorageError {
 impl std::error::Error for StorageError {}
 
 /// Token storage handler
+#[derive(Debug)]
 pub struct TokenStorage {
     storage_key: String,
 }

@@ -18,13 +18,6 @@ incremental = true
 # GitHub Actions workflows using sccache already set this via mozilla-actions/sccache-action
 target-dir = "target"
 
-# Global rustflags for WASM atomics support (required for wasm-bindgen-rayon)
-# These must be set globally to be visible during compile-time feature detection
-[target.'cfg(target_arch = "wasm32")']
-rustflags = [
-    "-C", "target-feature=+atomics,+bulk-memory,+mutable-globals",
-]
-
 # ============================================================================
 # WINDOWS DESKTOP TARGET (Primary - Performance Optimized)
 # ============================================================================
@@ -48,15 +41,21 @@ rustflags = ["-C", "target-cpu=native", "-A", "dead_code"]
 # ============================================================================
 # WASM/PWA TARGET (Web Deployment - Multithreaded with SharedArrayBuffer)
 # ============================================================================
+# CRITICAL: Atomics must be first for wasm-bindgen-rayon build script detection
+# wasm-bindgen-rayon checks for these features at build time before other flags
 
 [target.wasm32-unknown-unknown]
 rustflags = [
-    "--cfg", "getrandom_backend=\"wasm_js\"",
-    "-C", "embed-bitcode=yes",        # Required for wasm-opt
-    "-C", "opt-level=z",              # Optimize for size (critical for web)
-    "-C", "target-feature=+atomics,+bulk-memory,+mutable-globals",  # Enable threading support (must also be in cfg() section above)
+    # MUST BE FIRST: Required for wasm-bindgen-rayon compile-time feature detection
+    "-C", "target-feature=+atomics,+bulk-memory,+mutable-globals",
+    # Threading support
     "-C", "link-arg=--shared-memory",  # Enable SharedArrayBuffer
     "-C", "link-arg=--max-memory=4294967296",  # 4GB max memory for threading
+    # Build optimization
+    "-C", "embed-bitcode=yes",        # Required for wasm-opt
+    "-C", "opt-level=z",              # Optimize for size (critical for web)
+    # WASM-specific configuration
+    "--cfg", "getrandom_backend=\"wasm_js\"",
     # LTO disabled for cdylib compatibility
 ]
 

@@ -20,7 +20,12 @@
       "Bash(timeout 120 bash:*)",
       "Bash(git submodule:*)",
       "Bash(git restore:*)",
-      "Bash(git clean:*)"
+      "Bash(git clean:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(set \"RUSTFLAGS=-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-arg=--shared-memory -C link-arg=--max-memory=4294967296\")",
+      "Bash(set \"RUSTC_BOOTSTRAP=1\")"
     ],
     "deny": [],
     "ask": []
