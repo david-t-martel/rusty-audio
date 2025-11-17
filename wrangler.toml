@@ -1,0 +1,105 @@
+# Wrangler Configuration for Rusty Audio WASM Application
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "rusty-audio"
+compatibility_date = "2024-11-01"
+main = "worker.js"
+
+# Workers Sites configuration for static assets
+[site]
+bucket = "./dist"
+
+# KV namespace for feature flags and configuration
+[[kv_namespaces]]
+binding = "FEATURES"
+id = "local-features-kv"
+preview_id = "local-features-kv-preview"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "local"
+ENABLE_PERFORMANCE_MONITORING = "true"
+ENABLE_DEBUG_LOGGING = "true"
+MAX_WORKER_THREADS = "8"
+
+# Development configuration
+[dev]
+ip = "127.0.0.1"
+port = 8787
+local_protocol = "http"
+upstream_protocol = "https"
+
+# Custom headers for SharedArrayBuffer support (multithreading)
+[[dev.headers]]
+name = "Cross-Origin-Opener-Policy"
+value = "same-origin"
+
+[[dev.headers]]
+name = "Cross-Origin-Embedder-Policy"
+value = "require-corp"
+
+[[dev.headers]]
+name = "Cross-Origin-Resource-Policy"
+value = "cross-origin"
+
+[[dev.headers]]
+name = "X-Content-Type-Options"
+value = "nosniff"
+
+[[dev.headers]]
+name = "X-Frame-Options"
+value = "DENY"
+
+[[dev.headers]]
+name = "Referrer-Policy"
+value = "no-referrer"
+
+[[dev.headers]]
+name = "Permissions-Policy"
+value = "autoplay=(self), microphone=(self), camera=(), geolocation=(), interest-cohort=()"
+
+# Cache control for WASM files
+[[dev.headers]]
+name = "Cache-Control"
+value = "public, max-age=3600"
+
+# Build configuration
+[build]
+command = "npm run build:wasm"
+watch_dirs = ["src"]
+
+# Miniflare-specific configuration
+[miniflare]
+kv_persist = true
+cache_persist = true
+d1_persist = true
+r2_persist = true
+
+# Module configuration for WASM
+[module]
+# Enable module workers
+type = "javascript"
+
+# Route configuration (for production deployment)
+routes = [
+  { pattern = "rusty-audio.example.com/*", zone_name = "example.com" }
+]
+
+# Compatibility flags for latest features
+compatibility_flags = [
+  "nodejs_compat",
+  "streams_enable_constructors"
+]
+
+# Environment-specific overrides
+[env.production]
+vars = { ENVIRONMENT = "production", ENABLE_DEBUG_LOGGING = "false" }
+routes = [
+  { pattern = "rusty-audio.example.com/*", zone_name = "example.com" }
+]
+
+[env.staging]
+vars = { ENVIRONMENT = "staging", ENABLE_DEBUG_LOGGING = "true" }
+
+[env.development]
+vars = { ENVIRONMENT = "development", ENABLE_DEBUG_LOGGING = "true" }

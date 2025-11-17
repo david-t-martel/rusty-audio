@@ -1,0 +1,71 @@
+# Docker ignore file for Rusty Audio
+# Excludes unnecessary files from Docker build context
+
+# Build artifacts
+target/
+dist/
+*.AppImage
+*.deb
+*.rpm
+*.msi
+*.dmg
+*.zip
+*.tar.gz
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitmodules
+.github/
+
+# Documentation
+*.md
+!CLAUDE.md
+docs/
+
+# Test artifacts
+coverage/
+*.profraw
+*.profdata
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Temporary files
+tmp/
+temp/
+
+# Cache
+.cache/
+sccache/
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Rust specific
+**/*.rs.bk
+*.pdb
+
+# Benchmark results
+criterion/
+
+# Lock files (keep Cargo.lock)
+!Cargo.lock
+package-lock.json
+yarn.lock
+
+# Scripts (exclude deployment scripts)
+scripts/

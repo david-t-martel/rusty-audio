@@ -5,17 +5,43 @@
   Permissions-Policy: autoplay=(self), microphone=(self)
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; media-src 'self' blob:; worker-src 'self'; object-src 'none'; frame-ancestors 'none'
+  Cross-Origin-Resource-Policy: cross-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; media-src 'self' blob:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; frame-ancestors 'none'
 
 /service-worker.js
   Cache-Control: no-store
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
 
 /manifest.webmanifest
   Content-Type: application/manifest+json; charset=utf-8
+  Cross-Origin-Resource-Policy: cross-origin
 
 /rusty-audio_bg.wasm
   Content-Type: application/wasm
-  Cache-Control: public, max-age=31536000
+  Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: cross-origin
+
+/rusty-audio.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: cross-origin
+
+# WASM worker files (wasm-bindgen generates these)
+/*.worker.js
+  Content-Type: application/javascript; charset=utf-8
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: cross-origin
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.worker.wasm
+  Content-Type: application/wasm
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: cross-origin
+  Cache-Control: public, max-age=31536000, immutable
 
 /icons/*
   Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Resource-Policy: cross-origin

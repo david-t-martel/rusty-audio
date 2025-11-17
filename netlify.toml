@@ -1,0 +1,136 @@
+# Netlify configuration for Rusty Audio - Multithreaded WASM PWA
+# CRITICAL: Cross-origin isolation headers are required for SharedArrayBuffer support
+
+[build]
+  # Build command
+  command = "trunk build --release"
+
+  # Output directory
+  publish = "dist"
+
+  # Environment variables for build
+  [build.environment]
+    RUSTFLAGS = "-C target-feature=+atomics,+bulk-memory,+mutable-globals"
+    NODE_VERSION = "18"
+
+# Global headers for all routes - CRITICAL for multithreaded WASM
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Cross-origin isolation headers (REQUIRED for SharedArrayBuffer)
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+    Cross-Origin-Resource-Policy = "cross-origin"
+
+    # Security headers
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "autoplay=(self), microphone=(self)"
+
+    # Content Security Policy
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; media-src 'self' blob:; worker-src 'self'; object-src 'none'; frame-ancestors 'none'"
+
+# WASM files - specific caching and content type
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+
+# JavaScript files - aggressive caching with proper headers
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Cache-Control = "public, max-age=31536000, immutable"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+
+# Service worker - must not be cached
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Cache-Control = "no-store, no-cache, must-revalidate"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+
+# Web manifest
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=3600"
+
+# Icons and images - long-term caching
+[[headers]]
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# HTML files - no caching (ensure updates are picked up)
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+
+# Redirect rules for SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+  # Don't redirect if file exists
+  conditions = {Role = [""], Country = [""]}
+
+# Plugin configuration (optional but recommended)
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+
+  # Lighthouse configuration
+  [plugins.inputs.thresholds]
+    performance = 0.8
+    accessibility = 0.9
+    best-practices = 0.8
+    seo = 0.8
+    pwa = 0.9
+
+# Build plugins for optimization
+[[plugins]]
+  package = "netlify-plugin-cache"
+
+  # Cache Rust build artifacts between deploys
+  [plugins.inputs]
+    paths = [
+      "target/wasm32-unknown-unknown",
+      "~/.cargo/registry",
+      "~/.cargo/git"
+    ]
+
+# Context-specific configurations
+[context.production]
+  command = "trunk build --release"
+
+  [context.production.environment]
+    CARGO_PROFILE_RELEASE_OPT_LEVEL = "z"
+    CARGO_PROFILE_RELEASE_LTO = "false"
+
+[context.deploy-preview]
+  command = "trunk build --release"
+
+[context.branch-deploy]
+  command = "trunk build --release"
+
+# Development context
+[dev]
+  command = "trunk serve --release"
+  port = 8080
+  targetPort = 8080
+  publish = "dist"
+  autoLaunch = true

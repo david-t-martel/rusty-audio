@@ -1,0 +1,248 @@
+# This file defines the project metadata and dependencies for our Rust application.
+# Cargo, Rust's build tool and package manager, reads this file to understand
+# how to compile and run the project.
+
+[package]
+name = "rusty-audio"
+version = "0.1.0"
+edition = "2021"
+description = "A car-stereo-style audio player built with Rust and egui."
+autobins = false  # Disable automatic binary discovery
+
+# Library configuration for WASM builds
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# Binary configuration for native desktop builds only
+# This binary is gated via required-features to prevent WASM build failures
+# (main() function is cfg-gated with #[cfg(not(target_arch = "wasm32"))])
+[[bin]]
+name = "rusty-audio_native"
+path = "src/main.rs"
+required-features = ["native-binary"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lints.rust]
+# Block panic-inducing constructs for production robustness
+# Note: These are warnings by default during development, but should be errors in release
+unsafe_code = "warn"                    # Warn on unsafe code blocks
+
+[lints.clippy]
+# Panic-related lints
+unwrap_used = "warn"                    # Warn on .unwrap() calls
+expect_used = "warn"                    # Warn on .expect() calls
+panic = "warn"                          # Warn on panic! macro usage
+indexing_slicing = "warn"               # Warn on index operations that can panic
+unreachable = "warn"                    # Warn on unreachable!() macro
+todo = "warn"                           # Warn on todo!() macro
+unimplemented = "warn"                  # Warn on unimplemented!() macro
+
+# Additional safety lints
+missing_errors_doc = "warn"             # Warn on missing error documentation
+missing_panics_doc = "warn"             # Warn on undocumented panics
+unwrap_in_result = "warn"               # Warn on unwrap in Result-returning functions
+panic_in_result_fn = "warn"             # Warn on panic in Result-returning functions
+
+# Performance lints
+inefficient_to_string = "warn"          # Warn on inefficient string conversions
+large_enum_variant = "warn"             # Warn on large enum variants
+large_types_passed_by_value = "warn"    # Warn on large types passed by value
+
+[features]
+default = ["audio-optimizations", "native-binary"]
+native-binary = []        # Gates the native binary target (disabled for WASM builds)
+audio-optimizations = []  # Enable real-time audio thread priority and CPU pinning
+property-testing = ["proptest", "quickcheck"]  # Enable property-based testing
+
+[dependencies]
+eframe = { version = "0.33.0", default-features = false, features = ["wgpu"] }
+egui = "0.33.0"
+egui_dock = "0.18"
+serde = { version = "1.0", features = ["derive"] }
+cfg-if = "1.0"
+log = "0.4"
+parking_lot = "0.12.3"
+lofty = "0.22.4"
+image = "0.25.8"
+# catppuccin-egui = { version = "5.6.0", default-features = false }  # TODO: Re-enable when egui 0.33 support is added
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+num_cpus = "1.16"
+rand = "0.8"
+rustfft = "6.0"
+num-complex = "0.4.4"
+approx = "0.5.1"
+lru = "0.12"
+rayon = "1.10"
+
+# Performance optimizations
+realfft = "3.3"        # Faster FFT for spectrum analysis
+ndarray = "0.15"       # N-dimensional arrays for ML/AI
+
+# Additional utilities for AI
+statrs = "0.16"
+
+# Security dependencies
+toml = "0.8"
+dirs = "5.0"
+chrono = "0.4"
+
+[dependencies.proptest]
+version = "1.0"
+optional = true
+
+[dependencies.quickcheck]
+version = "1.0"
+optional = true
+
+[dev-dependencies]
+# Testing property-based testing frameworks
+proptest = "1.0"
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# Testing frameworks
+bytes = "1.0"
+rstest = "0.18"
+test-case = "3.2"
+serial_test = "3.0"
+tokio-test = "0.4"
+tokio = { version = "1.0", features = ["full"] }
+
+# CLI and tooling
+clap = { version = "4.0", features = ["derive"] }
+
+# UI testing (egui 0.33 compatible)
+egui_kittest = "0.33.1"
+
+# WASM/PWA localhost integration testing
+reqwest = { version = "0.11", features = ["blocking"] }
+
+# Profiling and performance analysis
+dhat = "0.3"           # Heap profiler
+# Note: cargo-flamegraph installed via: cargo install flamegraph
+# Usage: cargo flamegraph --bench <benchmark_name>
+
+[profile.release]
+opt-level = 3
+lto = "fat"              # Fat LTO for maximum optimization
+codegen-units = 1        # Single codegen unit for best optimization
+panic = "abort"          # Smaller binary, faster panic
+strip = true             # Strip debug symbols
+overflow-checks = false  # Disable overflow checks in release
+
+[profile.bench]
+inherits = "release"
+
+# WASM-specific dev profile with optimizations but no LTO
+# Note: LTO is controlled via .cargo/config.toml wasm-release profile
+[profile.wasm-release]
+inherits = "release"
+lto = false              # Disable LTO for WASM cdylib compatibility
+
+# Profile-Guided Optimization (PGO) profiles
+[profile.pgo-instrument]
+inherits = "release"
+# Enable instrumentation for PGO data collection
+
+[profile.pgo-use]
+inherits = "release"
+# Use PGO data for optimized build
+
+[[bench]]
+name = "audio_benchmarks"
+harness = false
+
+[[bench]]
+name = "performance_benchmarks"
+harness = false
+
+[[bench]]
+name = "simd_benchmarks"
+harness = false
+
+[[bench]]
+name = "optimization_benchmarks"
+harness = false
+
+[[example]]
+name = "mathematical_testing_demo"
+path = "examples/mathematical_testing_demo.rs"
+
+
+# Native-only dependencies (desktop builds)
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Async runtime for non-blocking file I/O (native only)
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+# File I/O utilities (native only)
+memmap2 = "0.9"        # Memory-mapped file I/O
+tempfile = "3.8"       # Temporary file handling
+# File dialogs and audio
+rfd = "0.14.1"                                       # File dialogs
+web-audio-api = { version = "1.2.0", features = ["default"] }  # Audio processing
+cpal = { version = "0.15", features = [] }           # Cross-platform audio I/O (ASIO added in Windows section)
+rodio = { version = "0.17", default-features = false, features = ["wav", "vorbis", "flac", "mp3"] }
+symphonia = { version = "0.5", features = ["all", "opt-simd"] }  # Professional audio decoding
+rubato = "0.15"                                      # Sample rate conversion
+midir = "0.9"                                        # Cross-platform MIDI I/O
+wmidi = "4.0"                                        # MIDI message parsing
+hound = "3.5"                                         # WAV file I/O for recording
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_System_Threading",
+    "Win32_Foundation",
+    "Win32_Media",
+    "Win32_Media_Audio",          # Audio APIs
+    "Win32_System_SystemServices", # MMCSS APIs
+] }
+# sys-info = "0.9"  # DISABLED: Requires Windows SDK headers for cross-compilation
+# ASIO support for professional audio interfaces
+cpal = { version = "0.15", features = ["asio"] }  # Override with ASIO support on Windows
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# WASM-only dependencies (web builds)
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Explicitly enable wgpu with webgpu backend for WASM
+wgpu = { version = "27", features = ["webgpu", "webgl"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+# Enable getrandom WASM support - specify both versions explicitly
+# getrandom 0.2.x needs "js" feature
+# getrandom 0.3.x needs "wasm_js" feature
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+web-sys = { version = "0.3", features = [
+    "AudioContext",
+    "AudioDestinationNode",
+    "AudioNode",
+    "AudioParam",
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "BaseAudioContext",
+    "Window",
+    "Document",
+    "HtmlCanvasElement",
+    "Navigator",
+    "Performance",
+    "console",
+] }
+console_error_panic_hook = "0.1"
+console_log = "1"
+
+# WASM threading support
+# Note: Requires SharedArrayBuffer and atomics support in browser
+# Configure RUSTFLAGS in .cargo/config.toml for atomics and bulk-memory
+wasm-bindgen-rayon = "1.2"
+
+# WASM panic handler dependencies
+once_cell = "1.19"

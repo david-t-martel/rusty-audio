@@ -1,0 +1,68 @@
+# Cloudflare Pages Configuration for Multithreaded WASM Application
+# https://developers.cloudflare.com/pages/
+
+[build]
+command = "trunk build --release"
+cwd = ""
+destination = "dist"
+
+[build.environment]
+RUSTFLAGS = "-C target-feature=+atomics,+bulk-memory,+mutable-globals"
+RUST_VERSION = "stable"
+CARGO_HOME = "/opt/buildhome/.cargo"
+
+[build.processing]
+css = true
+js = true
+html = true
+minify = true
+images = true
+
+[build.processing.images]
+quality = 85
+lossless = false
+format = "auto"
+
+# Environment-specific configurations
+[env.production]
+NODE_VERSION = "18"
+RUST_LOG = "warn"
+
+[env.preview]
+NODE_VERSION = "18"  
+RUST_LOG = "info"
+
+# Custom headers for cross-origin isolation
+[[headers]]
+for = "/*"
+  [headers.values]
+  Cross-Origin-Opener-Policy = "same-origin"
+  Cross-Origin-Embedder-Policy = "require-corp"
+  Cross-Origin-Resource-Policy = "cross-origin"
+  X-Content-Type-Options = "nosniff"
+  X-Frame-Options = "DENY"
+  Referrer-Policy = "no-referrer"
+  Permissions-Policy = "autoplay=(self), microphone=(self)"
+
+[[headers]]
+for = "/*.wasm"
+  [headers.values]
+  Content-Type = "application/wasm"
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/*.js"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/service-worker.js"
+  [headers.values]
+  Cache-Control = "no-store, no-cache, must-revalidate"
+
+# Redirects for SPA
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+force = false

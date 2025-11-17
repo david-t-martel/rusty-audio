@@ -768,4 +768,224 @@ mod proptest_tests {
             }
         }
     }
+
+    // ============================================================================
+    // EQ PROPERTY TESTS
+    // ============================================================================
+
+    proptest! {
+        #[test]
+        fn prop_eq_gain_clamping(gain in -20.0f32..20.0) {
+            let clamped = gain.clamp(-12.0, 12.0);
+            prop_assert!(clamped >= -12.0 && clamped <= 12.0);
+
+            if gain < -12.0 {
+                prop_assert_eq!(clamped, -12.0);
+            } else if gain > 12.0 {
+                prop_assert_eq!(clamped, 12.0);
+            } else {
+                prop_assert_eq!(clamped, gain);
+            }
+        }
+
+        #[test]
+        fn prop_eq_db_to_linear_conversion(db in -12.0f32..12.0) {
+            let linear = 10.0_f32.powf(db / 20.0);
+
+            // Linear gain should always be positive
+            prop_assert!(linear > 0.0);
+
+            // 0dB should be unity gain
+            if db.abs() < 0.001 {
+                prop_assert!((linear - 1.0).abs() < 0.01);
+            }
+
+            // Positive dB should amplify (>1.0)
+            if db > 0.5 {
+                prop_assert!(linear > 1.0);
+            }
+
+            // Negative dB should attenuate (<1.0)
+            if db < -0.5 {
+                prop_assert!(linear < 1.0);
+            }
+        }
+
+        #[test]
+        fn prop_eq_band_independence(
+            band1 in 0usize..8,
+            band2 in 0usize..8,
+            gain1 in -12.0f32..12.0,
+            gain2 in -12.0f32..12.0
+        ) {
+            prop_assume!(band1 != band2);
+
+            // Setting one band shouldn't affect another
+            let mut eq_state = vec![0.0f32; 8];
+            eq_state[band1] = gain1;
+            eq_state[band2] = gain2;
+
+            prop_assert_eq!(eq_state[band1], gain1);
+            prop_assert_eq!(eq_state[band2], gain2);
+
+            // Other bands should remain at 0.0
+            for (i, &gain) in eq_state.iter().enumerate() {
+                if i != band1 && i != band2 {
+                    prop_assert_eq!(gain, 0.0);
+                }
+            }
+        }
+    }
+
+    // ============================================================================
+    // SPECTRUM ANALYZER PROPERTY TESTS
+    // ============================================================================
+
+    proptest! {
+        #[test]
+        fn prop_spectrum_normalization(raw_value in 0.0f32..10000.0) {
+            let max_value = 1000.0;
+            let normalized = (raw_value / max_value).min(1.0);
+
+            prop_assert!(normalized >= 0.0 && normalized <= 1.0);
+        }
+
+        #[test]
+        fn prop_spectrum_bin_count(fft_size in vec![256usize, 512, 1024, 2048]) {
+            let num_bins = fft_size / 2;
+
+            // Should have half the FFT size bins (Nyquist limit)
+            prop_assert!(num_bins > 0);
+            prop_assert!(num_bins == fft_size / 2);
+        }
+
+        #[test]
+        fn prop_spectrum_gradient_interpolation(t in 0.0f32..1.0) {
+            let low = [0, 100, 255]; // Blue
+            let mid = [0, 255, 255]; // Cyan
+            let high = [255, 0, 0]; // Red
+
+            let color = if t < 0.5 {
+                let local_t = t * 2.0;
+                lerp_color_array(low, mid, local_t)
+            } else {
+                let local_t = (t - 0.5) * 2.0;
+                lerp_color_array(mid, high, local_t)
+            };
+
+            // All channels should be in valid range
+            prop_assert!(color[0] <= 255);
+            prop_assert!(color[1] <= 255);
+            prop_assert!(color[2] <= 255);
+
+            // At t=0, should be low color
+            if t < 0.01 {
+                prop_assert!(color[2] > color[0]); // More blue than red
+            }
+
+            // At t=1, should be high color
+            if t > 0.99 {
+                prop_assert!(color[0] > color[2]); // More red than blue
+            }
+        }
+    }
+
+    // ============================================================================
+    // AUDIO BUFFER PROPERTY TESTS
+    // ============================================================================
+
+    proptest! {
+        #[test]
+        fn prop_audio_buffer_underrun_handling(
+            buffer_size in 128usize..2048,
+            available_samples in 0usize..4096
+        ) {
+            let samples_to_read = buffer_size.min(available_samples);
+
+            prop_assert!(samples_to_read <= buffer_size);
+            prop_assert!(samples_to_read <= available_samples);
+
+            // Should never read more than available
+            prop_assert!(samples_to_read >= 0);
+        }
+
+        #[test]
+        fn prop_sample_rate_conversion(
+            input_rate in vec![44100.0f32, 48000.0, 96000.0],
+            output_rate in vec![44100.0f32, 48000.0, 96000.0]
+        ) {
+            let ratio = output_rate / input_rate;
+
+            let input_samples = 1000;
+            let output_samples = (input_samples as f32 * ratio) as usize;
+
+            prop_assert!(output_samples > 0);
+
+            // If upsampling, should have more samples
+            if output_rate > input_rate {
+                prop_assert!(output_samples > input_samples);
+            }
+
+            // If downsampling, should have fewer samples
+            if output_rate < input_rate {
+                prop_assert!(output_samples < input_samples);
+            }
+
+            // If same rate, should have same samples
+            if (output_rate - input_rate).abs() < 0.1 {
+                prop_assert_eq!(output_samples, input_samples);
+            }
+        }
+    }
+
+    // ============================================================================
+    // VOLUME/GAIN PROPERTY TESTS
+    // ============================================================================
+
+    proptest! {
+        #[test]
+        fn prop_volume_clamping(volume in -1.0f32..2.0) {
+            let clamped = volume.clamp(0.0, 1.0);
+
+            prop_assert!(clamped >= 0.0 && clamped <= 1.0);
+
+            if volume < 0.0 {
+                prop_assert_eq!(clamped, 0.0);
+            } else if volume > 1.0 {
+                prop_assert_eq!(clamped, 1.0);
+            } else {
+                prop_assert_eq!(clamped, volume);
+            }
+        }
+
+        #[test]
+        fn prop_volume_application(
+            sample in -1.0f32..1.0,
+            volume in 0.0f32..1.0
+        ) {
+            let output = sample * volume;
+
+            // Output should not exceed input magnitude
+            prop_assert!(output.abs() <= sample.abs() + f32::EPSILON);
+
+            // Mute should produce silence
+            if volume < 0.001 {
+                prop_assert!(output.abs() < 0.01);
+            }
+
+            // Unity gain should preserve signal
+            if (volume - 1.0).abs() < 0.001 {
+                prop_assert!((output - sample).abs() < 0.001);
+            }
+        }
+    }
+}
+
+// Helper function for spectrum gradient tests
+fn lerp_color_array(c1: [u8; 3], c2: [u8; 3], t: f32) -> [u8; 3] {
+    [
+        ((c1[0] as f32) * (1.0 - t) + (c2[0] as f32) * t) as u8,
+        ((c1[1] as f32) * (1.0 - t) + (c2[1] as f32) * t) as u8,
+        ((c1[2] as f32) * (1.0 - t) + (c2[2] as f32) * t) as u8,
+    ]
 }

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authenticating - Rusty Audio</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: white;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 400px;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 20px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    p {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 20px;
+    }
+
+    .error-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .error-message {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .button {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 12px 24px;
+      background: white;
+      color: #667eea;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: transform 0.2s;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+    }
+
+    .steps {
+      margin-top: 20px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .step {
+      margin: 8px 0;
+      padding: 8px;
+      border-radius: 4px;
+      transition: all 0.3s;
+    }
+
+    .step.active {
+      background: rgba(255, 255, 255, 0.1);
+      opacity: 1;
+    }
+
+    .step.complete {
+      opacity: 0.5;
+    }
+
+    .checkmark {
+      display: inline-block;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loading-state">
+      <div class="spinner"></div>
+      <h1>Completing sign-in...</h1>
+      <p>Please wait while we authenticate your account</p>
+
+      <div class="steps">
+        <div class="step" id="step-1">
+          <span class="checkmark">⏳</span>
+          <span>Verifying credentials</span>
+        </div>
+        <div class="step" id="step-2">
+          <span class="checkmark">⏳</span>
+          <span>Exchanging tokens</span>
+        </div>
+        <div class="step" id="step-3">
+          <span class="checkmark">⏳</span>
+          <span>Setting up session</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="error-state" style="display: none;">
+      <div class="error">
+        <div class="error-title">Authentication Failed</div>
+        <div class="error-message" id="error-message"></div>
+      </div>
+      <a href="/" class="button">Return to Sign In</a>
+    </div>
+  </div>
+
+  <script>
+    // Parse URL parameters
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    const error = params.get('error');
+    const errorDescription = params.get('error_description');
+
+    // Update step status
+    function updateStep(stepNumber, status) {
+      const step = document.getElementById(`step-${stepNumber}`);
+      if (!step) return;
+
+      const checkmark = step.querySelector('.checkmark');
+
+      if (status === 'active') {
+        step.classList.add('active');
+        step.classList.remove('complete');
+        checkmark.textContent = '⏳';
+      } else if (status === 'complete') {
+        step.classList.add('complete');
+        step.classList.remove('active');
+        checkmark.textContent = '✓';
+      } else if (status === 'error') {
+        checkmark.textContent = '✗';
+      }
+    }
+
+    // Show error
+    function showError(message) {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
+      document.getElementById('error-message').textContent = message;
+    }
+
+    // Process OAuth callback
+    async function processCallback() {
+      try {
+        // Step 1: Verify credentials
+        updateStep(1, 'active');
+
+        // Check for errors from OAuth provider
+        if (error) {
+          throw new Error(errorDescription || error);
+        }
+
+        // Verify we have required parameters
+        if (!code) {
+          throw new Error('Missing authorization code');
+        }
+
+        if (!state) {
+          throw new Error('Missing state parameter');
+        }
+
+        // Verify state (CSRF protection)
+        const savedState = sessionStorage.getItem('oauth_state');
+        if (state !== savedState) {
+          throw new Error('Invalid state parameter - possible security issue');
+        }
+
+        updateStep(1, 'complete');
+
+        // Step 2: Exchange tokens
+        updateStep(2, 'active');
+
+        // If opened as popup, send to parent window
+        if (window.opener && window.opener !== window) {
+          window.opener.postMessage(
+            { code, state },
+            window.location.origin
+          );
+
+          // Show success and close
+          updateStep(2, 'complete');
+          updateStep(3, 'complete');
+
+          setTimeout(() => {
+            window.close();
+          }, 1000);
+
+          return;
+        }
+
+        // Not a popup - handle directly
+        // (This would require importing auth-manager.js)
+        // For now, redirect to landing page with parameters
+        window.location.href = `/?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+
+      } catch (err) {
+        console.error('OAuth callback error:', err);
+
+        // Update steps to show error
+        for (let i = 1; i <= 3; i++) {
+          updateStep(i, 'error');
+        }
+
+        // Show error message
+        showError(err.message || 'An unexpected error occurred during authentication');
+
+        // If popup, send error to parent
+        if (window.opener && window.opener !== window) {
+          window.opener.postMessage(
+            { error: err.message },
+            window.location.origin
+          );
+
+          setTimeout(() => {
+            window.close();
+          }, 3000);
+        }
+      }
+    }
+
+    // Process callback on load
+    window.addEventListener('load', processCallback);
+
+    // Handle popup closer message
+    window.addEventListener('message', (event) => {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data === 'close') {
+        window.close();
+      }
+    });
+
+    // Auto-close if popup and no activity
+    if (window.opener && window.opener !== window) {
+      setTimeout(() => {
+        if (!document.getElementById('error-state').style.display) {
+          window.close();
+        }
+      }, 10000);
+    }
+  </script>
+</body>
+</html>

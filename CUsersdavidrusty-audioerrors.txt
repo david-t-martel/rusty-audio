@@ -1,0 +1,114 @@
+    Building [=======================> ] 444/445: rusty-audio_native(bin)     error[E0432]: unresolved import `web_audio_api::context::AudioBuffer`
+  --> src\main.rs:15:44
+   |
+15 | use web_audio_api::context::{AudioContext, AudioBuffer, BaseAudioContext};
+--
+error[E0609]: no field `eq_bands` on type `&mut AudioPlayerApp`
+   --> src\panel_implementation.rs:149:54
+    |
+149 | ...                   if let Some(band) = self.eq_bands.get(i) {
+--
+error[E0609]: no field `eq_bands` on type `&mut AudioPlayerApp`
+   --> src\panel_implementation.rs:161:22
+    |
+161 |                     .eq_bands
+--
+error[E0609]: no field `audio_context` on type `&mut AudioPlayerApp`
+   --> src\panel_implementation.rs:184:26
+    |
+184 |                     self.audio_context.sample_rate()
+--
+error[E0609]: no field `spectrum` on type `&mut AudioPlayerApp`
+   --> src\panel_implementation.rs:200:65
+    |
+200 |                 ui.label(format!("Spectrum Size: {} bins", self.spectrum.len()));
+--
+error[E0609]: no field `gain_node` on type `&mut AudioPlayerApp`
+   --> src\panel_implementation.rs:225:26
+    |
+225 |                     self.gain_node.gain().set_value(self.volume);
+--
+error[E0599]: no method named `set_waveform` found for struct `rusty_audio::ui::ProgressBar` in the current scope
+   --> src\main.rs:486:18
+    |
+485 | /             self.progress_bar
+--
+error[E0308]: mismatched types
+   --> src\main.rs:506:41
+    |
+506 |         self.spectrum_visualizer.update(spectrum_data);
+--
+error[E0308]: mismatched types
+   --> src\main.rs:520:25
+    |
+518 |                     self.recording_panel.log_generated_take(
+--
+error[E0308]: mismatched types
+   --> src\main.rs:531:25
+    |
+530 |                     if let Err(error) = self.audio_engine.audition_buffer(
+--
+error[E0609]: no field `spectrum` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1090:31
+     |
+1090 |         let num_points = self.spectrum.len();
+--
+error[E0609]: no field `spectrum` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1094:30
+     |
+1094 |         for (i, val) in self.spectrum.iter().enumerate() {
+--
+error[E0609]: no field `source_node` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1277:54
+     |
+1277 |                 if let Some(source_node) = &mut self.source_node {
+--
+error[E0609]: no field `source_node` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1290:54
+     |
+1290 |                 if let Some(source_node) = &mut self.source_node {
+--
+error[E0609]: no field `audio_context` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1293:47
+     |
+1293 |                     source_node.start_at(self.audio_context.current_time() + new_pos.as_secs_f64());
+--
+error[E0609]: no field `source_node` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1298:54
+     |
+1298 |                 if let Some(source_node) = &mut self.source_node {
+--
+error[E0609]: no field `audio_context` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1301:47
+     |
+1301 |                     source_node.start_at(self.audio_context.current_time() + new_pos.as_secs_f64());
+--
+error[E0308]: mismatched types
+    --> src\main.rs:1339:53
+     |
+1339 |             match self.audio_engine.load_audio_file(path) {
+--
+error[E0599]: no method named `duration` found for struct `Duration` in the current scope
+    --> src\main.rs:1344:74
+     |
+1344 |                     self.total_duration = Duration::from_secs_f64(buffer.duration());
+--
+error[E0609]: no field `eq_bands` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1396:18
+     |
+1396 |             self.eq_bands[i].gain().set_value(0.0);
+--
+error[E0609]: no field `source_node` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1492:14
+     |
+1492 |         self.source_node = None; // Clear source reference
+--
+error[E0609]: no field `audio_context` on type `&mut AudioPlayerApp`
+    --> src\main.rs:1525:40
+     |
+1525 |             .create_audio_buffer(&self.audio_context)
+--
+error[E0061]: this method takes 3 arguments but 1 argument was supplied
+    --> src\main.rs:1536:37
+     |
+1536 |             match self.audio_engine.load_buffer(buffer) {

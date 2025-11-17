@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Rusty Audio Frontend Test Suite</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+
+    .test-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .test-section h2 {
+      margin-top: 0;
+      color: #764ba2;
+      font-size: 18px;
+    }
+
+    .test-item {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.03);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .test-item .status {
+      font-weight: bold;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .test-item .status.pass {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .test-item .status.fail {
+      background: #f44336;
+      color: white;
+    }
+
+    .test-item .status.warn {
+      background: #ff9800;
+      color: white;
+    }
+
+    .test-item .status.info {
+      background: #2196F3;
+      color: white;
+    }
+
+    .test-details {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-left: 10px;
+    }
+
+    button {
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      margin: 5px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .code-block {
+      background: #000;
+      color: #0f0;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+
+    #test-log {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .log-time {
+      color: #888;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Rusty Audio Frontend Test Suite</h1>
+  <p>Comprehensive testing for multithreaded WASM frontend functionality</p>
+
+  <!-- Feature Detection Tests -->
+  <div class="test-section">
+    <h2>1. Feature Detection</h2>
+    <div id="feature-tests"></div>
+  </div>
+
+  <!-- Worker Pool Tests -->
+  <div class="test-section">
+    <h2>2. Worker Pool Management</h2>
+    <div id="worker-tests"></div>
+    <button onclick="testWorkerPool()">Test Worker Pool</button>
+    <button onclick="testWorkerRecovery()">Test Error Recovery</button>
+  </div>
+
+  <!-- Service Worker Tests -->
+  <div class="test-section">
+    <h2>3. Service Worker</h2>
+    <div id="sw-tests"></div>
+    <button onclick="testServiceWorker()">Test Service Worker</button>
+    <button onclick="clearCache()">Clear Cache</button>
+    <button onclick="getCacheSize()">Get Cache Size</button>
+  </div>
+
+  <!-- Performance Tests -->
+  <div class="test-section">
+    <h2>4. Performance Monitoring</h2>
+    <div id="perf-tests"></div>
+    <button onclick="startPerformanceTest()">Start Performance Test</button>
+    <button onclick="simulateLoad()">Simulate Load</button>
+  </div>
+
+  <!-- WASM Loading Tests -->
+  <div class="test-section">
+    <h2>5. WASM Loading</h2>
+    <div id="wasm-tests"></div>
+    <button onclick="testWasmLoading()">Test WASM Loading</button>
+  </div>
+
+  <!-- Test Log -->
+  <div class="test-section">
+    <h2>Test Log</h2>
+    <div id="test-log" class="code-block"></div>
+    <button onclick="clearLog()">Clear Log</button>
+  </div>
+
+  <script src="/static/wasm-worker-init.js"></script>
+
+  <script>
+    // Test utilities
+    const testLog = [];
+
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = { timestamp, message, type };
+      testLog.push(entry);
+
+      const logElement = document.getElementById('test-log');
+      const entryElement = document.createElement('div');
+      entryElement.className = 'log-entry';
+      entryElement.innerHTML = `<span class="log-time">${timestamp}</span>${message}`;
+      logElement.appendChild(entryElement);
+      logElement.scrollTop = logElement.scrollHeight;
+
+      console.log(`[Test] ${message}`);
+    }
+
+    function clearLog() {
+      testLog.length = 0;
+      document.getElementById('test-log').innerHTML = '';
+    }
+
+    function addTestResult(sectionId, label, status, details = '') {
+      const section = document.getElementById(sectionId);
+      const item = document.createElement('div');
+      item.className = 'test-item';
+
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = label;
+
+      const statusSpan = document.createElement('span');
+      statusSpan.className = `status ${status}`;
+      statusSpan.textContent = status.toUpperCase();
+
+      const detailsSpan = document.createElement('span');
+      detailsSpan.className = 'test-details';
+      detailsSpan.textContent = details;
+
+      const rightSide = document.createElement('div');
+      rightSide.appendChild(detailsSpan);
+      rightSide.appendChild(statusSpan);
+
+      item.appendChild(labelSpan);
+      item.appendChild(rightSide);
+      section.appendChild(item);
+    }
+
+    // Feature Detection Tests
+    function runFeatureTests() {
+      log('Running feature detection tests...');
+
+      const tests = [
+        {
+          label: 'WebAssembly Support',
+          test: () => typeof WebAssembly !== 'undefined',
+          critical: true
+        },
+        {
+          label: 'SharedArrayBuffer Support',
+          test: () => typeof SharedArrayBuffer !== 'undefined',
+          critical: false
+        },
+        {
+          label: 'Atomics Support',
+          test: () => typeof Atomics !== 'undefined',
+          critical: false
+        },
+        {
+          label: 'Cross-Origin Isolation',
+          test: () => window.crossOriginIsolated === true,
+          critical: false
+        },
+        {
+          label: 'Service Worker API',
+          test: () => 'serviceWorker' in navigator,
+          critical: false
+        },
+        {
+          label: 'Web Audio API',
+          test: () => typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined',
+          critical: false
+        },
+        {
+          label: 'WebGPU Support',
+          test: () => 'gpu' in navigator,
+          critical: false
+        },
+        {
+          label: 'OffscreenCanvas Support',
+          test: () => typeof OffscreenCanvas !== 'undefined',
+          critical: false
+        },
+        {
+          label: 'Performance API',
+          test: () => typeof performance !== 'undefined' && typeof performance.now === 'function',
+          critical: false
+        },
+        {
+          label: 'Hardware Concurrency',
+          test: () => typeof navigator.hardwareConcurrency === 'number',
+          critical: false,
+          details: () => `${navigator.hardwareConcurrency} cores`
+        }
+      ];
+
+      tests.forEach(({ label, test, critical, details }) => {
+        try {
+          const result = test();
+          const status = result ? 'pass' : (critical ? 'fail' : 'warn');
+          const detailsText = details ? details() : '';
+          addTestResult('feature-tests', label, status, detailsText);
+          log(`${label}: ${result ? 'PASS' : 'FAIL'}${detailsText ? ` (${detailsText})` : ''}`);
+        } catch (err) {
+          addTestResult('feature-tests', label, 'fail', err.message);
+          log(`${label}: ERROR - ${err.message}`, 'error');
+        }
+      });
+    }
+
+    // Worker Pool Tests
+    async function testWorkerPool() {
+      log('Testing worker pool...');
+
+      if (typeof WasmWorkerPool === 'undefined') {
+        addTestResult('worker-tests', 'WasmWorkerPool Class', 'fail', 'Not loaded');
+        log('WasmWorkerPool not available', 'error');
+        return;
+      }
+
+      addTestResult('worker-tests', 'WasmWorkerPool Class', 'pass', 'Loaded');
+
+      if (typeof SharedArrayBuffer === 'undefined') {
+        addTestResult('worker-tests', 'Worker Pool Creation', 'warn', 'SharedArrayBuffer not available');
+        log('Cannot test worker pool without SharedArrayBuffer', 'warn');
+        return;
+      }
+
+      try {
+        const pool = new WasmWorkerPool({ maxWorkers: 4, minWorkers: 2 });
+        addTestResult('worker-tests', 'Worker Pool Creation', 'pass', '4 max, 2 min workers');
+        log('Worker pool created successfully');
+
+        const stats = pool.getStats();
+        addTestResult('worker-tests', 'Worker Pool Stats', 'pass', JSON.stringify(stats));
+        log(`Pool stats: ${JSON.stringify(stats)}`);
+
+      } catch (err) {
+        addTestResult('worker-tests', 'Worker Pool Creation', 'fail', err.message);
+        log(`Worker pool test failed: ${err.message}`, 'error');
+      }
+    }
+
+    async function testWorkerRecovery() {
+      log('Testing worker error recovery...');
+      // This would require actually initializing workers with WASM
+      addTestResult('worker-tests', 'Error Recovery', 'info', 'Requires WASM module');
+      log('Worker error recovery test requires full WASM initialization', 'info');
+    }
+
+    // Service Worker Tests
+    async function testServiceWorker() {
+      log('Testing service worker...');
+
+      if (!('serviceWorker' in navigator)) {
+        addTestResult('sw-tests', 'Service Worker API', 'fail', 'Not supported');
+        log('Service Worker not supported in this browser', 'error');
+        return;
+      }
+
+      addTestResult('sw-tests', 'Service Worker API', 'pass', 'Supported');
+
+      try {
+        const registration = await navigator.serviceWorker.register('/service-worker.js', {
+          updateViaCache: 'none'
+        });
+
+        addTestResult('sw-tests', 'Service Worker Registration', 'pass', registration.scope);
+        log(`Service Worker registered: ${registration.scope}`);
+
+        if (registration.active) {
+          addTestResult('sw-tests', 'Service Worker Active', 'pass', '');
+          log('Service Worker is active');
+        } else {
+          addTestResult('sw-tests', 'Service Worker Active', 'warn', 'Not yet active');
+          log('Service Worker registered but not yet active', 'warn');
+        }
+
+      } catch (err) {
+        addTestResult('sw-tests', 'Service Worker Registration', 'fail', err.message);
+        log(`Service Worker registration failed: ${err.message}`, 'error');
+      }
+    }
+
+    async function clearCache() {
+      log('Clearing cache...');
+
+      if (!navigator.serviceWorker.controller) {
+        log('No active service worker', 'warn');
+        return;
+      }
+
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (event) => {
+        if (event.data.success) {
+          addTestResult('sw-tests', 'Cache Clear', 'pass', '');
+          log('Cache cleared successfully');
+        } else {
+          addTestResult('sw-tests', 'Cache Clear', 'fail', event.data.error);
+          log(`Cache clear failed: ${event.data.error}`, 'error');
+        }
+      };
+
+      navigator.serviceWorker.controller.postMessage(
+        { type: 'CLEAR_CACHE' },
+        [channel.port2]
+      );
+    }
+
+    async function getCacheSize() {
+      log('Getting cache size...');
+
+      if (!navigator.serviceWorker.controller) {
+        log('No active service worker', 'warn');
+        return;
+      }
+
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (event) => {
+        if (event.data.size !== undefined) {
+          addTestResult('sw-tests', 'Cache Size', 'info', `${event.data.size} items`);
+          log(`Cache contains ${event.data.size} items`);
+          log(`Items: ${event.data.items.join(', ')}`);
+        } else {
+          log(`Cache size query failed: ${event.data.error}`, 'error');
+        }
+      };
+
+      navigator.serviceWorker.controller.postMessage(
+        { type: 'GET_CACHE_SIZE' },
+        [channel.port2]
+      );
+    }
+
+    // Performance Tests
+    function startPerformanceTest() {
+      log('Starting performance monitoring test...');
+
+      let frameCount = 0;
+      let startTime = performance.now();
+
+      function measureFrame() {
+        frameCount++;
+        const elapsed = performance.now() - startTime;
+
+        if (elapsed >= 1000) {
+          const fps = Math.round((frameCount / elapsed) * 1000);
+          addTestResult('perf-tests', 'Frame Rate', fps >= 55 ? 'pass' : 'warn', `${fps} FPS`);
+          log(`Performance test: ${fps} FPS`);
+
+          if (performance.memory) {
+            const memoryMB = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+            addTestResult('perf-tests', 'Memory Usage', 'info', `${memoryMB} MB`);
+            log(`Memory usage: ${memoryMB} MB`);
+          }
+
+          return;
+        }
+
+        requestAnimationFrame(measureFrame);
+      }
+
+      requestAnimationFrame(measureFrame);
+    }
+
+    function simulateLoad() {
+      log('Simulating computational load...');
+
+      const start = performance.now();
+      let sum = 0;
+
+      for (let i = 0; i < 10000000; i++) {
+        sum += Math.sqrt(i);
+      }
+
+      const duration = performance.now() - start;
+      addTestResult('perf-tests', 'Computation Test', duration < 100 ? 'pass' : 'warn', `${duration.toFixed(1)}ms`);
+      log(`Computation completed in ${duration.toFixed(1)}ms (result: ${sum.toFixed(0)})`);
+    }
+
+    // WASM Tests
+    function testWasmLoading() {
+      log('Testing WASM loading capabilities...');
+
+      if (typeof WebAssembly === 'undefined') {
+        addTestResult('wasm-tests', 'WebAssembly Available', 'fail', 'Not supported');
+        return;
+      }
+
+      addTestResult('wasm-tests', 'WebAssembly Available', 'pass', '');
+
+      // Test streaming compilation
+      if (typeof WebAssembly.compileStreaming === 'function') {
+        addTestResult('wasm-tests', 'Streaming Compilation', 'pass', 'Supported');
+        log('WebAssembly streaming compilation supported');
+      } else {
+        addTestResult('wasm-tests', 'Streaming Compilation', 'warn', 'Not supported');
+        log('WebAssembly streaming compilation not supported', 'warn');
+      }
+
+      // Test instantiate streaming
+      if (typeof WebAssembly.instantiateStreaming === 'function') {
+        addTestResult('wasm-tests', 'Streaming Instantiation', 'pass', 'Supported');
+        log('WebAssembly streaming instantiation supported');
+      } else {
+        addTestResult('wasm-tests', 'Streaming Instantiation', 'warn', 'Not supported');
+        log('WebAssembly streaming instantiation not supported', 'warn');
+      }
+    }
+
+    // Run tests on load
+    window.addEventListener('load', () => {
+      log('Frontend Test Suite loaded');
+      runFeatureTests();
+    });
+  </script>
+</body>
+</html>

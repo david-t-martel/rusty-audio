@@ -1,0 +1,115 @@
+[package]
+name = "rusty-audio-desktop"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Desktop application for Rusty Audio - native audio player with professional features"
+
+[[bin]]
+name = "rusty-audio"
+path = "src/main.rs"
+
+[features]
+default = ["audio-optimizations"]
+audio-optimizations = ["rusty-audio-core/audio-optimizations"]
+property-testing = ["rusty-audio-core/property-testing"]
+ai-features = ["rusty-audio-core/ai-features"]
+
+[dependencies]
+# Core library with native features
+rusty-audio-core = { path = "../rusty-audio-core", features = ["native"] }
+
+# GUI framework
+eframe = { workspace = true, features = ["wgpu"] }
+egui = { workspace = true }
+egui_dock = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+log = { workspace = true }
+tracing = { workspace = true }
+
+# Utilities
+cfg-if = { workspace = true }
+dirs = { workspace = true }
+
+# Native-only dependencies
+tokio = { workspace = true }
+futures = { workspace = true }
+rfd = { workspace = true }
+web-audio-api = { workspace = true }
+cpal = { workspace = true }
+rodio = { workspace = true }
+symphonia = { workspace = true }
+rubato = { workspace = true }
+hound = { workspace = true }
+midir = { workspace = true }
+wmidi = { workspace = true }
+lofty = { workspace = true }
+image = { workspace = true }
+
+# Windows-specific
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_System_Threading",
+    "Win32_Foundation",
+    "Win32_Media",
+    "Win32_Media_Audio",
+    "Win32_System_SystemServices",
+] }
+# Override cpal with ASIO support on Windows
+cpal = { workspace = true, features = ["asio"] }
+
+# Unix-specific
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+quickcheck = { workspace = true }
+egui_kittest = { workspace = true }
+tokio-test = { workspace = true }
+
+[[bench]]
+name = "audio_benchmarks"
+harness = false
+
+[[bench]]
+name = "performance_benchmarks"
+harness = false
+
+[[bench]]
+name = "simd_benchmarks"
+harness = false
+
+[[bench]]
+name = "optimization_benchmarks"
+harness = false
+
+[lints.rust]
+unsafe_code = "warn"
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+indexing_slicing = "warn"
+unreachable = "warn"
+todo = "warn"
+unimplemented = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+unwrap_in_result = "warn"
+panic_in_result_fn = "warn"
+inefficient_to_string = "warn"
+large_enum_variant = "warn"
+large_types_passed_by_value = "warn"

@@ -1,0 +1,63 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "rusty-audio-auth"
+main = "src/index.ts"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Development environment
+[env.dev]
+name = "rusty-audio-auth-dev"
+
+# KV Namespaces for development
+[[env.dev.kv_namespaces]]
+binding = "SESSIONS"
+id = "dev_sessions_kv_id"  # Replace with actual KV namespace ID after creation
+
+[[env.dev.kv_namespaces]]
+binding = "USERS"
+id = "dev_users_kv_id"  # Replace with actual KV namespace ID after creation
+
+[[env.dev.kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "dev_rate_limit_kv_id"  # Replace with actual KV namespace ID after creation
+
+[env.dev.vars]
+APP_URL = "http://localhost:8080"
+REDIRECT_URI = "http://localhost:8080/auth-callback"
+ENVIRONMENT = "development"
+
+# Production environment
+[env.production]
+name = "rusty-audio-auth-prod"
+routes = [
+  { pattern = "api.rusty-audio.com/*", zone_name = "rusty-audio.com" }
+]
+
+# KV Namespaces for production
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "prod_sessions_kv_id"  # Replace with actual KV namespace ID after creation
+
+[[env.production.kv_namespaces]]
+binding = "USERS"
+id = "prod_users_kv_id"  # Replace with actual KV namespace ID after creation
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "prod_rate_limit_kv_id"  # Replace with actual KV namespace ID after creation
+
+[env.production.vars]
+APP_URL = "https://rusty-audio.pages.dev"
+REDIRECT_URI = "https://rusty-audio.pages.dev/auth-callback"
+ENVIRONMENT = "production"
+
+# Observability
+[observability]
+enabled = true
+
+# Build configuration
+[build]
+command = "npm run build"
+
+[build.upload]
+format = "service-worker"

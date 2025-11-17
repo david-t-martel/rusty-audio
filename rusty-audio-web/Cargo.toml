@@ -1,0 +1,103 @@
+[package]
+name = "rusty-audio-web"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "WASM/PWA application for Rusty Audio - web-based audio player with OAuth"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[features]
+default = ["auth"]
+auth = ["oauth2", "reqwest", "base64", "sha2"]
+ai-features = ["rusty-audio-core/ai-features"]
+
+[dependencies]
+# Core library with WASM features
+rusty-audio-core = { path = "../rusty-audio-core", features = ["wasm"] }
+
+# GUI framework
+eframe = { workspace = true, default-features = false, features = ["wgpu"] }
+egui = { workspace = true }
+egui_dock = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+log = { workspace = true }
+tracing = { workspace = true }
+
+# WASM-specific
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+js-sys = { workspace = true }
+web-sys = { workspace = true, features = [
+    "AudioContext",
+    "AudioDestinationNode",
+    "AudioNode",
+    "AudioParam",
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "BaseAudioContext",
+    "Window",
+    "Document",
+    "HtmlCanvasElement",
+    "Navigator",
+    "Performance",
+    "Storage",
+    "Location",
+    "UrlSearchParams",
+    "Crypto",
+    "SubtleCrypto",
+    "console",
+] }
+console_error_panic_hook = { workspace = true }
+console_log = { workspace = true }
+wgpu = { workspace = true, features = ["webgpu", "webgl"] }
+wasm-bindgen-rayon = { workspace = true }
+once_cell = { workspace = true }
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
+# OAuth and Authentication (optional via feature flag)
+oauth2 = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true, default-features = false, features = ["json"] }
+base64 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+urlencoding = "2.1"
+serde-wasm-bindgen = "0.6"
+
+# Utilities
+cfg-if = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[lints.rust]
+unsafe_code = "warn"
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+indexing_slicing = "warn"
+unreachable = "warn"
+todo = "warn"
+unimplemented = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+unwrap_in_result = "warn"
+panic_in_result_fn = "warn"
+inefficient_to_string = "warn"
+large_enum_variant = "warn"
+large_types_passed_by_value = "warn"

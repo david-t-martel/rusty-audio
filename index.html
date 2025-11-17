@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="theme-color" content="#121212"/>
   <meta name="color-scheme" content="dark light"/>
+
+  <!-- Cross-Origin Isolation for SharedArrayBuffer (WASM Threads) -->
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin"/>
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp"/>
+  <meta http-equiv="Cross-Origin-Resource-Policy" content="cross-origin"/>
+
   <title>Rusty Audio</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png" sizes="192x192">
@@ -18,19 +24,388 @@
   <!-- Copy static assets (manifest, service worker, icons, headers) -->
   <link data-trunk rel="copy-dir" href="static"/>
   <style>
-    html, body { margin:0; padding:0; height:100%; background:#121212; }
-    canvas { width:100vw; height:100vh; display:block; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #121212;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease-out;
+    }
+
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-header {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 30px;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .loading-spinner {
+      border: 4px solid rgba(102, 126, 234, 0.1);
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      margin-bottom: 30px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 18px;
+      margin-top: 10px;
+      opacity: 0.9;
+      font-weight: 500;
+    }
+
+    .loading-status {
+      font-size: 14px;
+      opacity: 0.6;
+      margin-top: 5px;
+      min-height: 20px;
+    }
+
+    /* Progress Bar */
+    .progress-container {
+      width: 400px;
+      max-width: 80vw;
+      margin: 20px 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+
+    .progress-text {
+      text-align: center;
+      font-size: 12px;
+      margin-top: 8px;
+      opacity: 0.7;
+    }
+
+    /* Feature Detection Display */
+    .feature-support {
+      margin-top: 30px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      min-width: 400px;
+      max-width: 80vw;
+    }
+
+    .feature-support h4 {
+      margin: 0 0 15px 0;
+      font-size: 14px;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .feature-list li {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .feature-list li::before {
+      content: "✓";
+      color: #4CAF50;
+      font-weight: bold;
+      margin-right: 10px;
+      font-size: 16px;
+    }
+
+    .feature-list li.unsupported {
+      opacity: 0.5;
+    }
+
+    .feature-list li.unsupported::before {
+      content: "✗";
+      color: #f44336;
+    }
+
+    .feature-list li.warning::before {
+      content: "⚠";
+      color: #ff9800;
+    }
+
+    /* Error Display */
+    .error-message {
+      background: linear-gradient(135deg, #c41e3a 0%, #8b1a2e 100%);
+      color: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 600px;
+      margin: 20px;
+      display: none;
+      box-shadow: 0 10px 40px rgba(196, 30, 58, 0.3);
+    }
+
+    .error-message.visible {
+      display: block;
+    }
+
+    .error-message h3 {
+      margin: 0 0 15px 0;
+      font-size: 22px;
+    }
+
+    .error-message p {
+      margin: 10px 0;
+      line-height: 1.6;
+    }
+
+    /* Performance Monitor Overlay */
+    #perf-monitor {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      z-index: 1000;
+      min-width: 200px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: none;
+    }
+
+    #perf-monitor.visible {
+      display: block;
+    }
+
+    .perf-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .perf-row:last-child {
+      border-bottom: none;
+    }
+
+    .perf-label {
+      opacity: 0.7;
+    }
+
+    .perf-value {
+      font-weight: bold;
+      color: #4CAF50;
+    }
+
+    .perf-value.warning {
+      color: #ff9800;
+    }
+
+    .perf-value.error {
+      color: #f44336;
+    }
+
+    /* Thread Status Display */
+    .thread-status {
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .thread-status h5 {
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      opacity: 0.8;
+      text-transform: uppercase;
+    }
+
+    .thread-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .thread-indicator {
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      position: relative;
+      transition: background 0.3s ease;
+    }
+
+    .thread-indicator.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .thread-indicator.idle {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 600px) {
+      .loading-header {
+        font-size: 24px;
+      }
+
+      .feature-support {
+        min-width: auto;
+        width: 90vw;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
+
+      #perf-monitor {
+        top: auto;
+        bottom: 10px;
+        right: 10px;
+        font-size: 10px;
+        min-width: 180px;
+      }
+    }
   </style>
 </head>
 <body>
   <noscript>This app requires JavaScript and WebAssembly enabled.</noscript>
+
+  <!-- Loading overlay with progressive loading UI -->
+  <div id="loading-overlay">
+    <h1 class="loading-header">Rusty Audio</h1>
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-message">Initializing...</div>
+    <div class="loading-status" id="loading-status"></div>
+
+    <!-- Progress bar for WASM download -->
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-text" id="progress-text">0% loaded</div>
+    </div>
+
+    <!-- Feature detection display -->
+    <div class="feature-support" id="feature-display" style="display: none;">
+      <h4>Browser Capabilities</h4>
+      <ul class="feature-list" id="feature-list"></ul>
+    </div>
+
+    <!-- Thread status display -->
+    <div class="thread-status" id="thread-status" style="display: none;">
+      <h5>Worker Thread Pool</h5>
+      <div id="thread-info"></div>
+      <div class="thread-grid" id="thread-grid"></div>
+    </div>
+  </div>
+
+  <!-- Error display -->
+  <div id="error-container" class="error-message">
+    <h3>Initialization Error</h3>
+    <p id="error-text"></p>
+    <div id="error-feature-support"></div>
+  </div>
+
+  <!-- Performance monitor overlay -->
+  <div id="perf-monitor">
+    <div class="perf-row">
+      <span class="perf-label">FPS:</span>
+      <span class="perf-value" id="perf-fps">0</span>
+    </div>
+    <div class="perf-row">
+      <span class="perf-label">Frame Time:</span>
+      <span class="perf-value" id="perf-frame-time">0ms</span>
+    </div>
+    <div class="perf-row">
+      <span class="perf-label">Memory:</span>
+      <span class="perf-value" id="perf-memory">0 MB</span>
+    </div>
+    <div class="perf-row">
+      <span class="perf-label">Threads:</span>
+      <span class="perf-value" id="perf-threads">0/0</span>
+    </div>
+    <div class="perf-row">
+      <span class="perf-label">Audio Latency:</span>
+      <span class="perf-value" id="perf-audio-latency">0ms</span>
+    </div>
+  </div>
+
   <canvas id="rusty-audio-canvas" aria-label="Rusty Audio Interface" role="application"></canvas>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js').catch(console.error);
-      });
-    }
-  </script>
+
+  <!-- Load worker pool manager first -->
+  <script src="/static/wasm-worker-init.js"></script>
+
+  <!-- Main initialization script -->
+  <script src="/static/rusty-audio-init.js"></script>
 </body>
 </html>

@@ -82,5 +82,9 @@ pub mod audio_performance_integration;
 // WASM web integration (WASM/PWA deployment)
 #[cfg(target_arch = "wasm32")]
 pub mod web;
+#[cfg(target_arch = "wasm32")]
+pub mod web_refactored;
+#[cfg(target_arch = "wasm32")]
+pub mod wasm_panic_handler;
 // Platform abstraction layer
 pub mod platform;

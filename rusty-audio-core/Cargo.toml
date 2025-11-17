@@ -1,0 +1,163 @@
+[package]
+name = "rusty-audio-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core library for Rusty Audio - shared audio processing, UI components, and effects"
+
+[lib]
+name = "rusty_audio_core"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Platform-specific features
+native = ["cpal", "hound", "rfd", "web-audio-api", "tokio", "futures", "memmap2", "tempfile", "rodio", "symphonia", "rubato", "midir", "wmidi"]
+wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "web-sys", "console_error_panic_hook", "console_log", "wgpu/webgpu", "wgpu/webgl"]
+# Optional features
+audio-optimizations = []
+property-testing = ["proptest", "quickcheck"]
+ai-features = []
+
+[dependencies]
+# Core GUI framework (platform-agnostic)
+egui = { workspace = true }
+egui_dock = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+log = { workspace = true }
+tracing = { workspace = true }
+
+# Synchronization
+parking_lot = { workspace = true }
+
+# Audio processing (platform-agnostic)
+rustfft = { workspace = true }
+realfft = { workspace = true }
+num-complex = { workspace = true }
+
+# Math and ML
+ndarray = { workspace = true }
+statrs = { workspace = true }
+approx = { workspace = true }
+
+# Utilities
+cfg-if = { workspace = true }
+rand = { workspace = true }
+num_cpus = { workspace = true }
+lru = { workspace = true }
+rayon = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+toml = { workspace = true }
+
+# Image processing
+image = { workspace = true }
+
+# Metadata
+lofty = { workspace = true }
+
+# Optional: Property testing
+proptest = { workspace = true, optional = true }
+quickcheck = { workspace = true, optional = true }
+
+# Native-only dependencies
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cpal = { workspace = true, optional = true }
+hound = { workspace = true, optional = true }
+rfd = { workspace = true, optional = true }
+web-audio-api = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+memmap2 = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+rodio = { workspace = true, optional = true }
+symphonia = { workspace = true, optional = true }
+rubato = { workspace = true, optional = true }
+midir = { workspace = true, optional = true }
+wmidi = { workspace = true, optional = true }
+
+# Windows-specific
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_System_Threading",
+    "Win32_Foundation",
+    "Win32_Media",
+    "Win32_Media_Audio",
+    "Win32_System_SystemServices",
+] }
+# Override cpal with ASIO support on Windows
+cpal = { workspace = true, features = ["asio"], optional = true }
+
+# Unix-specific
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+# WASM-only dependencies
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+web-sys = { workspace = true, features = [
+    "AudioContext",
+    "AudioDestinationNode",
+    "AudioNode",
+    "AudioParam",
+    "AudioBuffer",
+    "AudioBufferSourceNode",
+    "BaseAudioContext",
+    "Window",
+    "Document",
+    "HtmlCanvasElement",
+    "Navigator",
+    "Performance",
+    "Storage",
+    "console",
+], optional = true }
+console_error_panic_hook = { workspace = true, optional = true }
+console_log = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
+wasm-bindgen-rayon = { workspace = true }
+once_cell = { workspace = true }
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+criterion = { workspace = true }
+bytes = { workspace = true }
+rstest = { workspace = true }
+test-case = { workspace = true }
+serial_test = { workspace = true }
+tokio-test = { workspace = true }
+egui_kittest = { workspace = true }
+
+[lints.rust]
+unsafe_code = "warn"
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+indexing_slicing = "warn"
+unreachable = "warn"
+todo = "warn"
+unimplemented = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+unwrap_in_result = "warn"
+panic_in_result_fn = "warn"
+inefficient_to_string = "warn"
+large_enum_variant = "warn"
+large_types_passed_by_value = "warn"

@@ -12,13 +12,15 @@ use std::time::{Duration, Instant};
 
 // Audio context - platform specific
 #[cfg(not(target_arch = "wasm32"))]
-use web_audio_api::buffer::AudioBuffer;
-#[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::context::{AudioContext, BaseAudioContext};
 #[cfg(not(target_arch = "wasm32"))]
 use web_audio_api::node::{
     AnalyserNode, AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType,
 };
+// Note: AudioBuffer is in a private module in web-audio-api
+// Commented out temporarily - waveform preview features may need refactoring
+// #[cfg(not(target_arch = "wasm32"))]
+// use web_audio_api::render::AudioBuffer;
 
 // Import hybrid audio backend (native only for now)
 #[cfg(not(target_arch = "wasm32"))]
@@ -483,11 +485,12 @@ impl AudioPlayerApp {
             self.playback_pos.as_secs_f32(),
             self.total_duration.as_secs_f32(),
         );
-        if self.waveform_dirty {
-            self.progress_bar
-                .set_waveform(self.waveform_preview.clone());
-            self.waveform_dirty = false;
-        }
+        // TODO: Re-enable waveform preview once ProgressBar.set_waveform is implemented
+        // if self.waveform_dirty {
+        //     self.progress_bar
+        //         .set_waveform(self.waveform_preview.clone());
+        //     self.waveform_dirty = false;
+        // }
 
         // Update metadata display
         if let Some(metadata) = &self.metadata {
@@ -505,7 +508,7 @@ impl AudioPlayerApp {
 
         // Update spectrum visualizer with data from audio engine
         let spectrum_data = self.audio_engine.get_spectrum();
-        self.spectrum_visualizer.update(spectrum_data);
+        self.spectrum_visualizer.update(&spectrum_data);
     }
 
     fn handle_signal_generator_routing(&mut self) {
@@ -519,7 +522,7 @@ impl AudioPlayerApp {
                 GeneratorRoutingMode::Recorder => {
                     self.recording_panel.log_generated_take(
                         intent.label.clone(),
-                        output.samples,
+                        &output.samples,
                         output.sample_rate,
                         output.channels,
                     );
@@ -530,7 +533,7 @@ impl AudioPlayerApp {
                 }
                 _ => {
                     if let Err(error) = self.audio_engine.audition_buffer(
-                        output.samples,
+                        &output.samples,
                         output.sample_rate,
                         output.channels,
                     ) {
@@ -1089,11 +1092,12 @@ impl AudioPlayerApp {
             ui.allocate_exact_size(Vec2::new(ui.available_width(), 200.0), egui::Sense::hover());
         let painter = ui.painter();
         let color = Color32::from_rgb(0, 128, 255);
-        let num_points = self.spectrum.len();
+        let spectrum = self.audio_engine.get_spectrum();
+        let num_points = spectrum.len();
         let point_spacing = rect.width() / num_points as f32;
 
         let mut points = Vec::with_capacity(num_points);
-        for (i, val) in self.spectrum.iter().enumerate() {
+        for (i, val) in spectrum.iter().enumerate() {
             let x = rect.min.x + i as f32 * point_spacing;
             let y = rect.center().y - val * rect.height() / 2.0;
             points.push(egui::pos2(x, y));
@@ -1276,8 +1280,8 @@ impl AudioPlayerApp {
             }
             if i.key_pressed(egui::Key::L) {
                 self.is_looping = !self.is_looping;
-                if let Some(source_node) = &mut self.source_node {
-                    source_node.set_loop(self.is_looping);
+                if let Err(e) = self.audio_engine.set_loop(self.is_looping) {
+                    self.error_manager.add_playback_error(Some(format!("Set loop: {}", e)));
                 }
             }
             if i.key_pressed(egui::Key::ArrowUp) {
@@ -1289,18 +1293,18 @@ impl AudioPlayerApp {
                 self.audio_engine.set_volume(self.volume);
             }
             if i.key_pressed(egui::Key::ArrowLeft) {
-                if let Some(source_node) = &mut self.source_node {
-                    let new_pos = self.playback_pos.saturating_sub(Duration::from_secs(5));
-                    source_node.stop();
-                    source_node.start_at(self.audio_context.current_time() + new_pos.as_secs_f64());
+                let new_pos = self.playback_pos.saturating_sub(Duration::from_secs(5));
+                if let Err(e) = self.audio_engine.seek(new_pos) {
+                    self.error_manager.add_playback_error(Some(format!("Seek backward: {}", e)));
+                } else {
                     self.playback_pos = new_pos;
                 }
             }
             if i.key_pressed(egui::Key::ArrowRight) {
-                if let Some(source_node) = &mut self.source_node {
-                    let new_pos = self.playback_pos.saturating_add(Duration::from_secs(5));
-                    source_node.stop();
-                    source_node.start_at(self.audio_context.current_time() + new_pos.as_secs_f64());
+                let new_pos = self.playback_pos.saturating_add(Duration::from_secs(5));
+                if let Err(e) = self.audio_engine.seek(new_pos) {
+                    self.error_manager.add_playback_error(Some(format!("Seek forward: {}", e)));
+                } else {
                     self.playback_pos = new_pos;
                 }
             }
@@ -1338,13 +1342,14 @@ impl AudioPlayerApp {
             self.load_progress = Some(0.3); // Metadata loaded
 
             // Load audio file via AudioEngine
-            match self.audio_engine.load_audio_file(path) {
-                Ok(buffer) => {
+            let path_str = path.to_str().unwrap_or("");
+            match self.audio_engine.load_audio_file(path_str) {
+                Ok(duration) => {
                     self.load_progress = Some(0.8); // Audio loaded
 
                     // Update UI state
-                    self.total_duration = Duration::from_secs_f64(buffer.duration());
-                    self.update_waveform_from_buffer(&buffer);
+                    self.total_duration = duration;
+                    // TODO: Update waveform preview once AudioBuffer refactoring is complete
 
                     // Start playback via AudioEngine
                     if let Err(e) = self.audio_engine.play() {
@@ -1395,7 +1400,6 @@ impl AudioPlayerApp {
                     .add_playback_error(Some(format!("Reset EQ Band {}: {}", i, e)));
             }
             // Sync UI state
-            self.eq_bands[i].gain().set_value(0.0);
             self.accessible_eq_knobs[i].set_value(0.0);
         }
 
@@ -1491,7 +1495,6 @@ impl AudioPlayerApp {
         // Update UI state
         self.playback_state = PlaybackState::Stopped;
         self.playback_pos = Duration::ZERO;
-        self.source_node = None; // Clear source reference
     }
 
     fn toggle_loop_main(&mut self) {
@@ -1521,21 +1524,18 @@ impl AudioPlayerApp {
     }
 
     fn play_generated_signal(&mut self) {
-        // Create audio buffer from signal generator
-        if let Some(buffer) = self
-            .signal_generator_panel
-            .create_audio_buffer(&self.audio_context)
-        {
-            // Update waveform preview
-            if !self.signal_generator_panel.generated_samples.is_empty() {
-                self.update_waveform_from_samples(
-                    &self.signal_generator_panel.generated_samples,
-                    1,
-                );
-            }
+        // Use generated samples directly instead of creating AudioBuffer
+        if !self.signal_generator_panel.generated_samples.is_empty() {
+            // Get signal parameters first to avoid borrow checker issues
+            let samples = self.signal_generator_panel.generated_samples.clone();
+            let sample_rate = self.signal_generator_panel.parameters.sample_rate as f32;
+            let channels = 1; // Mono signal
 
-            // Load buffer into AudioEngine
-            match self.audio_engine.load_buffer(buffer) {
+            // Update waveform preview
+            self.update_waveform_from_samples(&samples, channels);
+
+            // Use audition_buffer instead of load_buffer for generated signals
+            match self.audio_engine.audition_buffer(&samples, sample_rate, channels) {
                 Ok(_) => {
                     // Start playback via AudioEngine
                     if let Err(e) = self.audio_engine.play() {
@@ -1558,13 +1558,14 @@ impl AudioPlayerApp {
         }
     }
 
-    fn update_waveform_from_buffer(&mut self, buffer: &AudioBuffer) {
-        let preview = Self::downsample_waveform_from_buffer(buffer);
-        if !preview.is_empty() {
-            self.waveform_preview = preview;
-            self.waveform_dirty = true;
-        }
-    }
+    // TODO: Refactor to not depend on private AudioBuffer type
+    // fn update_waveform_from_buffer(&mut self, buffer: &AudioBuffer) {
+    //     let preview = Self::downsample_waveform_from_buffer(buffer);
+    //     if !preview.is_empty() {
+    //         self.waveform_preview = preview;
+    //         self.waveform_dirty = true;
+    //     }
+    // }
 
     fn update_waveform_from_samples(&mut self, samples: &[f32], channels: usize) {
         let preview = Self::downsample_waveform_from_samples(samples, channels);
@@ -1574,30 +1575,31 @@ impl AudioPlayerApp {
         }
     }
 
-    fn downsample_waveform_from_buffer(buffer: &AudioBuffer) -> Vec<f32> {
-        let num_channels = buffer.number_of_channels().max(1);
-        let total_frames = buffer.length().max(1);
-        let step = (total_frames / WAVEFORM_PREVIEW_SAMPLES).max(1);
-        let channels: Vec<&[f32]> = (0..num_channels)
-            .map(|ch| buffer.get_channel_data(ch))
-            .collect();
-
-        let mut waveform = Vec::with_capacity(WAVEFORM_PREVIEW_SAMPLES);
-        for frame in (0..total_frames).step_by(step) {
-            let mut sample = 0.0;
-            for channel in &channels {
-                if frame < channel.len() {
-                    sample += channel[frame];
-                }
-            }
-            waveform.push(sample / num_channels as f32);
-            if waveform.len() >= WAVEFORM_PREVIEW_SAMPLES {
-                break;
-            }
-        }
-
-        Self::normalize_waveform(waveform)
-    }
+    // TODO: Refactor to not depend on private AudioBuffer type
+    // fn downsample_waveform_from_buffer(buffer: &AudioBuffer) -> Vec<f32> {
+    //     let num_channels = buffer.number_of_channels().max(1);
+    //     let total_frames = buffer.length().max(1);
+    //     let step = (total_frames / WAVEFORM_PREVIEW_SAMPLES).max(1);
+    //     let channels: Vec<&[f32]> = (0..num_channels)
+    //         .map(|ch| buffer.get_channel_data(ch))
+    //         .collect();
+    //
+    //     let mut waveform = Vec::with_capacity(WAVEFORM_PREVIEW_SAMPLES);
+    //     for frame in (0..total_frames).step_by(step) {
+    //         let mut sample = 0.0;
+    //         for channel in &channels {
+    //             if frame < channel.len() {
+    //                 sample += channel[frame];
+    //             }
+    //         }
+    //         waveform.push(sample / num_channels as f32);
+    //         if waveform.len() >= WAVEFORM_PREVIEW_SAMPLES {
+    //             break;
+    //         }
+    //     }
+    //
+    //     Self::normalize_waveform(waveform)
+    // }
 
     fn downsample_waveform_from_samples(samples: &[f32], channels: usize) -> Vec<f32> {
         if samples.is_empty() {

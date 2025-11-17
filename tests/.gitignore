@@ -1,0 +1,25 @@
+# Node modules
+node_modules/
+
+# Playwright output
+test-results/
+playwright-report/
+playwright/.cache/
+screenshots/
+performance-data/
+
+# Test artifacts
+*.trace.zip
+*.webm
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.log

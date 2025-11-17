@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>WASM Threading Test - Rusty Audio</title>
+
+  <!-- Cross-Origin Isolation for SharedArrayBuffer -->
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin"/>
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp"/>
+  <meta http-equiv="Cross-Origin-Resource-Policy" content="cross-origin"/>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #1e1e1e;
+      color: #e0e0e0;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    h1, h2, h3 { color: #fff; margin-top: 30px; }
+    h1 { border-bottom: 3px solid #4CAF50; padding-bottom: 10px; }
+    .test-section {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      border-left: 4px solid #4CAF50;
+    }
+    .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+    .pass {
+      background: #2e7d32;
+      border-left: 4px solid #4CAF50;
+    }
+    .fail {
+      background: #c41e3a;
+      border-left: 4px solid #f44336;
+    }
+    .warn {
+      background: #c67d00;
+      border-left: 4px solid #ff9800;
+    }
+    .info {
+      background: #1565c0;
+      border-left: 4px solid #2196F3;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+    }
+    button:hover { background: #45a049; }
+    button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    code {
+      background: #1e1e1e;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      color: #4CAF50;
+    }
+    pre {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      border: 1px solid #444;
+    }
+    .metric {
+      display: inline-block;
+      margin: 10px;
+      padding: 15px;
+      background: #333;
+      border-radius: 4px;
+      min-width: 150px;
+      text-align: center;
+    }
+    .metric-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+    .metric-label {
+      font-size: 12px;
+      color: #aaa;
+      text-transform: uppercase;
+    }
+    #results { margin-top: 20px; }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+    .badge-pass { background: #4CAF50; color: white; }
+    .badge-fail { background: #f44336; color: white; }
+    .badge-warn { background: #ff9800; color: white; }
+  </style>
+</head>
+<body>
+  <h1>🧪 WASM Threading Feature Detection</h1>
+
+  <div class="test-section">
+    <h2>Browser Information</h2>
+    <div id="browser-info"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Feature Tests</h2>
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearResults()">Clear Results</button>
+    <div id="results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Performance Metrics</h2>
+    <div id="metrics"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>HTTP Headers Check</h2>
+    <button onclick="checkHeaders()">Check Headers</button>
+    <div id="headers-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Service Worker Status</h2>
+    <button onclick="checkServiceWorker()">Check Service Worker</button>
+    <div id="sw-result"></div>
+  </div>
+
+  <script>
+    const results = document.getElementById('results');
+    const metrics = document.getElementById('metrics');
+
+    // Display browser info
+    function displayBrowserInfo() {
+      const info = {
+        'User Agent': navigator.userAgent,
+        'Platform': navigator.platform,
+        'Language': navigator.language,
+        'Hardware Concurrency': navigator.hardwareConcurrency || 'Unknown',
+        'Device Memory': navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Unknown',
+        'Online': navigator.onLine ? 'Yes' : 'No'
+      };
+
+      const container = document.getElementById('browser-info');
+      let html = '<table style="width:100%; border-collapse: collapse;">';
+      for (const [key, value] of Object.entries(info)) {
+        html += `<tr><td style="padding:8px; border-bottom:1px solid #444;"><strong>${key}:</strong></td><td style="padding:8px; border-bottom:1px solid #444;">${value}</td></tr>`;
+      }
+      html += '</table>';
+      container.innerHTML = html;
+    }
+
+    // Add result to page
+    function addResult(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `result ${type}`;
+      div.innerHTML = message;
+      results.appendChild(div);
+    }
+
+    // Clear results
+    function clearResults() {
+      results.innerHTML = '';
+      metrics.innerHTML = '';
+    }
+
+    // Test WebAssembly support
+    function testWebAssembly() {
+      const supported = typeof WebAssembly !== 'undefined';
+      addResult(
+        `<strong>WebAssembly:</strong> ${supported ? '✅ Supported' : '❌ Not Supported'}`,
+        supported ? 'pass' : 'fail'
+      );
+
+      if (supported) {
+        try {
+          // Test if we can validate a minimal WASM module
+          const valid = WebAssembly.validate(new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]));
+          addResult(
+            `<strong>WebAssembly Validation:</strong> ${valid ? '✅ Works' : '⚠️ Failed'}`,
+            valid ? 'pass' : 'warn'
+          );
+        } catch (e) {
+          addResult(`<strong>WebAssembly Validation:</strong> ❌ Error: ${e.message}`, 'fail');
+        }
+      }
+
+      return supported;
+    }
+
+    // Test SharedArrayBuffer
+    function testSharedArrayBuffer() {
+      const supported = typeof SharedArrayBuffer !== 'undefined';
+      addResult(
+        `<strong>SharedArrayBuffer:</strong> ${supported ? '✅ Available' : '❌ Not Available'}`,
+        supported ? 'pass' : 'fail'
+      );
+
+      if (supported) {
+        try {
+          const sab = new SharedArrayBuffer(1024);
+          addResult(
+            `<strong>SharedArrayBuffer Creation:</strong> ✅ Works (${sab.byteLength} bytes)`,
+            'pass'
+          );
+        } catch (e) {
+          addResult(`<strong>SharedArrayBuffer Creation:</strong> ❌ Error: ${e.message}`, 'fail');
+        }
+      } else {
+        addResult(
+          `<strong>Reason:</strong> Cross-origin isolation not enabled. Requires HTTPS + COOP/COEP headers.`,
+          'warn'
+        );
+      }
+
+      return supported;
+    }
+
+    // Test cross-origin isolation
+    function testCrossOriginIsolation() {
+      const isolated = window.crossOriginIsolated === true;
+      addResult(
+        `<strong>Cross-Origin Isolated:</strong> ${isolated ? '✅ Yes' : '❌ No'}`,
+        isolated ? 'pass' : 'fail'
+      );
+
+      if (!isolated) {
+        addResult(
+          `<strong>Required Headers:</strong><br>` +
+          `• Cross-Origin-Opener-Policy: same-origin<br>` +
+          `• Cross-Origin-Embedder-Policy: require-corp`,
+          'info'
+        );
+      }
+
+      return isolated;
+    }
+
+    // Test Web Audio API
+    function testWebAudio() {
+      const supported = typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined';
+      addResult(
+        `<strong>Web Audio API:</strong> ${supported ? '✅ Supported' : '❌ Not Supported'}`,
+        supported ? 'pass' : 'fail'
+      );
+
+      if (supported) {
+        try {
+          const AudioContextClass = AudioContext || webkitAudioContext;
+          const ctx = new AudioContextClass();
+          addResult(
+            `<strong>AudioContext:</strong> ✅ Created (Sample Rate: ${ctx.sampleRate} Hz, State: ${ctx.state})`,
+            'pass'
+          );
+          ctx.close();
+        } catch (e) {
+          addResult(`<strong>AudioContext:</strong> ❌ Error: ${e.message}`, 'fail');
+        }
+      }
+
+      return supported;
+    }
+
+    // Test Service Worker
+    function testServiceWorker() {
+      const supported = 'serviceWorker' in navigator;
+      addResult(
+        `<strong>Service Worker API:</strong> ${supported ? '✅ Supported' : '❌ Not Supported'}`,
+        supported ? 'pass' : 'fail'
+      );
+      return supported;
+    }
+
+    // Test WebGL
+    function testWebGL() {
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        const supported = !!gl;
+
+        addResult(
+          `<strong>WebGL:</strong> ${supported ? '✅ Supported' : '❌ Not Supported'}`,
+          supported ? 'pass' : 'fail'
+        );
+
+        if (supported && gl) {
+          const renderer = gl.getParameter(gl.RENDERER);
+          const vendor = gl.getParameter(gl.VENDOR);
+          addResult(
+            `<strong>GPU:</strong> ${renderer} (${vendor})`,
+            'info'
+          );
+        }
+
+        return supported;
+      } catch (e) {
+        addResult(`<strong>WebGL:</strong> ❌ Error: ${e.message}`, 'fail');
+        return false;
+      }
+    }
+
+    // Check HTTP headers
+    async function checkHeaders() {
+      const container = document.getElementById('headers-result');
+      container.innerHTML = '<p>Checking headers...</p>';
+
+      try {
+        const response = await fetch('/');
+        const headers = {
+          'Cross-Origin-Opener-Policy': response.headers.get('Cross-Origin-Opener-Policy'),
+          'Cross-Origin-Embedder-Policy': response.headers.get('Cross-Origin-Embedder-Policy'),
+          'Cross-Origin-Resource-Policy': response.headers.get('Cross-Origin-Resource-Policy'),
+          'Content-Security-Policy': response.headers.get('Content-Security-Policy'),
+          'Cache-Control': response.headers.get('Cache-Control')
+        };
+
+        let html = '<table style="width:100%; border-collapse: collapse;">';
+        for (const [key, value] of Object.entries(headers)) {
+          const isSet = value !== null;
+          const badgeClass = isSet ? 'badge-pass' : 'badge-fail';
+          const badge = `<span class="badge ${badgeClass}">${isSet ? 'SET' : 'NOT SET'}</span>`;
+          html += `<tr><td style="padding:8px; border-bottom:1px solid #444;"><strong>${key}:</strong> ${badge}</td><td style="padding:8px; border-bottom:1px solid #444;"><code>${value || 'null'}</code></td></tr>`;
+        }
+        html += '</table>';
+
+        container.innerHTML = html;
+
+        // Check if threading requirements are met
+        const coop = headers['Cross-Origin-Opener-Policy'];
+        const coep = headers['Cross-Origin-Embedder-Policy'];
+        const threadingReady = coop === 'same-origin' && coep === 'require-corp';
+
+        const statusDiv = document.createElement('div');
+        statusDiv.className = `result ${threadingReady ? 'pass' : 'fail'}`;
+        statusDiv.innerHTML = `<strong>Threading Support:</strong> ${threadingReady ? '✅ Headers correctly configured' : '❌ Missing required headers for threading'}`;
+        container.appendChild(statusDiv);
+
+      } catch (error) {
+        container.innerHTML = `<div class="result fail">❌ Error fetching headers: ${error.message}</div>`;
+      }
+    }
+
+    // Check Service Worker status
+    async function checkServiceWorker() {
+      const container = document.getElementById('sw-result');
+
+      if (!('serviceWorker' in navigator)) {
+        container.innerHTML = '<div class="result fail">❌ Service Worker not supported</div>';
+        return;
+      }
+
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+
+        if (!registration) {
+          container.innerHTML = '<div class="result warn">⚠️ No Service Worker registered</div>';
+          return;
+        }
+
+        const state = registration.active?.state || 'unknown';
+        const scope = registration.scope;
+        const updateFound = registration.updatefound !== undefined;
+
+        let html = `<div class="result pass">✅ Service Worker registered</div>`;
+        html += `<p><strong>State:</strong> <code>${state}</code></p>`;
+        html += `<p><strong>Scope:</strong> <code>${scope}</code></p>`;
+        html += `<p><strong>Update Available:</strong> ${updateFound ? 'Yes' : 'No'}</p>`;
+
+        if (registration.waiting) {
+          html += `<div class="result warn">⚠️ New Service Worker waiting to activate</div>`;
+          html += `<button onclick="updateServiceWorker()">Update Now</button>`;
+        }
+
+        container.innerHTML = html;
+
+      } catch (error) {
+        container.innerHTML = `<div class="result fail">❌ Error: ${error.message}</div>`;
+      }
+    }
+
+    // Update Service Worker
+    async function updateServiceWorker() {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration?.waiting) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        window.location.reload();
+      }
+    }
+
+    // Display performance metrics
+    function displayMetrics() {
+      const data = {
+        'CPU Cores': navigator.hardwareConcurrency || 'Unknown',
+        'Device Memory': navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Unknown',
+        'Connection': navigator.connection?.effectiveType || 'Unknown',
+        'Max Touch Points': navigator.maxTouchPoints || 0
+      };
+
+      let html = '';
+      for (const [label, value] of Object.entries(data)) {
+        html += `
+          <div class="metric">
+            <div class="metric-value">${value}</div>
+            <div class="metric-label">${label}</div>
+          </div>
+        `;
+      }
+
+      metrics.innerHTML = html;
+    }
+
+    // Run all tests
+    function runAllTests() {
+      clearResults();
+
+      addResult('<h3>Running Feature Detection Tests...</h3>', 'info');
+
+      const wasmSupported = testWebAssembly();
+      const sabSupported = testSharedArrayBuffer();
+      const isolated = testCrossOriginIsolation();
+      const audioSupported = testWebAudio();
+      const swSupported = testServiceWorker();
+      const webglSupported = testWebGL();
+
+      // Summary
+      addResult('<h3>Summary</h3>', 'info');
+
+      if (wasmSupported && sabSupported && isolated) {
+        addResult(
+          '<strong>✅ Full Threading Support</strong><br>' +
+          'This browser supports multithreaded WASM with SharedArrayBuffer.',
+          'pass'
+        );
+      } else if (wasmSupported) {
+        addResult(
+          '<strong>⚠️ Single-threaded Mode</strong><br>' +
+          'WASM is supported but SharedArrayBuffer is not available. The app will run in single-threaded mode.',
+          'warn'
+        );
+      } else {
+        addResult(
+          '<strong>❌ Unsupported Browser</strong><br>' +
+          'This browser does not support WebAssembly. Please use a modern browser.',
+          'fail'
+        );
+      }
+
+      // Display metrics
+      displayMetrics();
+    }
+
+    // Auto-run tests on load
+    window.addEventListener('load', () => {
+      displayBrowserInfo();
+      runAllTests();
+      checkHeaders();
+      checkServiceWorker();
+    });
+  </script>
+</body>
+</html>

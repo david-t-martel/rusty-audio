@@ -1,0 +1,11 @@
+error[E0599]: no method named `set_waveform` found for struct `rusty_audio::ui::ProgressBar` in the current scope
+error[E0599]: no method named `set_eq_band` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope
+error[E0599]: no method named `set_eq_band` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope
+error[E0599]: no method named `get_volume` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope
+error[E0599]: no method named `set_eq_band` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope
+error[E0599]: no method named `set_eq_band` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope
+error[E0599]: no method named `get_volume` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope
+error[E0599]: no method named `get_context` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope
+error[E0599]: no method named `duration` found for struct `Duration` in the current scope
+error[E0599]: no method named `set_loop` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope
+error[E0599]: no method named `load_buffer` found for struct `Box<(dyn AudioEngineInterface + 'static)>` in the current scope

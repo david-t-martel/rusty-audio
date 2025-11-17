@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rusty Audio - Premium Audio Player</title>
+  <meta name="description" content="Professional desktop audio player with real-time spectrum visualization and advanced EQ">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Custom Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c4b5fd',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .auth-button {
+      transition: all 0.3s ease;
+    }
+
+    .auth-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .auth-button:active {
+      transform: translateY(0);
+    }
+
+    .feature-card {
+      transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.6s ease-out forwards;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-spinner {
+      animation: spin 1s linear infinite;
+    }
+
+    .pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: .5;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+  <!-- Navigation -->
+  <nav class="fixed w-full top-0 z-50 glass-effect">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center space-x-3">
+          <svg class="w-8 h-8 text-primary-500" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
+          </svg>
+          <span class="text-xl font-bold gradient-text">Rusty Audio</span>
+        </div>
+        <div class="hidden md:flex items-center space-x-6">
+          <a href="#features" class="text-gray-300 hover:text-white transition">Features</a>
+          <a href="#pricing" class="text-gray-300 hover:text-white transition">Pricing</a>
+          <a href="#about" class="text-gray-300 hover:text-white transition">About</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+    <div class="text-center">
+      <svg class="loading-spinner w-16 h-16 mx-auto text-primary-500" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <p class="mt-4 text-lg" id="loading-text">Authenticating...</p>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  <div id="error-alert" class="hidden fixed top-20 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4">
+    <div class="bg-red-500 bg-opacity-90 backdrop-blur-lg rounded-lg p-4 shadow-xl">
+      <div class="flex items-start">
+        <svg class="w-6 h-6 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+        </svg>
+        <div class="ml-3 flex-1">
+          <p class="text-sm font-medium text-white" id="error-message">An error occurred</p>
+        </div>
+        <button onclick="hideError()" class="ml-3 text-white hover:text-gray-200">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center fade-in">
+        <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold mb-6">
+          Professional Audio Player
+          <span class="block gradient-text mt-2">Built with Rust</span>
+        </h1>
+        <p class="text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto">
+          Real-time spectrum visualization, 8-band parametric EQ, and advanced audio processing.
+          Experience desktop-quality audio in your browser.
+        </p>
+
+        <!-- Authentication Buttons -->
+        <div class="max-w-md mx-auto space-y-4">
+          <button
+            onclick="signInWithGoogle()"
+            class="auth-button w-full bg-white text-gray-900 font-semibold py-4 px-6 rounded-lg flex items-center justify-center space-x-3 hover:bg-gray-100"
+          >
+            <svg class="w-6 h-6" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+
+          <button
+            onclick="signInWithGitHub()"
+            class="auth-button w-full bg-gray-800 text-white font-semibold py-4 px-6 rounded-lg flex items-center justify-center space-x-3 hover:bg-gray-700"
+          >
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <span>Continue with GitHub</span>
+          </button>
+
+          <button
+            onclick="signInWithMicrosoft()"
+            class="auth-button w-full bg-blue-600 text-white font-semibold py-4 px-6 rounded-lg flex items-center justify-center space-x-3 hover:bg-blue-700"
+          >
+            <svg class="w-6 h-6" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z"/>
+            </svg>
+            <span>Continue with Microsoft</span>
+          </button>
+
+          <div class="relative">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-gray-700"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+              <span class="px-2 bg-gray-900 text-gray-400">or</span>
+            </div>
+          </div>
+
+          <button
+            onclick="continueAsGuest()"
+            class="w-full bg-gray-700 text-white font-semibold py-4 px-6 rounded-lg hover:bg-gray-600 transition"
+          >
+            Continue as Guest
+            <span class="block text-xs text-gray-400 mt-1">Limited features</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-800 bg-opacity-50">
+    <div class="max-w-7xl mx-auto">
+      <h2 class="text-4xl font-bold text-center mb-16 gradient-text">Powerful Features</h2>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        <div class="feature-card glass-effect rounded-xl p-8">
+          <div class="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Real-Time Spectrum</h3>
+          <p class="text-gray-400">512-point FFT analysis with customizable visualization modes</p>
+        </div>
+
+        <div class="feature-card glass-effect rounded-xl p-8">
+          <div class="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">8-Band Parametric EQ</h3>
+          <p class="text-gray-400">Professional-grade equalizer from 60Hz to 7680Hz</p>
+        </div>
+
+        <div class="feature-card glass-effect rounded-xl p-8">
+          <div class="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">AI-Enhanced Processing</h3>
+          <p class="text-gray-400">Intelligent EQ optimization and noise reduction</p>
+        </div>
+
+        <div class="feature-card glass-effect rounded-xl p-8">
+          <div class="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Multiple Themes</h3>
+          <p class="text-gray-400">Customizable color schemes and layouts</p>
+        </div>
+
+        <div class="feature-card glass-effect rounded-xl p-8">
+          <div class="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Format Support</h3>
+          <p class="text-gray-400">MP3, FLAC, WAV, OGG, M4A, and more</p>
+        </div>
+
+        <div class="feature-card glass-effect rounded-xl p-8">
+          <div class="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">High Performance</h3>
+          <p class="text-gray-400">Built with Rust for maximum speed and efficiency</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Comparison -->
+  <section id="pricing" class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-4xl font-bold text-center mb-16 gradient-text">Choose Your Plan</h2>
+
+      <div class="grid md:grid-cols-2 gap-8">
+        <!-- Free Tier -->
+        <div class="glass-effect rounded-xl p-8 border-2 border-gray-700">
+          <h3 class="text-2xl font-bold mb-2">Free</h3>
+          <p class="text-4xl font-bold mb-6">$0<span class="text-lg text-gray-400">/month</span></p>
+
+          <ul class="space-y-3 mb-8">
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span>Basic audio playback</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span>Spectrum visualizer</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span>Basic EQ controls</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-gray-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+              <span class="text-gray-500">Cloud preset sync</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-gray-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+              <span class="text-gray-500">AI features</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-gray-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+              <span class="text-gray-500">Advanced effects</span>
+            </li>
+          </ul>
+
+          <button class="w-full bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-600 transition">
+            Current Plan
+          </button>
+        </div>
+
+        <!-- Premium Tier -->
+        <div class="glass-effect rounded-xl p-8 border-2 border-primary-500 relative">
+          <div class="absolute top-0 right-0 bg-primary-500 text-white px-3 py-1 rounded-bl-lg rounded-tr-lg text-sm font-semibold">
+            Popular
+          </div>
+          <h3 class="text-2xl font-bold mb-2">Premium</h3>
+          <p class="text-4xl font-bold mb-6">$4.99<span class="text-lg text-gray-400">/month</span></p>
+
+          <ul class="space-y-3 mb-8">
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span class="font-semibold">Everything in Free</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span>Cloud preset synchronization</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span>AI-powered EQ optimization</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span>Advanced noise reduction</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span>Priority support</span>
+            </li>
+            <li class="flex items-start">
+              <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span>Early access to new features</span>
+            </li>
+          </ul>
+
+          <button class="w-full gradient-bg text-white font-semibold py-3 px-6 rounded-lg hover:opacity-90 transition">
+            Upgrade to Premium
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-12 px-4 sm:px-6 lg:px-8 border-t border-gray-800">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid md:grid-cols-4 gap-8 mb-8">
+        <div>
+          <h4 class="font-semibold mb-4">Product</h4>
+          <ul class="space-y-2 text-gray-400">
+            <li><a href="#features" class="hover:text-white transition">Features</a></li>
+            <li><a href="#pricing" class="hover:text-white transition">Pricing</a></li>
+            <li><a href="#" class="hover:text-white transition">Roadmap</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold mb-4">Company</h4>
+          <ul class="space-y-2 text-gray-400">
+            <li><a href="#about" class="hover:text-white transition">About</a></li>
+            <li><a href="#" class="hover:text-white transition">Blog</a></li>
+            <li><a href="#" class="hover:text-white transition">Careers</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold mb-4">Support</h4>
+          <ul class="space-y-2 text-gray-400">
+            <li><a href="#" class="hover:text-white transition">Help Center</a></li>
+            <li><a href="#" class="hover:text-white transition">Contact</a></li>
+            <li><a href="#" class="hover:text-white transition">Status</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold mb-4">Legal</h4>
+          <ul class="space-y-2 text-gray-400">
+            <li><a href="/privacy" class="hover:text-white transition">Privacy Policy</a></li>
+            <li><a href="/terms" class="hover:text-white transition">Terms of Service</a></li>
+            <li><a href="#" class="hover:text-white transition">Cookie Policy</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-800 pt-8 text-center text-gray-400">
+        <p>&copy; 2024 Rusty Audio. Built with Rust and WebAssembly.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="/static/js/auth-manager.js"></script>
+  <script src="/static/js/session-manager.js"></script>
+
+  <script>
+    // Initialize authentication
+    const authManager = new AuthManager();
+    const sessionManager = new SessionManager();
+
+    async function init() {
+      // Check for existing session
+      const isAuthenticated = await sessionManager.initSession();
+
+      if (isAuthenticated) {
+        // Redirect to app if already authenticated
+        window.location.href = '/app';
+      }
+    }
+
+    async function signInWithGoogle() {
+      showLoading('Signing in with Google...');
+      try {
+        await authManager.signInWithGoogle();
+      } catch (error) {
+        hideLoading();
+        showError(error.message);
+      }
+    }
+
+    async function signInWithGitHub() {
+      showLoading('Signing in with GitHub...');
+      try {
+        await authManager.signInWithGitHub();
+      } catch (error) {
+        hideLoading();
+        showError(error.message);
+      }
+    }
+
+    async function signInWithMicrosoft() {
+      showLoading('Signing in with Microsoft...');
+      try {
+        await authManager.signInWithMicrosoft();
+      } catch (error) {
+        hideLoading();
+        showError(error.message);
+      }
+    }
+
+    function continueAsGuest() {
+      // Set guest mode flag
+      localStorage.setItem('guest_mode', 'true');
+      window.location.href = '/app';
+    }
+
+    function showLoading(message = 'Loading...') {
+      document.getElementById('loading-text').textContent = message;
+      document.getElementById('loading-overlay').classList.remove('hidden');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }
+
+    function showError(message) {
+      document.getElementById('error-message').textContent = message;
+      document.getElementById('error-alert').classList.remove('hidden');
+
+      setTimeout(() => {
+        hideError();
+      }, 5000);
+    }
+
+    function hideError() {
+      document.getElementById('error-alert').classList.add('hidden');
+    }
+
+    // Initialize on page load
+    window.addEventListener('load', init);
+
+    // Handle OAuth callback
+    window.addEventListener('message', async (event) => {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data.code) {
+        showLoading('Completing authentication...');
+        try {
+          await authManager.handleCallback(event.data.code, event.data.state);
+          hideLoading();
+          window.location.href = '/app';
+        } catch (error) {
+          hideLoading();
+          showError(error.message);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

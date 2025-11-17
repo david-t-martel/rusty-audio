@@ -1,0 +1,42 @@
+{
+  "name": "rusty-audio-auth-service",
+  "version": "1.0.0",
+  "description": "OAuth 2.0 authentication service for Rusty Audio WASM app",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "test": "vitest",
+    "test:watch": "vitest watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "keywords": [
+    "oauth",
+    "cloudflare-workers",
+    "authentication",
+    "jwt",
+    "pkce"
+  ],
+  "author": "Rusty Audio Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.4",
+    "wrangler": "^3.20.0"
+  },
+  "dependencies": {
+    "hono": "^3.11.7",
+    "jose": "^5.1.3",
+    "itty-router": "^4.0.0"
+  }
+}

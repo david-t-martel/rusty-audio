@@ -1,0 +1,139 @@
+# Docker Compose configuration for Rusty Audio
+# Provides multi-service setup for development and testing
+
+version: '3.8'
+
+services:
+  # Development environment with hot-reload
+  dev:
+    build:
+      context: .
+      target: development
+      cache_from:
+        - rusty-audio:dev
+    image: rusty-audio:dev
+    container_name: rusty-audio-dev
+    volumes:
+      - .:/workspace:cached
+      - cargo-cache:/usr/local/cargo/registry
+      - sccache-cache:/sccache
+    working_dir: /workspace
+    environment:
+      - RUST_LOG=debug
+      - RUSTC_WRAPPER=sccache
+      - SCCACHE_DIR=/sccache
+    command: cargo watch -x check -x test
+    stdin_open: true
+    tty: true
+
+  # Testing environment
+  test:
+    build:
+      context: .
+      target: testing
+      cache_from:
+        - rusty-audio:test
+    image: rusty-audio:test
+    container_name: rusty-audio-test
+    volumes:
+      - ./coverage:/coverage
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+    command: cargo test --all-features --all-targets
+
+  # Linux desktop build
+  build-linux:
+    build:
+      context: .
+      target: desktop-linux
+      cache_from:
+        - rusty-audio:linux
+    image: rusty-audio:linux
+    container_name: rusty-audio-build-linux
+    volumes:
+      - ./dist/linux:/output
+    command: /bin/bash -c "cp /output/rusty-audio /output/rusty-audio && echo 'Build complete'"
+
+  # WASM build and serve
+  wasm:
+    build:
+      context: .
+      target: wasm-server
+      cache_from:
+        - rusty-audio:wasm
+    image: rusty-audio:wasm
+    container_name: rusty-audio-wasm
+    ports:
+      - "8080:80"
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Cross-compilation for Windows
+  build-windows:
+    build:
+      context: .
+      target: cross-windows
+      cache_from:
+        - rusty-audio:windows
+    image: rusty-audio:windows
+    container_name: rusty-audio-build-windows
+    volumes:
+      - ./dist/windows:/output
+    command: /bin/bash -c "cp /output/rusty-audio_native.exe /output/ && echo 'Build complete'"
+
+  # Benchmarking service
+  benchmark:
+    build:
+      context: .
+      target: base-builder
+    image: rusty-audio:benchmark
+    container_name: rusty-audio-benchmark
+    volumes:
+      - ./target/criterion:/build/target/criterion
+    environment:
+      - RUST_LOG=info
+    command: cargo bench --all-features
+
+  # Security audit service
+  security:
+    build:
+      context: .
+      target: testing
+    image: rusty-audio:security
+    container_name: rusty-audio-security
+    volumes:
+      - ./security-reports:/reports
+    environment:
+      - RUST_LOG=info
+    command: /bin/bash -c "cargo audit && cargo deny check"
+
+  # Documentation builder
+  docs:
+    build:
+      context: .
+      target: base-builder
+    image: rusty-audio:docs
+    container_name: rusty-audio-docs
+    volumes:
+      - ./target/doc:/build/target/doc
+    ports:
+      - "8000:8000"
+    command: /bin/bash -c "cargo doc --no-deps --all-features && python3 -m http.server 8000 --directory target/doc"
+
+volumes:
+  cargo-cache:
+    name: rusty-audio-cargo-cache
+  sccache-cache:
+    name: rusty-audio-sccache-cache
+
+networks:
+  default:
+    name: rusty-audio-network

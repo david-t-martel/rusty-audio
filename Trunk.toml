@@ -8,7 +8,15 @@ release = true
 release = true
 # Override LTO for WASM compatibility and build lib only
 rustflags = ["-C", "lto=off"]
-cargo-args = ["--lib"]
+cargo-args = ["--lib", "--no-default-features"]
+
+# wasm-opt configuration (threading disabled temporarily)
+[build.wasm-opt]
+version = "116"
+# Threading features temporarily disabled for initial build
+args = [
+    "-Oz"  # Optimize for size
+]
 
 [watch]
 ignore = ["dist/**", "target/**"]
