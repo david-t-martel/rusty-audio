@@ -464,7 +464,7 @@ impl WasmAudioApp {
                             let t = color_t * 2.0;
                             egui::Color32::from_rgb(
                                 (0.0 + t * 0.0) as u8,
-                                (150.0 + t * 200.0) as u8,
+                                (150.0 + t * 200.0).min(255.0) as u8,
                                 (255.0 - t * 55.0) as u8,
                             )
                         } else {
