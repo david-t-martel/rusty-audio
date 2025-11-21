@@ -56,15 +56,60 @@ use std::sync::Arc;
 
 /// Unique identifier for audio sources
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SourceId(pub u64);
+pub struct SourceId(u64);
+
+impl SourceId {
+    /// Create a new SourceId
+    ///
+    /// # Arguments
+    /// * `id` - The unique identifier value
+    pub fn new(id: u64) -> Self {
+        Self(id)
+    }
+
+    /// Get the inner ID value
+    pub fn inner(&self) -> u64 {
+        self.0
+    }
+}
 
 /// Unique identifier for audio destinations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct DestId(pub u64);
+pub struct DestId(u64);
+
+impl DestId {
+    /// Create a new DestId
+    ///
+    /// # Arguments
+    /// * `id` - The unique identifier value
+    pub fn new(id: u64) -> Self {
+        Self(id)
+    }
+
+    /// Get the inner ID value
+    pub fn inner(&self) -> u64 {
+        self.0
+    }
+}
 
 /// Unique identifier for routes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RouteId(pub u64);
+pub struct RouteId(u64);
+
+impl RouteId {
+    /// Create a new RouteId
+    ///
+    /// # Arguments
+    /// * `id` - The unique identifier value
+    pub fn new(id: u64) -> Self {
+        Self(id)
+    }
+
+    /// Get the inner ID value
+    pub fn inner(&self) -> u64 {
+        self.0
+    }
+}
 
 /// Audio source trait
 ///
@@ -208,7 +253,7 @@ impl AudioRouter {
     /// Unique identifier for the added source
     pub fn add_source(&self, source: Box<dyn AudioSource>) -> SourceId {
         let mut state = self.state.write();
-        let id = SourceId(state.next_source_id);
+        let id = SourceId::new(state.next_source_id);
         state.next_source_id += 1;
         state.sources.insert(id, source);
         id
@@ -223,7 +268,7 @@ impl AudioRouter {
     /// Unique identifier for the added destination
     pub fn add_destination(&self, destination: Box<dyn AudioDestination>) -> DestId {
         let mut state = self.state.write();
-        let id = DestId(state.next_dest_id);
+        let id = DestId::new(state.next_dest_id);
         state.next_dest_id += 1;
         state.destinations.insert(id, destination);
         id
@@ -311,7 +356,7 @@ impl AudioRouter {
             )));
         }
 
-        let route_id = RouteId(state.next_route_id);
+        let route_id = RouteId::new(state.next_route_id);
         state.next_route_id += 1;
 
         let route = Route {
