@@ -432,18 +432,16 @@ impl WasmAudioApp {
             // Draw spectrum visualizer
             let available_width = ui.available_width();
             let spectrum_height = 200.0;
-            let (rect, _response) =
-                ui.allocate_exact_size(egui::Vec2::new(available_width, spectrum_height), egui::Sense::hover());
+            let (rect, _response) = ui.allocate_exact_size(
+                egui::Vec2::new(available_width, spectrum_height),
+                egui::Sense::hover(),
+            );
 
             if ui.is_rect_visible(rect) {
                 let painter = ui.painter();
 
                 // Draw background
-                painter.rect_filled(
-                    rect,
-                    4.0,
-                    egui::Color32::from_rgb(20, 20, 30),
-                );
+                painter.rect_filled(rect, 4.0, egui::Color32::from_rgb(20, 20, 30));
 
                 // Draw spectrum bars
                 if !frequency_data.is_empty() {
@@ -476,14 +474,20 @@ impl WasmAudioApp {
                             let t = color_t * 2.0;
                             egui::Color32::from_rgb(
                                 SPECTRUM_GRADIENT_LOW_R as u8,
-                                (SPECTRUM_GRADIENT_LOW_G + t * (SPECTRUM_GRADIENT_MID_G - SPECTRUM_GRADIENT_LOW_G)) as u8,
-                                (SPECTRUM_GRADIENT_LOW_B - t * SPECTRUM_GRADIENT_BLUE_TO_CYAN_B_DECR) as u8,
+                                (SPECTRUM_GRADIENT_LOW_G
+                                    + t * (SPECTRUM_GRADIENT_MID_G - SPECTRUM_GRADIENT_LOW_G))
+                                    as u8,
+                                (SPECTRUM_GRADIENT_LOW_B
+                                    - t * SPECTRUM_GRADIENT_BLUE_TO_CYAN_B_DECR)
+                                    as u8,
                             )
                         } else {
                             // Cyan to red
                             let t = (color_t - 0.5) * 2.0;
                             egui::Color32::from_rgb(
-                                (SPECTRUM_GRADIENT_MID_R + t * (SPECTRUM_GRADIENT_HIGH_R - SPECTRUM_GRADIENT_MID_R)) as u8,
+                                (SPECTRUM_GRADIENT_MID_R
+                                    + t * (SPECTRUM_GRADIENT_HIGH_R - SPECTRUM_GRADIENT_MID_R))
+                                    as u8,
                                 (SPECTRUM_GRADIENT_MID_G - t * SPECTRUM_GRADIENT_MID_G) as u8,
                                 (SPECTRUM_GRADIENT_MID_B - t * SPECTRUM_GRADIENT_MID_B) as u8,
                             )
@@ -514,8 +518,14 @@ impl WasmAudioApp {
                 for i in 0..5 {
                     let y = rect.min.y + (rect.height() / 4.0) * i as f32;
                     painter.line_segment(
-                        [egui::Pos2::new(rect.min.x, y), egui::Pos2::new(rect.max.x, y)],
-                        egui::Stroke::new(0.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 20)),
+                        [
+                            egui::Pos2::new(rect.min.x, y),
+                            egui::Pos2::new(rect.max.x, y),
+                        ],
+                        egui::Stroke::new(
+                            0.5,
+                            egui::Color32::from_rgba_premultiplied(255, 255, 255, 20),
+                        ),
                     );
                 }
             }
@@ -525,10 +535,7 @@ impl WasmAudioApp {
             // Stats display
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("FFT Size:").color(colors.text));
-                ui.label(
-                    egui::RichText::new("512")
-                        .color(colors.text_secondary),
-                );
+                ui.label(egui::RichText::new("512").color(colors.text_secondary));
                 ui.add_space(15.0);
                 ui.label(egui::RichText::new("Bins:").color(colors.text));
                 ui.label(
@@ -551,11 +558,7 @@ impl WasmAudioApp {
 
             // Theme Selection
             ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new("Theme:")
-                        .color(colors.text)
-                        .size(16.0),
-                );
+                ui.label(egui::RichText::new("Theme:").color(colors.text).size(16.0));
             });
             ui.add_space(5.0);
 
@@ -575,10 +578,12 @@ impl WasmAudioApp {
                         theme.display_name().to_string()
                     };
 
-                    let button = egui::Button::new(
-                        egui::RichText::new(button_text)
-                            .color(if is_current { colors.accent } else { colors.text })
-                    );
+                    let button =
+                        egui::Button::new(egui::RichText::new(button_text).color(if is_current {
+                            colors.accent
+                        } else {
+                            colors.text
+                        }));
 
                     if ui.add(button).clicked() {
                         self.theme_manager.set_theme(theme.clone());
@@ -614,10 +619,26 @@ impl WasmAudioApp {
                         .color(colors.text)
                         .size(14.0),
                 );
-                ui.label(egui::RichText::new("• Signal Generator (Sine, Square, Sawtooth, Noise)").color(colors.text_secondary).size(11.0));
-                ui.label(egui::RichText::new("• 8-Band Parametric Equalizer").color(colors.text_secondary).size(11.0));
-                ui.label(egui::RichText::new("• Real-Time Spectrum Analyzer").color(colors.text_secondary).size(11.0));
-                ui.label(egui::RichText::new("• Multiple Themes").color(colors.text_secondary).size(11.0));
+                ui.label(
+                    egui::RichText::new("• Signal Generator (Sine, Square, Sawtooth, Noise)")
+                        .color(colors.text_secondary)
+                        .size(11.0),
+                );
+                ui.label(
+                    egui::RichText::new("• 8-Band Parametric Equalizer")
+                        .color(colors.text_secondary)
+                        .size(11.0),
+                );
+                ui.label(
+                    egui::RichText::new("• Real-Time Spectrum Analyzer")
+                        .color(colors.text_secondary)
+                        .size(11.0),
+                );
+                ui.label(
+                    egui::RichText::new("• Multiple Themes")
+                        .color(colors.text_secondary)
+                        .size(11.0),
+                );
             });
         });
     }

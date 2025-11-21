@@ -336,14 +336,16 @@ impl IntegratedAudioManager {
     #[cfg(target_arch = "wasm32")]
     pub fn set_eq_band(&mut self, band: usize, gain_db: f32) -> Result<()> {
         // Downcast to WebAudioBackend (safe in WASM builds)
+        let backend_name = self.backend.name();
         let backend = self
             .backend
             .as_any_mut()
             .downcast_mut::<WebAudioBackend>()
             .ok_or_else(|| {
-                AudioManagerError::InvalidConfiguration(
-                    "Backend is not WebAudioBackend".to_string(),
-                )
+                AudioManagerError::InvalidConfiguration(format!(
+                    "Expected WebAudioBackend, found {}",
+                    backend_name
+                ))
             })?;
 
         Ok(backend.set_eq_band(band, gain_db)?)
@@ -356,14 +358,16 @@ impl IntegratedAudioManager {
     #[cfg(target_arch = "wasm32")]
     pub fn get_eq_band(&self, band: usize) -> Result<f32> {
         // Downcast to WebAudioBackend (safe in WASM builds)
+        let backend_name = self.backend.name();
         let backend = self
             .backend
             .as_any()
             .downcast_ref::<WebAudioBackend>()
             .ok_or_else(|| {
-                AudioManagerError::InvalidConfiguration(
-                    "Backend is not WebAudioBackend".to_string(),
-                )
+                AudioManagerError::InvalidConfiguration(format!(
+                    "Expected WebAudioBackend, found {}",
+                    backend_name
+                ))
             })?;
 
         Ok(backend.get_eq_band(band)?)
@@ -373,14 +377,16 @@ impl IntegratedAudioManager {
     #[cfg(target_arch = "wasm32")]
     pub fn reset_eq(&mut self) -> Result<()> {
         // Downcast to WebAudioBackend (safe in WASM builds)
+        let backend_name = self.backend.name();
         let backend = self
             .backend
             .as_any_mut()
             .downcast_mut::<WebAudioBackend>()
             .ok_or_else(|| {
-                AudioManagerError::InvalidConfiguration(
-                    "Backend is not WebAudioBackend".to_string(),
-                )
+                AudioManagerError::InvalidConfiguration(format!(
+                    "Expected WebAudioBackend, found {}",
+                    backend_name
+                ))
             })?;
 
         Ok(backend.reset_eq()?)
@@ -392,14 +398,16 @@ impl IntegratedAudioManager {
     #[cfg(target_arch = "wasm32")]
     pub fn get_frequency_data(&self) -> Result<Vec<f32>> {
         // Downcast to WebAudioBackend (safe in WASM builds)
+        let backend_name = self.backend.name();
         let backend = self
             .backend
             .as_any()
             .downcast_ref::<WebAudioBackend>()
             .ok_or_else(|| {
-                AudioManagerError::InvalidConfiguration(
-                    "Backend is not WebAudioBackend".to_string(),
-                )
+                AudioManagerError::InvalidConfiguration(format!(
+                    "Expected WebAudioBackend, found {}",
+                    backend_name
+                ))
             })?;
 
         Ok(backend.get_frequency_data()?)
