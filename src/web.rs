@@ -404,7 +404,7 @@ impl WasmAudioApp {
                     "⚠ EQ Not Initialized"
                 };
                 let status_color = if self.audio_manager.is_some() {
-                    egui::Color32::from_rgb(100, 200, 100)
+                    colors.status_active
                 } else {
                     colors.text_secondary
                 };
