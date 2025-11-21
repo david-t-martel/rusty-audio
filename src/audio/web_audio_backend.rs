@@ -168,7 +168,7 @@ impl WebAudioBackend {
     /// # Arguments
     /// * `fft_size` - FFT size (must be power of 2, typically 512, 1024, 2048, 4096)
     /// * `smoothing_time_constant` - Smoothing (0.0 to 1.0, default 0.8)
-    pub fn create_analyser(&mut self, fft_size: u32, smoothing_time_constant: f32) -> Result<()> {
+    pub fn create_analyser(&mut self, fft_size: u32, smoothing_time_constant: f64) -> Result<()> {
         let context = self.get_context()?.clone();
 
         let analyser = context.create_analyser().map_err(|e| {
@@ -182,7 +182,7 @@ impl WebAudioBackend {
         analyser.set_fft_size(fft_size);
 
         // Set smoothing time constant (0.0 = no smoothing, 1.0 = max smoothing)
-        analyser.set_smoothing_time_constant(smoothing_time_constant.clamp(0.0, 1.0) as f64);
+        analyser.set_smoothing_time_constant(smoothing_time_constant.clamp(0.0, 1.0));
 
         // Store min/max decibels for proper scaling
         analyser.set_min_decibels(-100.0);
