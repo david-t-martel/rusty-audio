@@ -402,8 +402,70 @@ impl Theme {
 
     pub fn colors(&self) -> ThemeColors {
         match self {
+            Theme::StudioDark => ThemeColors {
+                background: Color32::from_rgb(24, 24, 28),
+                surface: Color32::from_rgb(36, 36, 42),
+                text: Color32::from_rgb(220, 220, 220),
+                text_secondary: Color32::from_rgb(180, 180, 180),
+                primary: Color32::from_rgb(0, 120, 212),
+                accent: Color32::from_rgb(255, 140, 0),
+                ..Default::default()
+            },
+            Theme::Mocha => ThemeColors {
+                background: Color32::from_rgb(30, 30, 46),
+                surface: Color32::from_rgb(40, 40, 60),
+                text: Color32::from_rgb(205, 214, 244),
+                text_secondary: Color32::from_rgb(186, 194, 222),
+                primary: Color32::from_rgb(245, 194, 231),
+                accent: Color32::from_rgb(198, 160, 246),
+                ..Default::default()
+            },
+            Theme::Macchiato => ThemeColors {
+                background: Color32::from_rgb(36, 39, 58),
+                surface: Color32::from_rgb(46, 49, 68),
+                text: Color32::from_rgb(202, 211, 245),
+                text_secondary: Color32::from_rgb(184, 192, 224),
+                primary: Color32::from_rgb(238, 153, 160),
+                accent: Color32::from_rgb(140, 170, 238),
+                ..Default::default()
+            },
+            Theme::Frappe => ThemeColors {
+                background: Color32::from_rgb(41, 46, 66),
+                surface: Color32::from_rgb(51, 56, 86),
+                text: Color32::from_rgb(198, 208, 245),
+                text_secondary: Color32::from_rgb(181, 191, 226),
+                primary: Color32::from_rgb(220, 138, 120),
+                accent: Color32::from_rgb(116, 199, 236),
+                ..Default::default()
+            },
+            Theme::Latte => ThemeColors {
+                background: Color32::from_rgb(230, 233, 239),
+                surface: Color32::from_rgb(220, 224, 232),
+                text: Color32::from_rgb(76, 79, 105),
+                text_secondary: Color32::from_rgb(99, 102, 134),
+                primary: Color32::from_rgb(179, 101, 57),
+                accent: Color32::from_rgb(30, 102, 245),
+                ..Default::default()
+            },
+            Theme::Light => ThemeColors {
+                background: Color32::WHITE,
+                surface: Color32::LIGHT_GRAY,
+                text: Color32::BLACK,
+                text_secondary: Color32::DARK_GRAY,
+                primary: Color32::from_rgb(0, 120, 212),
+                accent: Color32::from_rgb(255, 140, 0),
+                ..Default::default()
+            },
+            Theme::Dark => ThemeColors {
+                background: Color32::from_rgb(32, 32, 32),
+                surface: Color32::from_rgb(48, 48, 48),
+                text: Color32::from_rgb(220, 220, 220),
+                text_secondary: Color32::from_rgb(180, 180, 180),
+                primary: Color32::from_rgb(0, 120, 212),
+                accent: Color32::from_rgb(255, 140, 0),
+                ..Default::default()
+            },
             Theme::Custom(custom) => custom.colors.clone(),
-            _ => ThemeColors::default(), // Use default colors for built-in themes
         }
     }
 
