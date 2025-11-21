@@ -458,22 +458,34 @@ impl WasmAudioApp {
                         let y = rect.max.y - bar_height;
 
                         // Color gradient from blue to red based on frequency
+                        // Spectrum gradient color constants
+                        const SPECTRUM_GRADIENT_LOW_R: f32 = 0.0;
+                        const SPECTRUM_GRADIENT_LOW_G: f32 = 150.0;
+                        const SPECTRUM_GRADIENT_LOW_B: f32 = 255.0;
+                        const SPECTRUM_GRADIENT_MID_R: f32 = 0.0;
+                        const SPECTRUM_GRADIENT_MID_G: f32 = 200.0;
+                        const SPECTRUM_GRADIENT_MID_B: f32 = 200.0;
+                        const SPECTRUM_GRADIENT_HIGH_R: f32 = 255.0;
+                        const SPECTRUM_GRADIENT_HIGH_G: f32 = 0.0;
+                        const SPECTRUM_GRADIENT_HIGH_B: f32 = 0.0;
+                        const SPECTRUM_GRADIENT_BLUE_TO_CYAN_B_DECR: f32 = 55.0;
+
                         let color_t = i as f32 / num_bars as f32;
                         let color = if color_t < 0.5 {
                             // Blue to cyan
                             let t = color_t * 2.0;
                             egui::Color32::from_rgb(
-                                (0.0 + t * 0.0) as u8,
-                                (150.0 + t * 200.0).min(255.0) as u8,
-                                (255.0 - t * 55.0) as u8,
+                                SPECTRUM_GRADIENT_LOW_R as u8,
+                                (SPECTRUM_GRADIENT_LOW_G + t * (SPECTRUM_GRADIENT_MID_G - SPECTRUM_GRADIENT_LOW_G)) as u8,
+                                (SPECTRUM_GRADIENT_LOW_B - t * SPECTRUM_GRADIENT_BLUE_TO_CYAN_B_DECR) as u8,
                             )
                         } else {
                             // Cyan to red
                             let t = (color_t - 0.5) * 2.0;
                             egui::Color32::from_rgb(
-                                (0.0 + t * 255.0) as u8,
-                                (200.0 - t * 200.0) as u8,
-                                (200.0 - t * 200.0) as u8,
+                                (SPECTRUM_GRADIENT_MID_R + t * (SPECTRUM_GRADIENT_HIGH_R - SPECTRUM_GRADIENT_MID_R)) as u8,
+                                (SPECTRUM_GRADIENT_MID_G - t * SPECTRUM_GRADIENT_MID_G) as u8,
+                                (SPECTRUM_GRADIENT_MID_B - t * SPECTRUM_GRADIENT_MID_B) as u8,
                             )
                         };
 
