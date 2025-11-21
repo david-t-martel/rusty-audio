@@ -23,6 +23,10 @@ use crate::{
 use std::time::Instant;
 
 #[cfg(target_arch = "wasm32")]
+/// Maximum number of spectrum bars to display for performance optimization
+const MAX_SPECTRUM_BARS: usize = 128;
+
+#[cfg(target_arch = "wasm32")]
 /// Application tabs for navigation
 /// Source: Adapted from src/main.rs:93-160 (desktop Tab enum)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -447,7 +451,7 @@ impl WasmAudioApp {
 
                 // Draw spectrum bars
                 if !frequency_data.is_empty() {
-                    let num_bars = frequency_data.len().min(128); // Limit to 128 bars for performance
+                    let num_bars = frequency_data.len().min(MAX_SPECTRUM_BARS);
                     let bar_width = rect.width() / num_bars as f32;
                     let bar_spacing = bar_width * 0.1;
                     let effective_bar_width = bar_width - bar_spacing;
