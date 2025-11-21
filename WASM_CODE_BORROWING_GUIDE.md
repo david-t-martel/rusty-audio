@@ -251,7 +251,7 @@ fn draw_mobile_eq_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
             ui.add_space(10.0);
             if ui.button("Reset").clicked() {
                 for (i, knob) in self.accessible_eq_knobs.iter_mut().enumerate() {
-                    if let Err(e) = self.audio_engine.set_eq_gain(i, 0.0) {
+                    if let Err(e) = self.audio_engine.set_eq_band(i, 0.0) {
                         self.error = Some(format!("EQ reset failed: {}", e));
                     }
                     knob.set_value(0.0);
