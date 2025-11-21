@@ -14,7 +14,9 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
-use web_sys::{AnalyserNode, AudioContext, AudioDestinationNode, BiquadFilterNode, BiquadFilterType};
+use web_sys::{
+    AnalyserNode, AudioContext, AudioDestinationNode, BiquadFilterNode, BiquadFilterType,
+};
 
 /// Web Audio API backend with EQ and spectrum analysis support
 #[cfg(target_arch = "wasm32")]

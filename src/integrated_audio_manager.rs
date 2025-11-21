@@ -45,6 +45,9 @@ pub enum AudioManagerError {
     #[error("Route not found: {0:?}")]
     RouteNotFound(RouteId),
 
+    #[error("Route type not active: {0:?}")]
+    RouteTypeNotActive(RouteType),
+
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
 }
@@ -311,7 +314,7 @@ impl IntegratedAudioManager {
         let route_id = self
             .active_routes
             .get(&route_type)
-            .ok_or(AudioManagerError::RouteNotFound(RouteId(0)))?;
+            .ok_or(AudioManagerError::RouteTypeNotActive(route_type))?;
 
         Ok(self.router.set_route_gain(*route_id, gain)?)
     }
