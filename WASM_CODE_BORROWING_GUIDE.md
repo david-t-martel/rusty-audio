@@ -100,7 +100,7 @@ fn draw_eq_panel(&mut self, ui: &mut egui::Ui, colors: &ThemeColors) {
                     let freq_label = if freq < 1000.0 {
                         format!("{:.0} Hz", freq)
                     } else {
-                        format!("{:.1}k Hz", freq / 1000.0)
+                        format!("{:.1}kHz", freq / 1000.0)
                     };
                     ui.label(RichText::new(&freq_label).color(colors.text).size(12.0));
 
