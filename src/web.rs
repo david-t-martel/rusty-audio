@@ -549,7 +549,7 @@ impl WasmAudioApp {
 
             // Theme buttons grid
             ui.columns(2, |columns| {
-                let themes = crate::ui::theme::Theme::all();
+                let themes = Theme::all();
                 let half = (themes.len() + 1) / 2;
 
                 for (i, theme) in themes.iter().enumerate() {
