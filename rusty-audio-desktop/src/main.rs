@@ -17,10 +17,6 @@ use web_audio_api::context::{AudioContext, BaseAudioContext};
 use web_audio_api::node::{
     AnalyserNode, AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType,
 };
-// Note: AudioBuffer is in a private module in web-audio-api
-// Commented out temporarily - waveform preview features may need refactoring
-// #[cfg(not(target_arch = "wasm32"))]
-// use web_audio_api::render::AudioBuffer;
 
 // Import hybrid audio backend (native only for now)
 #[cfg(not(target_arch = "wasm32"))]
@@ -1350,7 +1346,12 @@ impl AudioPlayerApp {
 
                     // Update UI state
                     self.total_duration = duration;
-                    // TODO: Update waveform preview once AudioBuffer refactoring is complete
+                    
+                    // Update waveform preview
+                    if let Some(waveform) = self.audio_engine.get_waveform(WAVEFORM_PREVIEW_SAMPLES) {
+                        self.waveform_preview = waveform;
+                        self.waveform_dirty = true;
+                    }
 
                     // Start playback via AudioEngine
                     if let Err(e) = self.audio_engine.play() {
@@ -1923,6 +1924,18 @@ impl AudioPlayerApp {
                         }
                     });
 
+                    #[cfg(target_os = "windows")]
+                    ui.horizontal(|ui| {
+                        ui.label("");
+                        if ui.radio(current_mode == HybridMode::AsioOnly, "⚡ ASIO (Professional)").clicked() {
+                            if let Err(e) = backend.set_mode(HybridMode::AsioOnly) {
+                                self.audio_status_message = Some((format!("Failed to switch mode: {}", e), Instant::now()));
+                            } else {
+                                self.audio_status_message = Some(("Switched to ASIO mode".to_string(), Instant::now()));
+                            }
+                        }
+                    });
+
                     // Show mode-specific info
                     ui.add_space(5.0);
                     match current_mode {
@@ -1934,6 +1947,9 @@ impl AudioPlayerApp {
                         }
                         HybridMode::CpalOnly => {
                             ui.label(RichText::new("⚡ Maximum performance, <5ms latency").size(11.0).color(Color32::from_rgb(100, 255, 100)));
+                        }
+                        HybridMode::AsioOnly => {
+                            ui.label(RichText::new("🎹 Professional ASIO, <3ms latency, Exclusive Mode").size(11.0).color(Color32::from_rgb(150, 255, 255)));
                         }
                     }
                 } else {

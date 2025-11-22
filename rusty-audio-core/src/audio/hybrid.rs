@@ -18,6 +18,8 @@ use super::backend::{
     Result, StreamStatus,
 };
 use super::device::CpalBackend;
+#[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+use super::asio_backend::AsioBackend;
 use anyhow::anyhow;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -106,6 +108,8 @@ pub enum HybridMode {
     HybridNative,
     /// Use cpal exclusively (future: for maximum performance)
     CpalOnly,
+    /// Use ASIO exclusively (Windows only)
+    AsioOnly,
 }
 
 /// Fallback policy for automatic backend switching
@@ -153,6 +157,9 @@ pub struct HybridAudioBackend {
     #[cfg(not(target_arch = "wasm32"))]
     cpal_backend: Option<CpalBackend>,
 
+    #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+    asio_backend: Option<AsioBackend>,
+
     ring_buffer: Option<Arc<AudioRingBuffer>>,
     config: AudioConfig,
 }
@@ -164,6 +171,16 @@ impl HybridAudioBackend {
         let mode = if cfg!(target_arch = "wasm32") {
             HybridMode::WebAudioOnly
         } else {
+            // On Windows, prefer ASIO if available, otherwise hybrid native (WASAPI)
+            #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+            {
+                if AsioBackend::asio_available() {
+                    HybridMode::AsioOnly
+                } else {
+                    HybridMode::HybridNative
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
             HybridMode::HybridNative
         };
 
@@ -173,8 +190,15 @@ impl HybridAudioBackend {
     /// Create hybrid backend with specific mode
     pub fn with_mode(mode: HybridMode) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
-        let cpal_backend = if mode != HybridMode::WebAudioOnly {
+        let cpal_backend = if mode == HybridMode::HybridNative || mode == HybridMode::CpalOnly {
             Some(CpalBackend::new())
+        } else {
+            None
+        };
+
+        #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+        let asio_backend = if mode == HybridMode::AsioOnly {
+            Some(AsioBackend::new())
         } else {
             None
         };
@@ -186,6 +210,8 @@ impl HybridAudioBackend {
             underrun_count: 0,
             #[cfg(not(target_arch = "wasm32"))]
             cpal_backend,
+            #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+            asio_backend,
             ring_buffer: None,
             config: AudioConfig::default(),
         }
@@ -204,17 +230,40 @@ impl HybridAudioBackend {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // Update cpal backend availability
+            // Update backend availability
             match mode {
                 HybridMode::WebAudioOnly => {
                     self.cpal_backend = None;
+                    #[cfg(target_os = "windows")]
+                    {
+                        self.asio_backend = None;
+                    }
                 }
                 HybridMode::HybridNative | HybridMode::CpalOnly => {
+                    #[cfg(target_os = "windows")]
+                    {
+                        self.asio_backend = None;
+                    }
                     if self.cpal_backend.is_none() {
                         let mut backend = CpalBackend::new();
                         backend.initialize()?;
                         self.cpal_backend = Some(backend);
                     }
+                }
+                #[cfg(target_os = "windows")]
+                HybridMode::AsioOnly => {
+                    self.cpal_backend = None;
+                    if self.asio_backend.is_none() {
+                        let mut backend = AsioBackend::new();
+                        backend.initialize()?;
+                        self.asio_backend = Some(backend);
+                    }
+                }
+                #[cfg(not(target_os = "windows"))]
+                HybridMode::AsioOnly => {
+                    return Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO not supported on this platform".to_string(),
+                    ));
                 }
             }
         }
@@ -300,7 +349,11 @@ impl HybridAudioBackend {
                 )));
             }
             HybridMode::HybridNative => HybridMode::WebAudioOnly,
-            HybridMode::CpalOnly => HybridMode::WebAudioOnly,
+            HybridMode::CpalOnly => HybridMode::HybridNative,
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => HybridMode::HybridNative,
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => HybridMode::HybridNative,
         };
 
         // Attempt to switch to fallback mode
@@ -326,6 +379,20 @@ impl HybridAudioBackend {
                         ))
                     }
                 }
+                #[cfg(target_os = "windows")]
+                HybridMode::AsioOnly => {
+                    if let Some(backend) = &mut self.asio_backend {
+                        backend.initialize()
+                    } else {
+                        Err(AudioBackendError::BackendNotAvailable(
+                            "ASIO backend not initialized".to_string(),
+                        ))
+                    }
+                }
+                #[cfg(not(target_os = "windows"))]
+                HybridMode::AsioOnly => Err(AudioBackendError::BackendNotAvailable(
+                    "ASIO backend only available on Windows".to_string(),
+                )),
             }
         }
         #[cfg(target_arch = "wasm32")]
@@ -346,6 +413,10 @@ impl AudioBackend for HybridAudioBackend {
             HybridMode::WebAudioOnly => "web-audio-api",
             HybridMode::HybridNative => "hybrid(web-audio + cpal)",
             HybridMode::CpalOnly => "cpal",
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => "asio",
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => "asio (unavailable)",
         }
     }
 
@@ -357,6 +428,14 @@ impl AudioBackend for HybridAudioBackend {
                 .as_ref()
                 .map(|b| b.is_available())
                 .unwrap_or(false),
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => self
+                .asio_backend
+                .as_ref()
+                .map(|b| b.is_available())
+                .unwrap_or(false),
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => false,
         }
     }
 
@@ -372,6 +451,20 @@ impl AudioBackend for HybridAudioBackend {
                     ))
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &mut self.asio_backend {
+                    backend.initialize()
+                } else {
+                    Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO backend not initialized".to_string(),
+                    ))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Err(AudioBackendError::BackendNotAvailable(
+                "ASIO backend only available on Windows".to_string(),
+            )),
         }
     }
 
@@ -402,6 +495,18 @@ impl AudioBackend for HybridAudioBackend {
                     ))
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &self.asio_backend {
+                    backend.enumerate_devices(direction)
+                } else {
+                    Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO backend not available".to_string(),
+                    ))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Ok(Vec::new()),
         }
     }
 
@@ -429,6 +534,20 @@ impl AudioBackend for HybridAudioBackend {
                     ))
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &self.asio_backend {
+                    backend.default_device(direction)
+                } else {
+                    Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO backend not available".to_string(),
+                    ))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Err(AudioBackendError::BackendNotAvailable(
+                "Not available on this platform".to_string(),
+            )),
         }
     }
 
@@ -442,6 +561,16 @@ impl AudioBackend for HybridAudioBackend {
                     Ok(false)
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &self.asio_backend {
+                    backend.test_device(device_id)
+                } else {
+                    Ok(false)
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Ok(false),
         }
     }
 
@@ -467,6 +596,18 @@ impl AudioBackend for HybridAudioBackend {
                     ))
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &self.asio_backend {
+                    backend.supported_configs(device_id, direction)
+                } else {
+                    Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO backend not available".to_string(),
+                    ))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Ok(Vec::new()),
         }
     }
 
@@ -523,6 +664,20 @@ impl AudioBackend for HybridAudioBackend {
                     ))
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &mut self.asio_backend {
+                    backend.create_output_stream(device_id, config)
+                } else {
+                    Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO backend not available".to_string(),
+                    ))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Err(AudioBackendError::BackendNotAvailable(
+                "Not available on this platform".to_string(),
+            )),
         }
     }
 
@@ -545,6 +700,20 @@ impl AudioBackend for HybridAudioBackend {
                     ))
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &mut self.asio_backend {
+                    backend.create_input_stream(device_id, config)
+                } else {
+                    Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO backend not available".to_string(),
+                    ))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Err(AudioBackendError::BackendNotAvailable(
+                "Not available on this platform".to_string(),
+            )),
         }
     }
 
@@ -567,6 +736,20 @@ impl AudioBackend for HybridAudioBackend {
                     ))
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &mut self.asio_backend {
+                    backend.create_output_stream_with_callback(device_id, config, callback)
+                } else {
+                    Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO backend not initialized".to_string(),
+                    ))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Err(AudioBackendError::BackendNotAvailable(
+                "ASIO backend not available".to_string(),
+            )),
         }
     }
 
@@ -589,6 +772,20 @@ impl AudioBackend for HybridAudioBackend {
                     ))
                 }
             }
+            #[cfg(target_os = "windows")]
+            HybridMode::AsioOnly => {
+                if let Some(backend) = &mut self.asio_backend {
+                    backend.create_input_stream_with_callback(device_id, config, callback)
+                } else {
+                    Err(AudioBackendError::BackendNotAvailable(
+                        "ASIO backend not initialized".to_string(),
+                    ))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            HybridMode::AsioOnly => Err(AudioBackendError::BackendNotAvailable(
+                "ASIO backend not available".to_string(),
+            )),
         }
     }
 

@@ -13,7 +13,7 @@ path = "src/lib.rs"
 [features]
 default = []
 # Platform-specific features
-native = ["cpal", "hound", "rfd", "web-audio-api", "tokio", "futures", "memmap2", "tempfile", "rodio", "symphonia", "rubato", "midir", "wmidi"]
+native = ["cpal", "hound", "rfd", "web-audio-api", "tokio", "futures", "memmap2", "tempfile", "rodio", "symphonia", "rubato", "midir", "wmidi", "audio-optimizations"]
 wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "web-sys", "console_error_panic_hook", "console_log", "wgpu/webgpu", "wgpu/webgl"]
 # Optional features
 audio-optimizations = []

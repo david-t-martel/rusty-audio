@@ -63,7 +63,7 @@ image = "0.25.8"
 lofty = "0.22.4"
 
 # Native-only dependencies
-cpal = { version = "0.15" }
+cpal = { version = "0.15", features = ["asio"] }
 rodio = { version = "0.17", default-features = false, features = ["wav", "vorbis", "flac", "mp3"] }
 symphonia = { version = "0.5", features = ["all", "opt-simd"] }
 rubato = "0.15"

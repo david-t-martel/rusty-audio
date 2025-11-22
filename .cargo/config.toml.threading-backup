@@ -1,0 +1,98 @@
+# Cargo configuration for rusty-audio
+# Dual-target: Windows desktop (primary) + WASM/PWA (web deployment)
+
+# ============================================================================
+# ASIO SDK CONFIGURATION (Windows Professional Audio)
+# ============================================================================
+
+[env]
+# ASIO SDK location for Windows builds
+# Points to local SDK to avoid download attempts during build
+CPAL_ASIO_DIR = { value = "T:\\projects\\asiovst\\asiosdk", force = true, relative = false }
+
+[build]
+jobs = 8
+incremental = true
+# rustc-wrapper = "sccache"  # ❌ Removed: Causes CI failures when sccache is not installed
+# To enable sccache for faster builds, set environment variable: export RUSTC_WRAPPER=sccache
+# GitHub Actions workflows using sccache already set this via mozilla-actions/sccache-action
+target-dir = "target"
+
+# ============================================================================
+# WINDOWS DESKTOP TARGET (Primary - Performance Optimized)
+# ============================================================================
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "target-cpu=x86-64-v3",     # AVX2, BMI2, FMA for SIMD
+    "-C", "link-arg=/STACK:8388608",  # 8MB stack for audio processing
+]
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "target-cpu=native", "-A", "dead_code", "-A", "unused_imports"]
+
+# ============================================================================
+# LINUX/WSL SUPPORT (Development)
+# ============================================================================
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=native", "-A", "dead_code"]
+
+# ============================================================================
+# WASM/PWA TARGET (Web Deployment - Multithreaded with SharedArrayBuffer)
+# ============================================================================
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    "--cfg", "getrandom_backend=\"wasm_js\"",
+    "-C", "embed-bitcode=yes",        # Required for wasm-opt
+    "-C", "opt-level=z",              # Optimize for size (critical for web)
+    "-C", "target-feature=+atomics,+bulk-memory,+mutable-globals",  # Enable threading support
+    "-C", "link-arg=--shared-memory",  # Enable SharedArrayBuffer
+    "-C", "link-arg=--max-memory=4294967296",  # 4GB max memory for threading
+    # LTO disabled for cdylib compatibility
+]
+
+# ============================================================================
+# PROFILE OPTIMIZATIONS
+# ============================================================================
+
+[profile.dev]
+opt-level = 1
+debug = 1
+incremental = true
+codegen-units = 256
+
+[profile.dev.package."*"]
+opt-level = 2  # Optimize dependencies
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 16
+strip = true
+panic = "abort"
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"           # Maximum size reduction for WASM
+lto = false               # LTO must be disabled for cdylib targets (WASM)
+codegen-units = 1
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+strip = false
+
+# ============================================================================
+# ALIASES
+# ============================================================================
+
+[alias]
+b = "build"
+c = "check"
+r = "run"
+t = "test"
+br = "build --release"
+wasm = "build --target wasm32-unknown-unknown --profile wasm-release"
+wasm-check = "check --target wasm32-unknown-unknown"
