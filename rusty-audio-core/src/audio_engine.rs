@@ -90,6 +90,15 @@ pub trait AudioEngineInterface {
 
     /// Get the total duration of the current audio
     fn get_duration(&self) -> Duration;
+
+    /// Get the waveform data for visualization (downsampled)
+    fn get_waveform(&self, samples: usize) -> Option<Vec<f32>>;
+
+    /// Control whether audio is routed to the default web-audio output
+    fn set_output_routing(&mut self, enable_default_output: bool) -> Result<()>;
+
+    /// Connect the engine output (post-processing) to a destination node
+    fn connect_output_to(&mut self, dest: &dyn AudioNode) -> Result<()>;
 }
 
 /// Web Audio API implementation of the audio engine
@@ -105,6 +114,8 @@ pub struct WebAudioEngine {
     total_duration: Duration,
     is_seeking: bool,
     spectrum: Vec<f32>,
+    waveform_data: Option<Arc<Vec<f32>>>, // Cached full resolution waveform
+    default_output_enabled: bool,
 }
 
 impl WebAudioEngine {
@@ -137,6 +148,8 @@ impl WebAudioEngine {
             total_duration: Duration::ZERO,
             is_seeking: false,
             spectrum: vec![0.0; 1024],
+            waveform_data: None,
+            default_output_enabled: true,
         }
     }
 
@@ -158,7 +171,10 @@ impl WebAudioEngine {
             }
 
             previous_node.connect(&self.analyser);
-            self.analyser.connect(&self.audio_context.destination());
+
+            if self.default_output_enabled {
+                self.analyser.connect(&self.audio_context.destination());
+            }
 
             debug!("Audio chain connected successfully");
             Ok(())
@@ -214,6 +230,22 @@ impl AudioEngineInterface for WebAudioEngine {
             .map_err(|_| AudioError::DecodeFailed)?;
 
         self.total_duration = Duration::from_secs_f64(buffer.duration());
+
+        // Extract waveform data for visualization
+        let channels = buffer.number_of_channels();
+        let length = buffer.length();
+        let mut waveform = vec![0.0; length];
+
+        if channels > 0 {
+            // Mix down to mono for visualization
+            for i in 0..channels {
+                let channel_data = buffer.get_channel_data(i);
+                for (j, sample) in channel_data.iter().enumerate() {
+                    waveform[j] += sample / channels as f32;
+                }
+            }
+        }
+        self.waveform_data = Some(Arc::new(waveform));
 
         let mut source_node = self.audio_context.create_buffer_source();
         source_node.set_buffer(buffer);
@@ -408,6 +440,58 @@ impl AudioEngineInterface for WebAudioEngine {
 
     fn get_context(&self) -> &AudioContext {
         &self.audio_context
+    }
+
+    fn get_waveform(&self, target_points: usize) -> Option<Vec<f32>> {
+        let data = self.waveform_data.as_ref()?;
+        if data.is_empty() || target_points == 0 {
+            return Some(Vec::new());
+        }
+
+        let step = (data.len() / target_points).max(1);
+        let mut waveform = Vec::with_capacity(target_points);
+
+        for chunk in data.chunks(step).take(target_points) {
+            // Find max absolute value in chunk (peak detection)
+            let peak = chunk.iter().fold(0.0f32, |max, &x| max.max(x.abs()));
+            waveform.push(peak);
+        }
+
+        // Normalize
+        let max_peak = waveform.iter().fold(0.0f32, |max, &x| max.max(x));
+        if max_peak > 0.0 {
+            for sample in &mut waveform {
+                *sample /= max_peak;
+            }
+        }
+
+        Some(waveform)
+    }
+
+    fn set_output_routing(&mut self, enable_default_output: bool) -> Result<()> {
+        if self.default_output_enabled == enable_default_output {
+            return Ok(());
+        }
+
+        if enable_default_output {
+            self.analyser.connect(&self.audio_context.destination());
+        } else {
+            self.analyser.disconnect();
+            // If we disconnect everything, we might stop processing?
+            // Analyser needs to be connected to something to pull data if it's not a fan-out?
+            // Actually in Web Audio, nodes process if they are connected to the destination (directly or indirectly)
+            // OR if they are a ScriptProcessor/AudioWorklet with active processing.
+            // If we disable default output, we rely on the ScriptProcessor (bridge) to keep the graph alive.
+        }
+
+        self.default_output_enabled = enable_default_output;
+        debug!("Default output routing: {}", enable_default_output);
+        Ok(())
+    }
+
+    fn connect_output_to(&mut self, dest: &dyn AudioNode) -> Result<()> {
+        self.analyser.connect(dest);
+        Ok(())
     }
 }
 

@@ -111,10 +111,7 @@ impl WebHandle {
             .as_ref()
             .ok_or_else(|| JsValue::from_str("Auth not initialized"))?;
 
-        client
-            .initiate_auth()
-            .await
-            .map_err(|e| JsValue::from(e))
+        client.initiate_auth().await.map_err(|e| JsValue::from(e))
     }
 
     /// Handle OAuth callback
@@ -143,10 +140,7 @@ impl WebHandle {
             .as_ref()
             .ok_or_else(|| JsValue::from_str("Auth not initialized"))?;
 
-        client
-            .logout()
-            .await
-            .map_err(|e| JsValue::from(e))
+        client.logout().await.map_err(|e| JsValue::from(e))
     }
 
     /// Get library version

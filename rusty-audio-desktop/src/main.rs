@@ -17,10 +17,6 @@ use web_audio_api::context::{AudioContext, BaseAudioContext};
 use web_audio_api::node::{
     AnalyserNode, AudioNode, AudioScheduledSourceNode, BiquadFilterNode, BiquadFilterType,
 };
-// Note: AudioBuffer is in a private module in web-audio-api
-// Commented out temporarily - waveform preview features may need refactoring
-// #[cfg(not(target_arch = "wasm32"))]
-// use web_audio_api::render::AudioBuffer;
 
 // Import hybrid audio backend (native only for now)
 #[cfg(not(target_arch = "wasm32"))]
@@ -123,13 +119,13 @@ struct AudioPlayerApp {
     waveform_dirty: bool,
 
     // Enhanced controls (legacy - to be replaced)
-    eq_knobs: Vec<CircularKnob>,
+    _eq_knobs: Vec<CircularKnob>,
 
     // Accessibility and enhanced controls
     accessibility_manager: AccessibilityManager,
     accessible_volume_slider: AccessibleSlider,
     accessible_eq_knobs: Vec<AccessibleKnob>,
-    file_loading_progress: Option<ProgressIndicator>,
+    _file_loading_progress: Option<ProgressIndicator>,
     volume_safety_indicator: VolumeSafetyIndicator,
     error_manager: ErrorManager,
 
@@ -145,17 +141,18 @@ struct AudioPlayerApp {
     // Phase 3.1: Hybrid audio backend (TODO: Move into AudioEngine)
     audio_backend: Option<HybridAudioBackend>,
     device_manager: Option<AudioDeviceManager>,
-    web_audio_bridge: Option<WebAudioBridge>,
-    audio_mode_switching: bool, // Animation state for mode changes
-    last_latency_check: Instant,
+    // web_audio_bridge: Option<WebAudioBridge>, // Replaced by script processor
+    script_processor: Option<web_audio_api::node::ScriptProcessorNode>,
+    _audio_mode_switching: bool, // Animation state for mode changes
+    _last_latency_check: Instant,
     audio_status_message: Option<(String, Instant)>, // (message, timestamp)
 
     // Phase 3.2: Recording
     recording_panel: RecordingPanel,
 
     // Phase 1.4: Async file loading
-    async_loader: AsyncAudioLoader,
-    tokio_runtime: Arc<tokio::runtime::Runtime>,
+    _async_loader: AsyncAudioLoader,
+    _tokio_runtime: Arc<tokio::runtime::Runtime>,
     load_progress: Option<f32>,
 }
 
@@ -231,7 +228,7 @@ impl Default for AudioPlayerApp {
             waveform_preview: Vec::new(),
             waveform_dirty: false,
 
-            eq_knobs,
+            _eq_knobs: eq_knobs,
 
             // Accessibility and enhanced controls
             accessibility_manager: AccessibilityManager::new(),
@@ -245,7 +242,7 @@ impl Default for AudioPlayerApp {
             .safety_info("Keep volume below 80% to protect hearing")
             .step_size(0.05),
             accessible_eq_knobs,
-            file_loading_progress: None,
+            _file_loading_progress: None,
             volume_safety_indicator: VolumeSafetyIndicator::new(),
             error_manager: ErrorManager::new(),
 
@@ -276,17 +273,17 @@ impl Default for AudioPlayerApp {
                     None
                 }
             },
-            web_audio_bridge: None, // Will be created when switching to HybridNative mode
-            audio_mode_switching: false,
-            last_latency_check: Instant::now(),
+            script_processor: None,
+            _audio_mode_switching: false,
+            _last_latency_check: Instant::now(),
             audio_status_message: None,
 
             // Phase 3.2: Recording
             recording_panel: RecordingPanel::new(),
 
             // Phase 1.4: Async file loading
-            async_loader: AsyncAudioLoader::new(AsyncLoadConfig::default()),
-            tokio_runtime: Self::build_async_runtime(),
+            _async_loader: AsyncAudioLoader::new(AsyncLoadConfig::default()),
+            _tokio_runtime: Self::build_async_runtime(),
             load_progress: None,
         }
     }
@@ -301,7 +298,7 @@ impl eframe::App for AudioPlayerApp {
         self.last_frame_time = now;
 
         // Update screen size and responsive layout
-        let screen_size_vec = ctx.screen_rect().size();
+        let screen_size_vec = ctx.input(|i| i.screen_rect()).size();
         self.screen_size = ScreenSize::from_width(screen_size_vec.x);
         self.layout_manager
             .update_responsive_layout(screen_size_vec);
@@ -335,7 +332,7 @@ impl eframe::App for AudioPlayerApp {
 
         match accessibility_action {
             AccessibilityAction::EmergencyVolumeReduction => {
-                let emergency_volume = self.accessibility_manager.get_volume_safety_status();
+                let _emergency_volume = self.accessibility_manager.get_volume_safety_status();
                 self.volume = 0.2; // Emergency volume level
                 self.audio_engine.set_volume(self.volume);
                 self.accessible_volume_slider.set_value(self.volume);
@@ -360,7 +357,7 @@ impl eframe::App for AudioPlayerApp {
                     ui::accessibility::AnnouncementPriority::Medium,
                 );
             }
-            AccessibilityAction::AdjustFocusedControl(delta) => {
+            AccessibilityAction::AdjustFocusedControl(_delta) => {
                 // This would be handled by the focused control itself
             }
             _ => {}
@@ -477,7 +474,7 @@ impl AudioPlayerApp {
         }
     }
 
-    fn update_ui_components(&mut self, colors: &ThemeColors) {
+    fn update_ui_components(&mut self, _colors: &ThemeColors) {
         // Update progress bar
         self.progress_bar.set_progress(
             self.playback_pos.as_secs_f32(),
@@ -548,8 +545,8 @@ impl AudioPlayerApp {
 
     fn draw_desktop_layout(&mut self, ctx: &egui::Context, colors: &ThemeColors) {
         // Configure for landscape HiDPI layout
-        let available_space = ctx.screen_rect().size();
-        let is_landscape = available_space.x > available_space.y;
+        let available_space = ctx.input(|i| i.screen_rect()).size();
+        let _is_landscape = available_space.x > available_space.y;
 
         // Top panel with optimized height for landscape
         egui::TopBottomPanel::top("header")
@@ -606,10 +603,8 @@ impl AudioPlayerApp {
                     if ui
                         .add_sized(
                             tab_button_size,
-                            egui::SelectableLabel::new(
-                                self.active_tab == Tab::Playback,
-                                "🎵 Playback",
-                            ),
+                            egui::Button::new("🎵 Playback")
+                                .selected(self.active_tab == Tab::Playback),
                         )
                         .clicked()
                     {
@@ -620,10 +615,8 @@ impl AudioPlayerApp {
                     if ui
                         .add_sized(
                             tab_button_size,
-                            egui::SelectableLabel::new(
-                                self.active_tab == Tab::Effects,
-                                "🎛️ Effects",
-                            ),
+                            egui::Button::new("🎛️ Effects")
+                                .selected(self.active_tab == Tab::Effects),
                         )
                         .clicked()
                     {
@@ -634,7 +627,7 @@ impl AudioPlayerApp {
                     if ui
                         .add_sized(
                             tab_button_size,
-                            egui::SelectableLabel::new(self.active_tab == Tab::Eq, "📊 EQ"),
+                            egui::Button::new("📊 EQ").selected(self.active_tab == Tab::Eq),
                         )
                         .clicked()
                     {
@@ -645,10 +638,8 @@ impl AudioPlayerApp {
                     if ui
                         .add_sized(
                             tab_button_size,
-                            egui::SelectableLabel::new(
-                                self.active_tab == Tab::Generator,
-                                "🎛️ Generator",
-                            ),
+                            egui::Button::new("🎛️ Generator")
+                                .selected(self.active_tab == Tab::Generator),
                         )
                         .clicked()
                     {
@@ -659,10 +650,8 @@ impl AudioPlayerApp {
                     if ui
                         .add_sized(
                             tab_button_size,
-                            egui::SelectableLabel::new(
-                                self.active_tab == Tab::Recording,
-                                "🎙️ Recording",
-                            ),
+                            egui::Button::new("🎙️ Recording")
+                                .selected(self.active_tab == Tab::Recording),
                         )
                         .clicked()
                     {
@@ -673,10 +662,8 @@ impl AudioPlayerApp {
                     if ui
                         .add_sized(
                             tab_button_size,
-                            egui::SelectableLabel::new(
-                                self.active_tab == Tab::Settings,
-                                "⚙️ Settings",
-                            ),
+                            egui::Button::new("⚙️ Settings")
+                                .selected(self.active_tab == Tab::Settings),
                         )
                         .clicked()
                     {
@@ -740,7 +727,7 @@ impl AudioPlayerApp {
                         ui.add_space(10.0);
 
                         // Album art with enhanced display - smaller for landscape
-                        let album_art_response = self.album_art_display.show(ui, colors);
+                        let _album_art_response = self.album_art_display.show(ui, colors);
 
                         ui.add_space(10.0);
 
@@ -1084,7 +1071,7 @@ impl AudioPlayerApp {
         });
     }
 
-    fn draw_legacy_effects_tab(&mut self, ui: &mut egui::Ui) {
+    fn _draw_legacy_effects_tab(&mut self, ui: &mut egui::Ui) {
         ui.label("Spectrum");
         let (rect, _) =
             ui.allocate_exact_size(Vec2::new(ui.available_width(), 200.0), egui::Sense::hover());
@@ -1111,7 +1098,7 @@ impl AudioPlayerApp {
         }
     }
 
-    fn draw_legacy_eq_tab(&mut self, ui: &mut egui::Ui) {
+    fn _draw_legacy_eq_tab(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.label("Equalizer");
@@ -1194,7 +1181,7 @@ impl AudioPlayerApp {
         self.recording_panel.draw(ui, colors);
     }
 
-    fn draw_legacy_settings_tab(&mut self, ui: &mut egui::Ui) {
+    fn _draw_legacy_settings_tab(&mut self, ui: &mut egui::Ui) {
         ui.heading("Theme");
         egui::ComboBox::from_label("Select a theme")
             .selected_text(self.theme_manager.current_theme().display_name())
@@ -1268,7 +1255,7 @@ impl AudioPlayerApp {
         self.seek_to_position_main(new_pos.as_secs_f32());
     }
 
-    fn legacy_handle_keyboard_input(&mut self, ui: &mut egui::Ui) {
+    fn _legacy_handle_keyboard_input(&mut self, ui: &mut egui::Ui) {
         ui.input(|i| {
             if i.key_pressed(egui::Key::Space) {
                 self.play_pause_main();
@@ -1350,7 +1337,13 @@ impl AudioPlayerApp {
 
                     // Update UI state
                     self.total_duration = duration;
-                    // TODO: Update waveform preview once AudioBuffer refactoring is complete
+
+                    // Update waveform preview
+                    if let Some(waveform) = self.audio_engine.get_waveform(WAVEFORM_PREVIEW_SAMPLES)
+                    {
+                        self.waveform_preview = waveform;
+                        self.waveform_dirty = true;
+                    }
 
                     // Start playback via AudioEngine
                     if let Err(e) = self.audio_engine.play() {
@@ -1430,7 +1423,7 @@ impl AudioPlayerApp {
         );
     }
 
-    fn load_album_art(&mut self, ctx: &egui::Context) {
+    fn _load_album_art(&mut self, ctx: &egui::Context) {
         if let Some(handle) = &self.current_file {
             let path = handle.path();
             if let Ok(tagged_file) = lofty::read_from_path(path) {
@@ -1649,7 +1642,7 @@ impl AudioPlayerApp {
         egui::TopBottomPanel::top("transport_panel")
             .resizable(false)
             .exact_height(height)
-            .frame(egui::Frame::none().fill(ColorUtils::with_alpha(colors.surface, 0.9)))
+            .frame(egui::Frame::NONE.fill(ColorUtils::with_alpha(colors.surface, 0.9)))
             .show(ctx, |ui| {
                 ui.set_width(ui.available_width());
                 self.render_transport_controls(ui, colors, compact);
@@ -1838,27 +1831,67 @@ impl AudioPlayerApp {
     /// Setup hybrid audio mode with ring buffer bridge
     fn setup_hybrid_mode(&mut self) {
         // Only setup if backend is available and in HybridNative mode
-        if let Some(backend) = &self.audio_backend {
-            if backend.mode() == HybridMode::HybridNative {
-                // Get ring buffer from backend
-                if let Some(ring_buffer) = backend.ring_buffer() {
-                    // Create bridge
-                    let config = WebAudioBridgeConfig {
-                        buffer_size: 4096,
-                        input_channels: 2,
-                        output_channels: 2,
+        if let Some(backend) = &mut self.audio_backend {
+            let mode = backend.mode();
+            if mode == HybridMode::HybridNative || mode == HybridMode::AsioOnly {
+                // Get ring buffer producer from backend
+                if let Some(producer) = backend.take_ring_producer() {
+                    // Create ScriptProcessor and connect to destination in a separate scope
+                    // to avoid holding an immutable borrow of self.audio_engine while calling connect_output_to (mutable)
+                    let script_processor = {
+                        let audio_context = self.audio_engine.get_context();
+
+                        // Create ScriptProcessor
+                        let script_processor = audio_context.create_script_processor(1024, 2, 2);
+
+                        // Move producer into closure
+                        let mut producer = producer;
+
+                        script_processor.set_onaudioprocess(move |e| {
+                            let input = &e.input_buffer;
+                            let channels = input.number_of_channels();
+                            let length = input.length();
+
+                            if let Ok(mut chunk) = producer.write_chunk(length * channels) {
+                                let (s1, s2) = chunk.as_mut_slices();
+                                let mut written = 0;
+
+                                // Interleave logic: L R L R ...
+                                for i in 0..length {
+                                    for ch in 0..channels {
+                                        let sample = input.get_channel_data(ch)[i];
+
+                                        // Write to s1 then s2
+                                        if written < s1.len() {
+                                            s1[written] = sample;
+                                        } else if written - s1.len() < s2.len() {
+                                            s2[written - s1.len()] = sample;
+                                        }
+                                        written += 1;
+                                    }
+                                }
+                                chunk.commit_all();
+                            }
+                        });
+
+                        // Connect script processor to destination to keep graph alive
+                        // (It outputs silence because we don't write to output buffer)
+                        script_processor.connect(&audio_context.destination());
+
+                        script_processor
                     };
 
-                    let bridge = WebAudioBridge::new(ring_buffer, config);
+                    // Connect to engine output (requires mutable borrow of self.audio_engine)
+                    if let Err(e) = self.audio_engine.connect_output_to(&script_processor) {
+                        eprintln!("Failed to connect script processor: {}", e);
+                    } else {
+                        // Disable default output (analyser -> destination) to avoid double path
+                        let _ = self.audio_engine.set_output_routing(false);
 
-                    // Connect the bridge to the audio graph
-                    // The analyser is the last node before destination
-                    // TODO: Phase 2 - Requires AudioEngine to expose audio_context and analyser
-                    //                     bridge.connect_to_graph(&self.audio_context, &self.analyser);
-
-                    self.web_audio_bridge = Some(bridge);
-
-                    println!("✅ Hybrid audio bridge connected");
+                        // Keep node alive
+                        self.script_processor = Some(script_processor);
+                        println!("✅ Hybrid audio bridge connected");
+                    }
                 } else {
                     eprintln!("⚠️ Ring buffer not available from backend");
                 }
@@ -1923,6 +1956,18 @@ impl AudioPlayerApp {
                         }
                     });
 
+                    #[cfg(target_os = "windows")]
+                    ui.horizontal(|ui| {
+                        ui.label("");
+                        if ui.radio(current_mode == HybridMode::AsioOnly, "⚡ ASIO (Professional)").clicked() {
+                            if let Err(e) = backend.set_mode(HybridMode::AsioOnly) {
+                                self.audio_status_message = Some((format!("Failed to switch mode: {}", e), Instant::now()));
+                            } else {
+                                self.audio_status_message = Some(("Switched to ASIO mode".to_string(), Instant::now()));
+                            }
+                        }
+                    });
+
                     // Show mode-specific info
                     ui.add_space(5.0);
                     match current_mode {
@@ -1934,6 +1979,9 @@ impl AudioPlayerApp {
                         }
                         HybridMode::CpalOnly => {
                             ui.label(RichText::new("⚡ Maximum performance, <5ms latency").size(11.0).color(Color32::from_rgb(100, 255, 100)));
+                        }
+                        HybridMode::AsioOnly => {
+                            ui.label(RichText::new("🎹 Professional ASIO, <3ms latency, Exclusive Mode").size(11.0).color(Color32::from_rgb(150, 255, 255)));
                         }
                     }
                 } else {
@@ -2165,31 +2213,31 @@ impl AudioPlayerApp {
         // Show dock layout with menu bar for workspace switching
         egui::TopBottomPanel::top("dock_menu").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                egui::menu::menu_button(ui, "View", |ui| {
+                ui.menu_button("View", |ui| {
                     if ui.button("📋 Default Workspace").clicked() {
                         self.dock_layout_manager
                             .switch_workspace(ui::dock_layout::WorkspacePreset::Default);
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("📊 Analyzer Workspace").clicked() {
                         self.dock_layout_manager
                             .switch_workspace(ui::dock_layout::WorkspacePreset::Analyzer);
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("🎛️ Generator Workspace").clicked() {
                         self.dock_layout_manager
                             .switch_workspace(ui::dock_layout::WorkspacePreset::Generator);
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("🎚️ Mixing Workspace").clicked() {
                         self.dock_layout_manager
                             .switch_workspace(ui::dock_layout::WorkspacePreset::Mixing);
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("⏯️ Playback Workspace").clicked() {
                         self.dock_layout_manager
                             .switch_workspace(ui::dock_layout::WorkspacePreset::Playback);
-                        ui.close_menu();
+                        ui.close();
                     }
                 });
 
@@ -2342,7 +2390,7 @@ fn main() -> Result<(), eframe::Error> {
             cc.egui_ctx.set_zoom_factor(1.0);
 
             // Enable better text rendering for HiDPI
-            let mut fonts = egui::FontDefinitions::default();
+            let fonts = egui::FontDefinitions::default();
 
             // Use default system fonts for now - custom font loading can be added later if needed
             // This ensures compatibility without requiring external font files

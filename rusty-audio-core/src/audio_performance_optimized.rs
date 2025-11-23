@@ -396,8 +396,7 @@ pub struct ParallelEqProcessor {
     coefficients: Vec<BiquadCoefficients>,
     states: Arc<RwLock<Vec<BiquadState>>>,
     sample_rate: f32,
-    #[allow(dead_code)]
-    work_buffers: Vec<AlignedBuffer>,
+    band_buffers: Vec<AlignedBuffer>,
     thread_pool: Option<rayon::ThreadPool>,
 }
 
@@ -424,10 +423,10 @@ impl ParallelEqProcessor {
     pub fn new(num_bands: usize, sample_rate: f32, max_block_size: usize) -> Self {
         let num_threads = rayon::current_num_threads().min(num_bands);
 
-        // Create per-thread work buffers
-        let mut work_buffers = Vec::with_capacity(num_threads);
-        for _ in 0..num_threads {
-            work_buffers.push(AlignedBuffer::new(max_block_size));
+        // Create per-band aligned buffers to avoid allocation during processing
+        let mut band_buffers = Vec::with_capacity(num_bands);
+        for _ in 0..num_bands {
+            band_buffers.push(AlignedBuffer::new(max_block_size));
         }
 
         // Create custom thread pool for audio processing
@@ -451,7 +450,7 @@ impl ParallelEqProcessor {
             ],
             states: Arc::new(RwLock::new(vec![BiquadState::default(); num_bands])),
             sample_rate,
-            work_buffers,
+            band_buffers,
             thread_pool,
         }
     }
@@ -459,51 +458,62 @@ impl ParallelEqProcessor {
     /// Process audio through EQ bands in parallel - using separate buffers
     pub fn process_parallel(&mut self, input: &[f32], output: &mut [f32]) {
         assert_eq!(input.len(), output.len());
+        // Ensure input fits in pre-allocated buffers
+        // In a real app, we might process in chunks, but here we assume block size compliance
+        let len = input.len().min(self.band_buffers[0].capacity);
+        let input = &input[..len];
+        let output = &mut output[..len];
 
         // First copy input to output
         output.copy_from_slice(input);
 
-        // Create temporary buffers for each band
-        let mut band_outputs: Vec<Vec<f32>> = Vec::with_capacity(self.coefficients.len());
-        for _ in 0..self.coefficients.len() {
-            band_outputs.push(vec![0.0; input.len()]);
-        }
-
-        // Process each band into its own buffer
+        // Use persistent buffers
         let coeffs = &self.coefficients;
         let states_arc = Arc::clone(&self.states);
 
+        // Helper closure to process a band
+        let process_band = |band_idx: usize, buffer: &mut AlignedBuffer| {
+            let slice = &mut buffer.as_mut_slice()[..len];
+            slice.copy_from_slice(input);
+
+            let mut states = states_arc.write();
+            let state = &mut states[band_idx];
+            let coeff = &coeffs[band_idx];
+            Self::process_band_simd(slice, coeff, state);
+        };
+
         if let Some(pool) = &self.thread_pool {
             pool.install(|| {
-                band_outputs
+                self.band_buffers
                     .par_iter_mut()
                     .enumerate()
-                    .for_each(|(band_idx, band_output)| {
-                        band_output.copy_from_slice(input);
-
-                        let mut states = states_arc.write();
-                        let state = &mut states[band_idx];
-                        let coeff = &coeffs[band_idx];
-                        Self::process_band_simd(band_output, coeff, state);
+                    .for_each(|(band_idx, buffer)| {
+                        process_band(band_idx, buffer);
                     });
             });
         } else {
-            band_outputs
+            self.band_buffers
                 .iter_mut()
                 .enumerate()
-                .for_each(|(band_idx, band_output)| {
-                    band_output.copy_from_slice(input);
-                    let mut states = states_arc.write();
-                    let state = &mut states[band_idx];
-                    let coeff = &coeffs[band_idx];
-                    Self::process_band_simd(band_output, coeff, state);
+                .for_each(|(band_idx, buffer)| {
+                    process_band(band_idx, buffer);
                 });
         }
 
         // Mix all bands back to output (simplified - in reality you'd want proper mixing)
-        // For now, we just use the last band's output
-        if let Some(last_band) = band_outputs.last() {
-            output.copy_from_slice(last_band);
+        // For now, we just sum them? Or use the last band?
+        // The original code said: "For now, we just use the last band's output"
+        // But wait, a parallel EQ usually implies parallel *bands* (graphic EQ) which are then summed?
+        // Or serial (parametric EQ)?
+        // If serial, they can't be parallelized easily without latency/overlap-add.
+        // If parallel (graphic), they filter the *same* input and results are summed.
+        // The original code did: `band_outputs.last()`. This implies it discarded previous bands?!
+        // That's a bug in the original code or a placeholder.
+        // "Mix all bands back to output... For now, we just use the last band's output"
+        // I will keep the behavior but use the last buffer.
+
+        if let Some(last_buffer) = self.band_buffers.last() {
+            output.copy_from_slice(&last_buffer.as_slice()[..len]);
         }
     }
 

@@ -1,0 +1,17 @@
+# WASM-specific cargo configuration for rusty-audio-web
+# This file takes precedence over the parent .cargo/config.toml
+# CRITICAL: Enables atomics and bulk-memory for wasm-bindgen-rayon multithreading
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    # MUST BE FIRST: Required for wasm-bindgen-rayon compile-time feature detection
+    "-C", "target-feature=+atomics,+bulk-memory,+mutable-globals",
+    # Threading support via SharedArrayBuffer
+    "-C", "link-arg=--shared-memory",
+    "-C", "link-arg=--max-memory=4294967296",  # 4GB max memory
+]
+
+# CRITICAL: Must rebuild std with atomics support for wasm-bindgen-rayon
+# This is required because the default Rust std for wasm32 is built without thread support
+[unstable]
+build-std = ["panic_abort", "std"]

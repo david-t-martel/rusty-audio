@@ -220,7 +220,7 @@ impl AsioBackend {
         &mut self,
         device_id: &str,
         config: AudioConfig,
-        callback: F,
+        mut callback: F,
     ) -> Result<Box<dyn AudioStream>>
     where
         F: FnMut(&mut [f32]) + Send + 'static,
@@ -240,10 +240,6 @@ impl AsioBackend {
             sample_rate: cpal::SampleRate(config.sample_rate),
             buffer_size: cpal::BufferSize::Fixed(config.buffer_size as u32),
         };
-
-        // Wrap callback in Arc<Mutex> for thread-safe access
-        let callback = Arc::new(parking_lot::Mutex::new(callback));
-        let callback_clone = callback.clone();
 
         // Enable real-time thread priority for audio callback
         use std::sync::atomic::{AtomicBool, Ordering};
@@ -272,8 +268,7 @@ impl AsioBackend {
                         priority_set_clone.store(true, Ordering::Relaxed);
                     }
 
-                    let mut cb = callback_clone.lock();
-                    cb(data);
+                    callback(data);
                 },
                 move |err| {
                     log::error!("Stream error: {}", err);
@@ -297,7 +292,7 @@ impl AsioBackend {
         &mut self,
         device_id: &str,
         config: AudioConfig,
-        callback: F,
+        mut callback: F,
     ) -> Result<Box<dyn AudioStream>>
     where
         F: FnMut(&[f32]) + Send + 'static,
@@ -317,9 +312,6 @@ impl AsioBackend {
             sample_rate: cpal::SampleRate(config.sample_rate),
             buffer_size: cpal::BufferSize::Fixed(config.buffer_size as u32),
         };
-
-        let callback = Arc::new(parking_lot::Mutex::new(callback));
-        let callback_clone = callback.clone();
 
         // Enable real-time thread priority
         let priority_set = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -342,8 +334,7 @@ impl AsioBackend {
                         priority_set_clone.store(true, std::sync::atomic::Ordering::Relaxed);
                     }
 
-                    let mut cb = callback_clone.lock();
-                    cb(data);
+                    callback(data);
                 },
                 move |err| {
                     log::error!("Input stream error: {}", err);

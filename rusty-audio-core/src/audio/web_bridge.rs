@@ -3,8 +3,7 @@
 //! Bridges web-audio-api's ScriptProcessorNode with the native audio ring buffer
 //! for hybrid playback mode.
 
-use super::hybrid::HybridRingBuffer;
-use std::sync::Arc;
+use rtrb::Producer;
 use web_audio_api::context::AudioContext;
 use web_audio_api::node::{AudioNode, AudioScheduledSourceNode};
 
@@ -29,17 +28,14 @@ impl Default for WebAudioBridgeConfig {
 ///
 /// Connects web-audio-api output to native CPAL hardware via ring buffer
 pub struct WebAudioBridge {
-    ring_buffer: Arc<HybridRingBuffer>,
+    producer: Producer<f32>,
     config: WebAudioBridgeConfig,
 }
 
 impl WebAudioBridge {
-    /// Create a new bridge with the given ring buffer
-    pub fn new(ring_buffer: Arc<HybridRingBuffer>, config: WebAudioBridgeConfig) -> Self {
-        Self {
-            ring_buffer,
-            config,
-        }
+    /// Create a new bridge with the given ring buffer producer
+    pub fn new(producer: Producer<f32>, config: WebAudioBridgeConfig) -> Self {
+        Self { producer, config }
     }
 
     /// Connect the bridge to the audio graph
@@ -65,9 +61,13 @@ impl WebAudioBridge {
 
     /// Get the current buffer fill level (0.0 to 1.0)
     pub fn buffer_fill_level(&self) -> f32 {
-        let available = self.ring_buffer.available();
-        let capacity = self.config.buffer_size * self.config.input_channels as usize * 8; // 8x buffer
-        (available as f32) / (capacity as f32)
+        // For a producer, we care about how much space is *used* (capacity - slots)
+        // Capacity is 8x buffer_size as defined in HybridAudioBackend
+        let capacity = self.config.buffer_size * 8;
+        let available = self.producer.slots();
+        let used = capacity.saturating_sub(available);
+
+        (used as f32) / (capacity as f32)
     }
 
     /// Check if the buffer is healthy (not too empty or too full)
@@ -91,31 +91,45 @@ impl WebAudioBridge {
             "Buffer healthy"
         }
     }
+
+    /// Push samples into the ring buffer
+    pub fn push_samples(&mut self, samples: &[f32]) -> usize {
+        if let Ok(mut chunk) = self.producer.write_chunk(samples.len()) {
+            let (s1, s2) = chunk.as_mut_slices();
+            let len1 = s1.len();
+            s1.copy_from_slice(&samples[..len1]);
+            s2.copy_from_slice(&samples[len1..len1 + s2.len()]);
+            chunk.commit_all();
+            return samples.len();
+        }
+        // If buffer is full, we drop samples (overrun)
+        0
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audio::hybrid::AudioRingBuffer;
+    use rtrb::RingBuffer;
 
     #[test]
     fn test_bridge_creation() {
-        let ring_buffer = Arc::new(AudioRingBuffer::new(8192));
-        let bridge = WebAudioBridge::new(ring_buffer, WebAudioBridgeConfig::default());
-        assert!(bridge.buffer_fill_level() >= 0.0);
+        let (producer, _consumer) = RingBuffer::new(8192);
+        let bridge = WebAudioBridge::new(producer, WebAudioBridgeConfig::default());
+        assert!(bridge.buffer_fill_level() <= 0.05); // Should be empty
     }
 
     #[test]
     fn test_buffer_health() {
-        let ring_buffer = Arc::new(AudioRingBuffer::new(8192));
-        let bridge = WebAudioBridge::new(ring_buffer.clone(), WebAudioBridgeConfig::default());
+        let (mut producer, _consumer) = RingBuffer::new(8192);
+        let mut bridge = WebAudioBridge::new(producer, WebAudioBridgeConfig::default());
 
-        // Empty buffer should be unhealthy
+        // Empty buffer should be unhealthy (underrun risk)
         assert!(!bridge.is_buffer_healthy());
 
         // Fill to 50%
         let samples = vec![0.0; 4096];
-        ring_buffer.write(&samples);
+        bridge.push_samples(&samples);
 
         // Should now be healthy
         assert!(bridge.is_buffer_healthy());

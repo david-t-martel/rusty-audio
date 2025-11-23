@@ -13,7 +13,7 @@ path = "src/lib.rs"
 [features]
 default = []
 # Platform-specific features
-native = ["cpal", "hound", "rfd", "web-audio-api", "tokio", "futures", "memmap2", "tempfile", "rodio", "symphonia", "rubato", "midir", "wmidi"]
+native = ["cpal", "hound", "rfd", "web-audio-api", "tokio", "futures", "memmap2", "tempfile", "rodio", "symphonia", "rubato", "midir", "wmidi", "audio-optimizations", "rtrb"]
 wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "web-sys", "console_error_panic_hook", "console_log", "wgpu/webgpu", "wgpu/webgl"]
 # Optional features
 audio-optimizations = []
@@ -73,6 +73,7 @@ quickcheck = { workspace = true, optional = true }
 # Native-only dependencies
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 cpal = { workspace = true, optional = true }
+rtrb = { workspace = true, optional = true }
 hound = { workspace = true, optional = true }
 rfd = { workspace = true, optional = true }
 web-audio-api = { workspace = true, optional = true }
