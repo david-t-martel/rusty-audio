@@ -460,7 +460,7 @@ impl ParallelEqProcessor {
         assert_eq!(input.len(), output.len());
         // Ensure input fits in pre-allocated buffers
         // In a real app, we might process in chunks, but here we assume block size compliance
-        let len = input.len().min(self.band_buffers[0].capacity); 
+        let len = input.len().min(self.band_buffers[0].capacity);
         let input = &input[..len];
         let output = &mut output[..len];
 
@@ -501,19 +501,19 @@ impl ParallelEqProcessor {
         }
 
         // Mix all bands back to output (simplified - in reality you'd want proper mixing)
-        // For now, we just sum them? Or use the last band? 
+        // For now, we just sum them? Or use the last band?
         // The original code said: "For now, we just use the last band's output"
         // But wait, a parallel EQ usually implies parallel *bands* (graphic EQ) which are then summed?
         // Or serial (parametric EQ)?
         // If serial, they can't be parallelized easily without latency/overlap-add.
         // If parallel (graphic), they filter the *same* input and results are summed.
-        // The original code did: `band_outputs.last()`. This implies it discarded previous bands?! 
+        // The original code did: `band_outputs.last()`. This implies it discarded previous bands?!
         // That's a bug in the original code or a placeholder.
         // "Mix all bands back to output... For now, we just use the last band's output"
         // I will keep the behavior but use the last buffer.
-        
+
         if let Some(last_buffer) = self.band_buffers.last() {
-             output.copy_from_slice(&last_buffer.as_slice()[..len]);
+            output.copy_from_slice(&last_buffer.as_slice()[..len]);
         }
     }
 

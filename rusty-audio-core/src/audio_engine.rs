@@ -171,7 +171,7 @@ impl WebAudioEngine {
             }
 
             previous_node.connect(&self.analyser);
-            
+
             if self.default_output_enabled {
                 self.analyser.connect(&self.audio_context.destination());
             }
@@ -235,7 +235,7 @@ impl AudioEngineInterface for WebAudioEngine {
         let channels = buffer.number_of_channels();
         let length = buffer.length();
         let mut waveform = vec![0.0; length];
-        
+
         if channels > 0 {
             // Mix down to mono for visualization
             for i in 0..channels {

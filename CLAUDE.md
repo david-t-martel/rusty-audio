@@ -4,395 +4,698 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Rusty Audio** is a car-stereo-style desktop audio player built with Rust and the egui GUI framework. It features real-time spectrum visualization, an 8-band equalizer, multiple themes, comprehensive audio format support, AI-enhanced processing, and professional recording capabilities.
+**Rusty Audio** is a cross-platform audio player with both desktop (native) and web (WASM/PWA) implementations. It features real-time spectrum visualization, an 8-band equalizer, multiple themes, comprehensive audio format support, and professional recording capabilities with ASIO support on Windows.
 
-### Current Architecture
-The application has evolved from a monolithic structure into a **modularized library + binary architecture**:
+### Workspace Architecture
 
-- **Main application**: `src/main.rs` (~81KB) - Primary UI and coordination
-- **Library modules**: Extensive modularization in `src/lib.rs` exposing reusable components
-- **Module organization**: Separate directories for `audio/`, `ui/`, `ai/`, `security/`, `testing/`
+The project uses a **Cargo workspace** with three main components:
 
-### Core Technologies
-- **Rust 2021 Edition** - Primary language
-- **egui/eframe v0.33.0** - Immediate mode GUI framework (upgraded from 0.27)
-- **web-audio-api v1.2.0** - Git submodule dependency for Web Audio API pattern
-- **Hybrid Audio Backend** - Dual backend system (cpal + web-audio-api)
-- **lofty v0.22.4** - Audio metadata extraction
-- **Comprehensive test framework** - Property tests, benchmarks, UI testing with egui_kittest
+```
+rusty-audio/
+├── Cargo.toml                 # Workspace root with shared dependencies
+├── rusty-audio-core/          # Shared library (platform-agnostic)
+│   └── src/
+│       ├── audio/             # Audio backends, DSP, effects
+│       ├── ui/                # UI components, themes, layouts
+│       ├── ai/                # AI-enhanced features (optional)
+│       └── security/          # Input validation, safety limits
+├── rusty-audio-desktop/       # Native desktop application
+│   ├── src/main.rs            # Desktop entry point
+│   └── benches/               # Performance benchmarks
+└── rusty-audio-web/           # WASM/PWA web application
+    └── src/
+        ├── lib.rs             # WASM entry point
+        └── auth/              # OAuth 2.0 with PKCE
+```
+
+**Core Technologies:**
+- **Rust 2021** with workspace dependency management
+- **egui/eframe 0.33** - Immediate mode GUI
+- **CPAL 0.15** with ASIO support (Windows desktop)
+- **web-audio-api 1.2** - Advanced DSP (native backend)
+- **WASM** - Web deployment with multithreading support
+- **OAuth 2.0** - Google, GitHub, Microsoft authentication (web only)
+
+### Key Architectural Patterns
+
+1. **Feature-Gated Compilation**: Core library supports both `native` and `wasm` features
+2. **Hybrid Audio Backend**: Automatic fallback between CPAL and Web Audio API
+3. **Shared UI Components**: Same egui code runs on desktop and web
+4. **Platform-Specific Optimizations**: ASIO on Windows, lock-free ring buffers for real-time audio
 
 ## Build Commands
 
-### Development
+### Workspace Commands
+
 ```bash
-# Build and run (debug)
+# Build all workspace members
+cargo build --workspace
+
+# Test all workspace members
+cargo test --workspace
+
+# Check compilation without building
+cargo check --workspace
+
+# Build specific package
+cargo build -p rusty-audio-desktop --release
+cargo build -p rusty-audio-core --features native
+```
+
+### Desktop Application
+
+```bash
+# Run desktop app (debug)
+cd rusty-audio-desktop
 cargo run
 
-# Build and run specific binary
-cargo run --bin test_audio
-
-# Release build (optimized with LTO)
-cargo build --release
+# Run desktop app (release, better audio performance)
 cargo run --release
 
-# Quick compilation check
-cargo check
-```
+# Windows with ASIO support (automatically enabled on Windows)
+cargo build --release  # ASIO features enabled via Cargo.toml
 
-### Testing
-```bash
-# Run all tests
-cargo test
-
-# Run tests with output
-cargo test -- --nocapture
-
-# Run specific test module
-cargo test audio::
-cargo test ui::
-cargo test testing::
-
-# Run UI tests with kittest
-cargo test ui_tests
-
-# Run property-based tests
-cargo test property_tests
-```
-
-### Benchmarking
-```bash
-# Run all benchmarks
-cargo bench
-
-# Run specific benchmark suite
+# Run benchmarks
 cargo bench --bench audio_benchmarks
 cargo bench --bench performance_benchmarks
-cargo bench --bench realtime_benchmarks
-cargo bench --bench memory_benchmarks
-cargo bench --bench audio_quality_benchmarks
 ```
 
-### Code Quality
+### WASM/Web Application
+
 ```bash
-# Format code (required before commits)
-cargo fmt
+# Build WASM (development)
+cd rusty-audio-web
+wasm-pack build --target web --dev
 
-# Lint with clippy
-cargo clippy
+# Build WASM (release, optimized)
+wasm-pack build --target web --release
 
-# Strict linting for release
-cargo clippy -- -D warnings
+# Build with Trunk (includes all assets)
+trunk build --release
 
-# Generate documentation
-cargo doc --open
+# Serve with live reload
+trunk serve
+# Open http://localhost:8080
+
+# Run WASM tests in headless browsers
+wasm-pack test --headless --firefox
 ```
 
-### Pre-commit Hooks
+### Using Justfile (Recommended)
+
+The project includes a comprehensive `justfile` with 100+ commands:
+
 ```bash
-# Install hooks (run once)
-pre-commit install
+# Quick development cycle
+just check          # Fast compile check
+just build          # Build debug version
+just run            # Run desktop app
+just test           # Run all tests
 
-# Run all checks manually
-pre-commit run --all-files
+# WASM/PWA workflow
+just build-wasm     # Build WASM (dev)
+just serve-wasm     # Start Trunk dev server
+just pwa-build      # Build complete PWA bundle
+just test-wasm-full # Full WASM test suite
 
-# Hooks run automatically on commit
-git commit -m "your message"
+# Code quality
+just fmt            # Format code
+just lint           # Run clippy
+just quality        # Format + lint + test
+just pre-commit     # Full pre-commit check
+
+# Platform-specific
+just build-windows-asio  # Windows with ASIO
+
+# View all commands
+just --list
+just help
+```
+
+## Testing
+
+### Test Organization
+
+```bash
+# All workspace tests
+cargo test --workspace
+
+# Core library tests only
+cargo test -p rusty-audio-core
+
+# Desktop app tests
+cargo test -p rusty-audio-desktop
+
+# Specific test module
+cargo test -p rusty-audio-core audio::
+cargo test -p rusty-audio-desktop -- --nocapture
+
+# Property-based tests
+cargo test -p rusty-audio-core --features property-testing
+
+# UI tests with egui_kittest
+cargo test ui_tests
+```
+
+### WASM Testing
+
+```bash
+# Using wasm-pack
+cd rusty-audio-web
+wasm-pack test --headless --firefox --chrome
+
+# Using justfile
+just test-wasm-headless   # Headless browsers
+just test-wasm-browser    # Interactive browser tests
+just test-wasm-full       # Build + serve + test + cleanup
+```
+
+### Benchmarks (Desktop Only)
+
+```bash
+cd rusty-audio-desktop
+cargo bench
+
+# Specific benchmark suites
+cargo bench --bench audio_benchmarks          # Audio processing
+cargo bench --bench performance_benchmarks    # General performance
+cargo bench --bench simd_benchmarks           # SIMD optimizations
+cargo bench --bench optimization_benchmarks   # Real-time constraints
+
+# View results
+open target/criterion/report/index.html
 ```
 
 ## High-Level Architecture
 
-### Module Organization
-The project uses a library + binary architecture with the following structure:
+### Core Library (`rusty-audio-core`)
+
+**Purpose**: Platform-agnostic audio processing and UI components shared between desktop and web.
+
+**Key Modules**:
+- `audio::backend` - Audio backend trait abstraction
+- `audio::hybrid` - Dual-backend system (CPAL + Web Audio API)
+- `audio::manager` - Device management and audio routing
+- `ui::components` - Reusable UI widgets (progress bars, album art, metadata)
+- `ui::spectrum` - Real-time spectrum analyzer (512-point FFT)
+- `ui::theme` - Theme management system
+- `security::audio_safety` - Volume limiting and safety checks
+- `security::input_validator` - Input sanitization
+
+**Features**:
+- `native` - Enable native audio (CPAL, file dialogs, recording)
+- `wasm` - Enable WASM bindings (web-sys, wasm-bindgen)
+- `audio-optimizations` - Real-time thread priority, lock-free structures
+- `ai-features` - AI-enhanced processing (optional)
+- `property-testing` - Property-based tests (dev only)
+
+### Desktop Application (`rusty-audio-desktop`)
+
+**Purpose**: Native desktop app with professional audio interface support.
+
+**Key Features**:
+- ASIO support on Windows (low-latency, <10ms)
+- MIDI I/O with `midir` and `wmidi`
+- Audio recording to WAV files
+- File dialogs with `rfd`
+- Native performance benchmarks
+
+**Entry Point**: `src/main.rs`
+- Initializes `eframe::NativeOptions` with WGPU backend
+- Sets up audio context with device detection
+- Configures desktop-specific features (MMCSS thread priority on Windows)
+
+### Web Application (`rusty-audio-web`)
+
+**Purpose**: Progressive Web App with OAuth authentication.
+
+**Key Features**:
+- OAuth 2.0 with PKCE (Google, GitHub, Microsoft)
+- Secure token storage in `localStorage`
+- WASM multithreading with `wasm-bindgen-rayon`
+- Service Worker for offline support
+- Web Audio API integration
+
+**Entry Point**: `src/lib.rs` with `#[wasm_bindgen]`
+- Exports WASM entry points
+- Configures panic hook for browser console
+- Sets up Web Audio context
+
+**OAuth Flow** (`src/auth/`):
+1. `oauth_client.rs` - PKCE challenge generation, token exchange
+2. `providers.rs` - Provider-specific endpoints (Google, GitHub, Microsoft)
+3. `session.rs` - Session management with automatic refresh
+4. `token_storage.rs` - Secure storage in `localStorage`
+
+### Audio Processing Pipeline
 
 ```
-src/
-├── main.rs                    # Main application binary (81KB)
-├── lib.rs                     # Library root with public API
-├── audio/                     # Audio backend and processing
-│   ├── backend.rs            # Backend trait abstraction
-│   ├── device.rs             # CPAL device management
-│   ├── manager.rs            # Audio device manager
-│   ├── hybrid.rs             # Hybrid dual-backend system
-│   ├── web_bridge.rs         # Web Audio API bridge
-│   └── recorder.rs           # Recording functionality
-├── ui/                        # User interface components
-│   ├── components.rs         # Album art, progress, metadata
-│   ├── controls.rs           # Sliders, knobs, buttons
-│   ├── spectrum.rs           # Spectrum visualizer
-│   ├── theme.rs              # Theme management
-│   ├── layout.rs             # Layout manager
-│   ├── dock_layout.rs        # Docking system
-│   ├── accessibility.rs      # Accessibility features
-│   ├── signal_generator.rs   # Signal generator panel
-│   ├── recording_panel.rs    # Recording UI
-│   └── error_handling.rs     # Error manager UI
-├── ai/                        # AI-enhanced features
-│   ├── audio_analyzer.rs     # Audio analysis
-│   ├── eq_optimizer.rs       # EQ optimization
-│   ├── noise_reduction.rs    # Noise reduction
-│   ├── volume_normalizer.rs  # Volume normalization
-│   ├── preset_recommender.rs # Preset recommendations
-│   └── ...                   # Additional AI modules
-├── security/                  # Security and safety
-│   ├── audio_safety.rs       # Audio safety limits
-│   ├── file_validator.rs     # File validation
-│   ├── input_validator.rs    # Input validation
-│   └── thread_safe_state.rs  # Thread-safe state
-├── testing/                   # Test framework
-│   ├── signal_generators.rs  # Test signal generation
-│   ├── spectrum_analysis.rs  # Spectrum analysis tests
-│   ├── equalizer_tests.rs    # EQ tests
-│   ├── ui_tests.rs           # UI tests with kittest
-│   └── property_tests.rs     # Property-based tests
-├── bin/                       # Additional binaries
-│   └── test_audio.rs         # Audio testing utility
-└── benches/                   # Benchmark suites
-    ├── audio_benchmarks.rs
-    ├── performance_benchmarks.rs
-    ├── realtime_benchmarks.rs
-    ├── memory_benchmarks.rs
-    └── audio_quality_benchmarks.rs
+Input (File/Device)
+  ↓
+Decoder (Symphonia/Web Audio)
+  ↓
+AudioBufferSourceNode
+  ↓
+BiquadFilterNode (x8 for EQ: 60Hz, 120Hz, 240Hz, 480Hz, 960Hz, 1920Hz, 3840Hz, 7680Hz)
+  ↓
+GainNode (Master Volume)
+  ↓
+StereoPannerNode
+  ↓
+AnalyserNode (512-point FFT for visualization)
+  ↓
+Output (CPAL/Web Audio Destination)
 ```
 
-### Key Architectural Components
+### Hybrid Backend System
 
-**Hybrid Audio Backend**:
-The application uses a dual-backend system (`HybridAudioBackend`) that can switch between:
-- **CPAL backend**: Native low-latency audio (primary)
-- **Web Audio API**: Fallback with advanced DSP features
-- **Automatic fallback**: Graceful degradation on backend failures
+The `audio::hybrid` module provides automatic fallback:
 
-**UI Tabs**:
-- **Playback**: File selection, play controls, metadata display, album art
-- **Effects**: Real-time spectrum visualizer with 512-point FFT analysis
-- **EQ**: 8-band parametric equalizer (60Hz to 7680Hz)
-- **Generator**: Signal generator for testing (sine, square, sawtooth, noise)
-- **Recording**: Audio recording with monitoring and format selection
-- **Settings**: Theme selection, accessibility options
+```rust
+HybridAudioBackend {
+    primary: CpalBackend,     // Low-latency native audio
+    fallback: WebAudioBackend // Advanced DSP features
+}
+```
 
-**Audio Processing Pipeline**:
-`AudioContext` → `AudioBufferSourceNode` → `BiquadFilterNode` (x8 for EQ) → `GainNode` → `AnalyserNode` → Output
+**Fallback Triggers**:
+- Device initialization failure
+- Sample rate mismatch
+- Buffer underruns
+- Explicit user selection
 
-**Testing Framework**:
-- Property-based testing with `proptest` and `quickcheck`
-- UI testing with `egui_kittest`
-- Comprehensive benchmark suites for performance tracking
-- Signal generation and spectrum analysis utilities
+## Development Workflow
+
+### Initial Setup
+
+```bash
+# Clone with submodules
+git clone --recursive <repo-url>
+cd rusty-audio
+
+# Or initialize submodules if already cloned
+git submodule update --init --recursive
+
+# Install Rust tools
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack trunk
+
+# Install optional tools
+just install-tools       # cargo-watch, cargo-outdated, etc.
+just install-wasm-tools  # wasm-pack, trunk, wasm-bindgen-cli
+```
+
+### Making Changes
+
+1. **Modify core library** (`rusty-audio-core/src/`)
+   ```bash
+   cd rusty-audio-core
+   cargo check --features native,wasm  # Check both platforms
+   cargo test --all-features
+   ```
+
+2. **Test on desktop** (`rusty-audio-desktop/`)
+   ```bash
+   cd rusty-audio-desktop
+   cargo run                    # Quick test
+   cargo run --release          # Performance test
+   cargo bench                  # Regression check
+   ```
+
+3. **Test on web** (`rusty-audio-web/`)
+   ```bash
+   cd rusty-audio-web
+   wasm-pack build --dev
+   trunk serve                  # Live reload
+   wasm-pack test --headless --firefox
+   ```
+
+### Pre-Commit Checklist
+
+```bash
+# Using justfile (recommended)
+just pre-commit    # Runs: fmt + lint + test + check-bin
+
+# Or manually
+cargo fmt --all
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
+cargo check -p rusty-audio-desktop --bin rusty-audio
+```
+
+### Common Issues
+
+**WASM build fails with linking errors:**
+```bash
+# Ensure wasm32 target is installed
+rustup target add wasm32-unknown-unknown
+
+# Check wasm-pack version
+wasm-pack --version  # Should be 0.12+
+```
+
+**Desktop audio initialization fails:**
+```bash
+# Check audio device permissions
+# Windows: Ensure audio services are running
+# Linux: Check PulseAudio/JACK/ALSA configuration
+# macOS: Grant microphone/audio permissions in System Preferences
+
+# Test device enumeration
+cargo run --bin rusty-audio -- --list-devices
+```
+
+**ASIO not working on Windows:**
+```bash
+# Verify ASIO SDK path in .cargo/config.toml
+# Should point to: C:\path\to\ASIOSDK2.3.3
+
+# Rebuild with ASIO feature (automatically enabled on Windows)
+cargo clean
+cargo build --release -p rusty-audio-desktop
+```
 
 ## Web Audio API Submodule
 
-### Important: Git Submodule Dependency
-The `web-audio-api-rs` library is included as a **git submodule**, not a local path dependency:
+**Location**: `web-audio-api-rs/` (git submodule)
+
+**Important**: This is a git submodule, not a local path dependency.
 
 ```bash
-# Initialize submodule after cloning
-git submodule update --init --recursive
-
-# Update submodule to latest commit
+# Update submodule to latest
 cd web-audio-api-rs
 git pull origin main
 cd ..
 git add web-audio-api-rs
 git commit -m "Update web-audio-api submodule"
-```
 
-**Location**: `web-audio-api-rs/` in project root
-
-**When updating**: The submodule tracks upstream changes from the web-audio-api-rs repository. Any local modifications should be contributed back upstream or maintained in a fork.
-
-### Submodule Workflow
-```bash
 # Check submodule status
 git submodule status
 
-# Update all submodules
-git submodule update --remote
-
-# Build the submodule (if needed for testing)
+# Build submodule (optional, for testing)
 cd web-audio-api-rs
 cargo build --release
 cargo test
 ```
 
-## Testing Strategy
-
-### Comprehensive Test Coverage
-The project includes multiple testing approaches:
-
-**1. Unit Tests**: Embedded throughout modules
-```bash
-cargo test                    # Run all tests
-cargo test audio::            # Test audio module
-cargo test ui::               # Test UI components
-cargo test security::         # Test security module
+**Integration**: Referenced in workspace `Cargo.toml` as:
+```toml
+web-audio-api = { version = "1.2.0", features = ["default"] }
 ```
 
-**2. Property-Based Tests**: Using `proptest` and `quickcheck`
-```bash
-cargo test property_tests
+## Platform-Specific Features
+
+### Windows
+
+- **ASIO Support**: Low-latency audio via `cpal` with `asio` feature
+- **MMCSS Thread Priority**: Real-time audio thread scheduling via Windows API
+- **Media Foundation**: Hardware-accelerated audio decoding
+
+### Linux
+
+- **ALSA/PulseAudio/JACK**: Automatic backend selection via `cpal`
+- **Session Management**: Integration with desktop environment
+
+### macOS
+
+- **CoreAudio**: Low-latency audio via `cpal`
+- **App Sandbox**: Security restrictions for file access
+
+### WASM/Web
+
+- **SharedArrayBuffer**: Required for multithreading (COOP/COEP headers)
+- **Web Audio API**: Browser-native audio processing
+- **Web Storage API**: Session and settings persistence
+- **OAuth 2.0**: Authentication without backend server
+
+## Performance Optimization
+
+### Build Profiles
+
+```toml
+[profile.release]
+opt-level = 3
+lto = "fat"              # Link-time optimization
+codegen-units = 1        # Better optimization
+strip = true             # Remove debug symbols
+panic = "abort"          # Smaller binary
+
+[profile.wasm-release]
+inherits = "release"
+lto = false              # WASM doesn't benefit from LTO
 ```
 
-**3. UI Tests**: Automated UI testing with `egui_kittest`
-```bash
-cargo test ui_tests
-```
+### Real-Time Audio Optimizations
 
-**4. Integration Tests**: Full feature integration tests
-```bash
-cargo test testing::integration_tests
-```
+Enabled via `audio-optimizations` feature:
+- Lock-free ring buffers (`rtrb`)
+- Thread priority elevation (Windows MMCSS)
+- Pre-allocated buffer pools
+- SIMD-accelerated FFT (`rustfft` with `opt-simd`)
 
-**5. Benchmark Suites**: Performance regression detection
-```bash
-cargo bench                                    # Run all benchmarks
-cargo bench --bench audio_benchmarks          # Audio processing
-cargo bench --bench performance_benchmarks    # General performance
-cargo bench --bench realtime_benchmarks       # Real-time constraints
-cargo bench --bench memory_benchmarks         # Memory usage
-cargo bench --bench audio_quality_benchmarks  # Quality metrics
-```
-
-### Test Signal Generation
-The `testing::signal_generators` module provides utilities for generating test signals:
-- Sine waves at various frequencies
-- Square, sawtooth, triangle waves
-- White noise, pink noise
-- Frequency sweeps (chirps)
-- Impulse responses for convolution testing
-
-## Audio Format Support
-
-### Supported Formats (via Symphonia)
-- **Lossless**: WAV, FLAC
-- **Lossy**: MP3, OGG Vorbis, M4A, AAC
-- **Professional**: Advanced decoding with `symphonia` crate (opt-simd enabled)
-
-### Audio Features
-- Real-time spectrum analysis (512-point FFT via `rustfft`)
-- 8-band parametric equalizer (60Hz to 7680Hz)
-- Master volume and stereo panning controls
-- Signal generator (sine, square, sawtooth, noise)
-- Audio recording with monitoring (WAV format via `hound`)
-- Sample rate conversion (`rubato`)
-- MIDI I/O support (`midir`, `wmidi`)
-
-### Audio Processing Pipeline
-1. **File Loading**: Via `rfd` cross-platform file dialog
-2. **Metadata Extraction**: Using `lofty` crate
-3. **Audio Decoding**: Dual path:
-   - **Web Audio API**: For web-compatible processing
-   - **Symphonia**: For native high-performance decoding
-4. **DSP Processing**: EQ → Effects → Gain → Analysis
-5. **Visualization**: Real-time spectrum display with customizable modes
-6. **Output**: Hybrid backend (CPAL native or Web Audio fallback)
-
-## Performance Considerations
-
-### GUI Framework
-- **Immediate Mode**: egui 0.33 redraws UI each frame (efficient for real-time)
-- **Docking System**: `egui_dock` for flexible panel layouts
-- **Optimized Rendering**: Efficient for audio visualizations
-- **Cross-Platform**: Windows, Linux, macOS via eframe
-
-### Audio Processing Optimizations
-- **SIMD**: Enabled in Symphonia decoder (`opt-simd` feature)
-- **FFT Performance**: `rustfft` for efficient spectrum analysis
-- **Parallel Processing**: `rayon` for multi-threaded operations
-- **Low-Latency Audio**: CPAL backend for minimal audio latency
-- **Lock-Free Sync**: `parking_lot` for efficient synchronization
-- **Memory Pooling**: LRU caches for efficient resource management
-
-### Build Optimizations
-Release profile configured for maximum performance:
-- **LTO**: Link-time optimization enabled
-- **Codegen Units**: 1 for better optimization
-- **Optimization Level**: 3 (maximum)
-- **Strip**: Debug symbols removed
-- **Panic**: Abort strategy for smaller binary
-
-## Development Best Practices
-
-### Before Making Changes
-1. **Update submodules**: Ensure `web-audio-api-rs` is current with `git submodule update`
-2. **Run tests first**: Verify existing functionality with `cargo test`
-3. **Check benchmarks**: Run relevant benchmarks to establish baseline
-4. **Review module structure**: Understand which module owns the functionality
-
-### Code Style Requirements
-- **Pre-commit hooks mandatory**: Automatic `cargo fmt` and `clippy` checks
-- **No unwrap() in library code**: Use `Result` and `Option` with proper error handling
-- **Security validation**: Use `security::input_validator` for user inputs
-- **Thread safety**: Use `security::thread_safe_state` for shared state
-- **Property tests**: Add property-based tests for new algorithms
-
-### Critical Testing Requirements
-1. **Audio correctness**: Verify signal processing with `testing::signal_generators`
-2. **Real-time performance**: Use benchmark suites to detect regressions
-3. **UI consistency**: Test with `egui_kittest` for UI components
-4. **Memory safety**: Run tests under Miri when modifying unsafe code
-5. **Cross-platform**: Test on Windows, Linux, macOS when possible
-
-### Security Considerations
-- **Audio safety limits**: Enforce maximum volume via `security::audio_safety`
-- **File validation**: Validate audio files before processing with `security::file_validator`
-- **Input sanitization**: All user inputs must pass through validators
-- **Thread-safe state**: Use provided abstractions for concurrent access
-
-## AI Features Integration
-
-The `ai/` module provides AI-enhanced audio processing:
-- **Audio Analysis**: Automatic genre, mood, tempo detection
-- **EQ Optimization**: ML-based EQ suggestions
-- **Noise Reduction**: Spectral noise reduction algorithms
-- **Volume Normalization**: Intelligent loudness normalization
-- **Preset Recommendations**: User preference learning
-
-Enable AI features by uncommenting optional dependencies in `Cargo.toml` (candle-core, linfa, smartcore).
-
-## Known Current State
-
-1. **Modular architecture complete**: Successfully refactored from monolithic design
-2. **Hybrid audio backend**: Dual-backend system operational
-3. **Comprehensive testing**: Property tests, UI tests, benchmarks in place
-4. **Theme system**: Using egui 0.33 native theming (catppuccin removed)
-5. **Recording functionality**: Audio recording with monitoring implemented
-
-## Quick Development Reference
+### WASM Bundle Optimization
 
 ```bash
-# Standard development cycle
-cargo check && cargo clippy && cargo test && cargo run
+# Build with optimizations
+wasm-pack build --release
 
-# Pre-commit validation (automatic on commit)
-pre-commit run --all-files
+# Further optimize with wasm-opt
+just wasm-optimize
 
-# Full quality check before release
-cargo fmt && \
-  cargo clippy -- -D warnings && \
-  cargo test && \
-  cargo bench --no-run && \
-  cargo build --release
+# Check bundle size
+just wasm-size
 
-# Update and test submodule
-git submodule update --remote && \
-  cd web-audio-api-rs && cargo test && cd ..
+# Analyze bundle features
+just wasm-analyze
 ```
 
-## Additional Resources
+## Security Considerations
 
-### Documentation
-- Run `cargo doc --open` to generate and view comprehensive API documentation
-- Module-level docs explain architecture decisions and usage patterns
+### Audio Safety (`security::audio_safety`)
 
-### Examples
-The `web-audio-api-rs/examples/` directory contains 30+ examples demonstrating:
-- Audio node usage patterns
-- Audio effects implementations
-- Worklet and processor examples
-- Media streams and recording
+- **Maximum Volume Limit**: Prevents hearing damage
+- **Sample Rate Validation**: Prevents buffer overruns
+- **Buffer Size Constraints**: Prevents memory exhaustion
 
-### Benchmarking Results
-After running `cargo bench`, view detailed results in `target/criterion/`:
-- HTML reports with performance graphs
-- Baseline comparisons for regression detection
-- Statistical analysis of benchmark runs
+### Input Validation (`security::input_validator`)
+
+- **File Path Sanitization**: Prevents directory traversal
+- **Parameter Range Checks**: Prevents out-of-bounds access
+- **User Input Escaping**: Prevents injection attacks
+
+### WASM Security
+
+- **Content Security Policy**: Restricts script execution
+- **COOP/COEP Headers**: Enables SharedArrayBuffer safely
+- **OAuth PKCE**: Prevents authorization code interception
+
+## Documentation
+
+### Generate API Docs
+
+```bash
+# All workspace members
+cargo doc --workspace --no-deps --open
+
+# Specific package
+cargo doc -p rusty-audio-core --open
+
+# With private items
+cargo doc --workspace --document-private-items
+```
+
+### Additional Documentation
+
+- `WORKSPACE_README.md` - Workspace architecture and migration guide
+- `ASIO_INTEGRATION.md` - Windows ASIO setup and troubleshooting
+- `DEPLOYMENT.md` - Deployment instructions for desktop and web
+- `TESTING.md` - Comprehensive testing guide
+- `PERFORMANCE_GUIDE.md` - Performance optimization techniques
+
+## OAuth Authentication (Web Only)
+
+### Supported Providers
+
+1. **Google** - OAuth 2.0 with OpenID Connect
+2. **GitHub** - OAuth 2.0
+3. **Microsoft** - OAuth 2.0 with OpenID Connect
+
+### Usage Example
+
+```rust
+use rusty_audio_web::auth::{OAuthClient, OAuthProvider};
+
+// Initialize client
+let mut client = OAuthClient::new(
+    OAuthProvider::Google,
+    "your-client-id".to_string(),
+    "http://localhost:8080/callback".to_string(),
+);
+
+// Start login flow (generates PKCE challenge)
+let auth_url = client.initiate_auth().await?;
+// Redirect user to auth_url
+
+// Handle callback with authorization code
+let session = client.handle_callback(&code).await?;
+
+// Use access token
+if let Some(token) = session.access_token {
+    // Make authenticated API requests
+}
+```
+
+### Security Features
+
+- **PKCE**: Proof Key for Code Exchange (RFC 7636)
+- **State Parameter**: CSRF protection with random verification
+- **Secure Storage**: Tokens encrypted in production builds
+- **Automatic Refresh**: Token refresh before expiration
+
+## CI/CD Integration
+
+### GitHub Actions Workflow
+
+```bash
+# Simulate CI locally
+just ci-local       # Full CI pipeline
+just ci-fast        # Skip slow tests
+
+# Pre-push checks
+just pre-push       # Quality checks
+just pre-pr         # Comprehensive checks including WASM
+```
+
+### Quality Gates
+
+1. **Formatting**: `cargo fmt --check`
+2. **Linting**: `cargo clippy -- -D warnings`
+3. **Tests**: `cargo test --workspace`
+4. **Documentation**: `cargo doc --no-deps`
+5. **WASM Build**: `wasm-pack build --target web`
+6. **Security Audit**: `cargo audit`
+
+## Key Differences from Monolithic Architecture
+
+**Before (monolithic)**:
+```rust
+use rusty_audio::audio::AudioBackend;
+use rusty_audio::ui::Theme;
+```
+
+**After (workspace)**:
+```rust
+// In desktop app
+use rusty_audio_core::audio::AudioBackend;
+use rusty_audio_core::ui::Theme;
+
+// In WASM app
+use rusty_audio_core::prelude::*;
+```
+
+**Import Changes**:
+- All shared code is now in `rusty_audio_core::*`
+- Platform-specific code is in respective binaries
+- Feature flags control platform-specific dependencies
+
+## Documentation Guidelines
+
+**CRITICAL: Prevent Documentation Clutter**
+
+This project previously accumulated 128+ markdown files before cleanup. To prevent this from happening again:
+
+### What NOT to Create
+
+❌ **Session Summaries** - Use git commit messages instead
+- No `SESSION_COMPLETION_SUMMARY.md`, `PHASE_N_COMPLETE.md`, etc.
+- Progress belongs in git history, not documentation files
+
+❌ **Completion Reports** - Use PR descriptions and git tags
+- No `*_IMPLEMENTATION_COMPLETE.md`, `*_VERIFIED.md`, etc.
+- Completion status belongs in GitHub Issues/Projects
+
+❌ **Status Updates** - Use git commits and PR updates
+- No `*_PROGRESS.md`, `*_STATUS.md`, `*_SUMMARY.md`
+- Status tracking belongs in project management tools
+
+❌ **Review/Audit Reports** - Use PR review comments
+- No `CODE_REVIEW_REPORT.md`, `*_ANALYSIS.md`, `*_AUDIT_REPORT.md`
+- Reviews belong in PR conversations
+
+❌ **Duplicate Guides** - Update existing docs instead
+- No variants: `*_GUIDE.md` + `*_QUICKSTART.md` + `*_REFERENCE.md` for same topic
+- Consolidate into ONE canonical document
+
+❌ **Temporary Artifacts** - Delete after use
+- No `COMMIT_MESSAGE.md`, `pr_description.md`, `runtime_test.md`
+- Use these for drafting, then delete them
+
+### What TO Create (Sparingly)
+
+✅ **Architecture Documentation** - Only if adding novel information
+- Must explain HIGH-LEVEL design patterns across multiple modules
+- Must not duplicate existing WORKSPACE_README.md or module docs
+- Examples: `AUDIO_BACKEND_ARCHITECTURE.md`, `OAUTH_ARCHITECTURE.md`
+
+✅ **Feature Documentation** - For complex implemented features
+- Must document features that are IMPLEMENTED or actively being built
+- Must provide unique value beyond inline code documentation
+- Examples: `ASIO_INTEGRATION.md`, `WASM_MULTITHREADING_GUIDE.md`
+
+✅ **Testing/Deployment Guides** - For complex procedures
+- Must document non-obvious multi-step processes
+- Must be actively maintained when processes change
+- Examples: `TESTING.md`, `DEPLOYMENT.md`, `BROWSER_TESTING_GUIDE.md`
+
+✅ **Design Artifacts** - For UI/UX reference
+- Must contain visual mockups, diagrams, or design rationale
+- Examples: `UI_MOCKUPS_AND_FLOWS.md`, `WIREFRAMES_AND_INTERACTION_PATTERNS.md`
+
+### Documentation Maintenance Rules
+
+1. **Update, Don't Duplicate**: If a doc exists, update it. Never create `*_v2.md` or `*_enhanced.md`
+2. **Delete Outdated Docs**: When info is superseded, delete the old file completely
+3. **One Source of Truth**: Each topic should have ONE canonical document
+4. **Link, Don't Copy**: Reference other docs instead of duplicating information
+5. **Index in WORKSPACE_README**: All kept docs should be referenced in the main README
+
+### Before Creating a New .md File, Ask:
+
+1. **Does this information belong in existing docs?** (Check WORKSPACE_README.md, DEVELOPER_GUIDE.md, CLAUDE.md first)
+2. **Will this be maintained?** (If not, use git commit messages or PR descriptions)
+3. **Is this a temporary artifact?** (Draft it, use it, then delete it)
+4. **Does this add unique value?** (Novel architecture, complex features, design artifacts)
+
+### Current Documentation Structure (42 files)
+
+**Core Docs** (4): WORKSPACE_README.md, CLAUDE.md, DEVELOPER_GUIDE.md, USER_MANUAL.md
+**Architecture** (5): WORKSPACE_ARCHITECTURE.md, AUDIO_BACKEND_ARCHITECTURE.md, etc.
+**Features** (8): ASIO_INTEGRATION.md, OAUTH_ARCHITECTURE.md, WASM_MULTITHREADING_GUIDE.md, etc.
+**Build/Deploy** (6): BUILD_WINDOWS.md, JUSTFILE_GUIDE.md, DEPLOYMENT.md, etc.
+**Testing** (4): TESTING.md, TESTING_FRAMEWORK_README.md, BROWSER_TESTING_GUIDE.md, etc.
+**Security** (3): SECURITY_IMPLEMENTATION_GUIDE.md, SECURITY_THREAT_MODEL.md, etc.
+**Reference** (12): SIGNAL_GENERATOR_GUIDE.md, TROUBLESHOOTING_GUIDE.md, API_SPECIFICATION.md, etc.
+
+**Goal**: Keep this count under 50 files. Anything above 50 indicates documentation debt.
+
+## Quick Reference
+
+```bash
+# Development cycle
+just check && just test && just run
+
+# Full quality check
+just quality
+
+# WASM development
+just serve-wasm
+
+# Benchmarks
+just bench
+
+# Documentation
+cargo doc --workspace --open
+
+# Clean everything
+just clean-all
+```

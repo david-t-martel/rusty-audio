@@ -1337,9 +1337,10 @@ impl AudioPlayerApp {
 
                     // Update UI state
                     self.total_duration = duration;
-                    
+
                     // Update waveform preview
-                    if let Some(waveform) = self.audio_engine.get_waveform(WAVEFORM_PREVIEW_SAMPLES) {
+                    if let Some(waveform) = self.audio_engine.get_waveform(WAVEFORM_PREVIEW_SAMPLES)
+                    {
                         self.waveform_preview = waveform;
                         self.waveform_dirty = true;
                     }
@@ -1839,27 +1840,27 @@ impl AudioPlayerApp {
                     // to avoid holding an immutable borrow of self.audio_engine while calling connect_output_to (mutable)
                     let script_processor = {
                         let audio_context = self.audio_engine.get_context();
-                        
+
                         // Create ScriptProcessor
                         let script_processor = audio_context.create_script_processor(1024, 2, 2);
-                        
+
                         // Move producer into closure
                         let mut producer = producer;
-                        
+
                         script_processor.set_onaudioprocess(move |e| {
                             let input = &e.input_buffer;
                             let channels = input.number_of_channels();
                             let length = input.length();
-                            
+
                             if let Ok(mut chunk) = producer.write_chunk(length * channels) {
                                 let (s1, s2) = chunk.as_mut_slices();
                                 let mut written = 0;
-                                
+
                                 // Interleave logic: L R L R ...
                                 for i in 0..length {
                                     for ch in 0..channels {
                                         let sample = input.get_channel_data(ch)[i];
-                                        
+
                                         // Write to s1 then s2
                                         if written < s1.len() {
                                             s1[written] = sample;
@@ -1872,21 +1873,21 @@ impl AudioPlayerApp {
                                 chunk.commit_all();
                             }
                         });
-                        
+
                         // Connect script processor to destination to keep graph alive
                         // (It outputs silence because we don't write to output buffer)
                         script_processor.connect(&audio_context.destination());
-                        
+
                         script_processor
                     };
-                    
+
                     // Connect to engine output (requires mutable borrow of self.audio_engine)
                     if let Err(e) = self.audio_engine.connect_output_to(&script_processor) {
                         eprintln!("Failed to connect script processor: {}", e);
                     } else {
                         // Disable default output (analyser -> destination) to avoid double path
                         let _ = self.audio_engine.set_output_routing(false);
-                        
+
                         // Keep node alive
                         self.script_processor = Some(script_processor);
                         println!("✅ Hybrid audio bridge connected");

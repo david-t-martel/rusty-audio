@@ -25,7 +25,12 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.rs)",
       "Bash(set \"RUSTFLAGS=-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-arg=--shared-memory -C link-arg=--max-memory=4294967296\")",
-      "Bash(set \"RUSTC_BOOTSTRAP=1\")"
+      "Bash(set \"RUSTC_BOOTSTRAP=1\")",
+      "Bash(gh pr list:*)",
+      "Bash(gh repo view:*)",
+      "Bash(git for-each-ref:*)",
+      "Bash(gh pr status:*)",
+      "Bash(gh pr view:*)"
     ],
     "deny": [],
     "ask": []

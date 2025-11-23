@@ -13,13 +13,13 @@
 //!                              (process audio)              (native output)
 //! ```
 
+#[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
+use super::asio_backend::AsioBackend;
 use super::backend::{
     AudioBackend, AudioBackendError, AudioConfig, AudioStream, InputCallback, OutputCallback,
     Result, StreamStatus,
 };
 use super::device::CpalBackend;
-#[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
-use super::asio_backend::AsioBackend;
 use anyhow::anyhow;
 use parking_lot::Mutex;
 use rtrb::{Consumer, Producer, RingBuffer};
@@ -92,7 +92,7 @@ pub struct HybridAudioBackend {
     // Lock-free ring buffer components (wrapped in Mutex for Sync, but taken out for use)
     ring_producer: Mutex<Option<Producer<f32>>>,
     ring_consumer: Mutex<Option<Consumer<f32>>>,
-    
+
     config: AudioConfig,
 }
 
@@ -590,7 +590,7 @@ impl AudioBackend for HybridAudioBackend {
                                 read = len1 + s2.len();
                                 chunk.commit_all();
                             }
-                            
+
                             // Fill remaining with silence
                             if read < chunk_size {
                                 output[read..].fill(0.0);

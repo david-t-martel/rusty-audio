@@ -35,10 +35,7 @@ pub struct WebAudioBridge {
 impl WebAudioBridge {
     /// Create a new bridge with the given ring buffer producer
     pub fn new(producer: Producer<f32>, config: WebAudioBridgeConfig) -> Self {
-        Self {
-            producer,
-            config,
-        }
+        Self { producer, config }
     }
 
     /// Connect the bridge to the audio graph
@@ -69,7 +66,7 @@ impl WebAudioBridge {
         let capacity = self.config.buffer_size * 8;
         let available = self.producer.slots();
         let used = capacity.saturating_sub(available);
-        
+
         (used as f32) / (capacity as f32)
     }
 
@@ -94,14 +91,14 @@ impl WebAudioBridge {
             "Buffer healthy"
         }
     }
-    
+
     /// Push samples into the ring buffer
     pub fn push_samples(&mut self, samples: &[f32]) -> usize {
         if let Ok(mut chunk) = self.producer.write_chunk(samples.len()) {
             let (s1, s2) = chunk.as_mut_slices();
             let len1 = s1.len();
             s1.copy_from_slice(&samples[..len1]);
-            s2.copy_from_slice(&samples[len1..len1+s2.len()]);
+            s2.copy_from_slice(&samples[len1..len1 + s2.len()]);
             chunk.commit_all();
             return samples.len();
         }
