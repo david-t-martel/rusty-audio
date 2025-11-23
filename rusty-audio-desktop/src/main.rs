@@ -141,7 +141,8 @@ struct AudioPlayerApp {
     // Phase 3.1: Hybrid audio backend (TODO: Move into AudioEngine)
     audio_backend: Option<HybridAudioBackend>,
     device_manager: Option<AudioDeviceManager>,
-    web_audio_bridge: Option<WebAudioBridge>,
+    // web_audio_bridge: Option<WebAudioBridge>, // Replaced by script processor
+    script_processor: Option<web_audio_api::node::ScriptProcessorNode>,
     audio_mode_switching: bool, // Animation state for mode changes
     last_latency_check: Instant,
     audio_status_message: Option<(String, Instant)>, // (message, timestamp)
@@ -272,7 +273,7 @@ impl Default for AudioPlayerApp {
                     None
                 }
             },
-            web_audio_bridge: None, // Will be created when switching to HybridNative mode
+            script_processor: None,
             audio_mode_switching: false,
             last_latency_check: Instant::now(),
             audio_status_message: None,
@@ -1839,27 +1840,67 @@ impl AudioPlayerApp {
     /// Setup hybrid audio mode with ring buffer bridge
     fn setup_hybrid_mode(&mut self) {
         // Only setup if backend is available and in HybridNative mode
-        if let Some(backend) = &self.audio_backend {
-            if backend.mode() == HybridMode::HybridNative {
-                // Get ring buffer from backend
-                if let Some(ring_buffer) = backend.ring_buffer() {
-                    // Create bridge
-                    let config = WebAudioBridgeConfig {
-                        buffer_size: 4096,
-                        input_channels: 2,
-                        output_channels: 2,
+        if let Some(backend) = &mut self.audio_backend {
+            let mode = backend.mode();
+            if mode == HybridMode::HybridNative || mode == HybridMode::AsioOnly {
+                // Get ring buffer producer from backend
+                if let Some(producer) = backend.take_ring_producer() {
+                    // Create ScriptProcessor and connect to destination in a separate scope
+                    // to avoid holding an immutable borrow of self.audio_engine while calling connect_output_to (mutable)
+                    let script_processor = {
+                        let audio_context = self.audio_engine.get_context();
+                        
+                        // Create ScriptProcessor
+                        let script_processor = audio_context.create_script_processor(1024, 2, 2);
+                        
+                        // Move producer into closure
+                        let mut producer = producer;
+                        
+                        script_processor.set_onaudioprocess(move |e| {
+                            let input = &e.input_buffer;
+                            let channels = input.number_of_channels();
+                            let length = input.length();
+                            
+                            if let Ok(mut chunk) = producer.write_chunk(length * channels) {
+                                let (s1, s2) = chunk.as_mut_slices();
+                                let mut written = 0;
+                                
+                                // Interleave logic: L R L R ...
+                                for i in 0..length {
+                                    for ch in 0..channels {
+                                        let sample = input.get_channel_data(ch)[i];
+                                        
+                                        // Write to s1 then s2
+                                        if written < s1.len() {
+                                            s1[written] = sample;
+                                        } else if written - s1.len() < s2.len() {
+                                            s2[written - s1.len()] = sample;
+                                        }
+                                        written += 1;
+                                    }
+                                }
+                                chunk.commit_all();
+                            }
+                        });
+                        
+                        // Connect script processor to destination to keep graph alive
+                        // (It outputs silence because we don't write to output buffer)
+                        script_processor.connect(&audio_context.destination());
+                        
+                        script_processor
                     };
-
-                    let bridge = WebAudioBridge::new(ring_buffer, config);
-
-                    // Connect the bridge to the audio graph
-                    // The analyser is the last node before destination
-                    // TODO: Phase 2 - Requires AudioEngine to expose audio_context and analyser
-                    //                     bridge.connect_to_graph(&self.audio_context, &self.analyser);
-
-                    self.web_audio_bridge = Some(bridge);
-
-                    println!("✅ Hybrid audio bridge connected");
+                    
+                    // Connect to engine output (requires mutable borrow of self.audio_engine)
+                    if let Err(e) = self.audio_engine.connect_output_to(&script_processor) {
+                        eprintln!("Failed to connect script processor: {}", e);
+                    } else {
+                        // Disable default output (analyser -> destination) to avoid double path
+                        let _ = self.audio_engine.set_output_routing(false);
+                        
+                        // Keep node alive
+                        self.script_processor = Some(script_processor);
+                        println!("✅ Hybrid audio bridge connected");
+                    }
                 } else {
                     eprintln!("⚠️ Ring buffer not available from backend");
                 }

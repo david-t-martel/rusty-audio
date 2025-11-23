@@ -60,7 +60,7 @@ pub use backend::{
 #[cfg(not(target_arch = "wasm32"))]
 pub use device::CpalBackend;
 #[cfg(not(target_arch = "wasm32"))]
-pub use hybrid::{BackendHealth, FallbackPolicy, HybridAudioBackend, HybridMode, HybridRingBuffer};
+pub use hybrid::{BackendHealth, FallbackPolicy, HybridAudioBackend, HybridMode};
 #[cfg(not(target_arch = "wasm32"))]
 pub use manager::AudioDeviceManager;
 #[cfg(not(target_arch = "wasm32"))]

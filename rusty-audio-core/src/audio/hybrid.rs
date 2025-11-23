@@ -21,83 +21,12 @@ use super::device::CpalBackend;
 #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
 use super::asio_backend::AsioBackend;
 use anyhow::anyhow;
-use parking_lot::RwLock;
+use parking_lot::Mutex;
+use rtrb::{Consumer, Producer, RingBuffer};
 use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-
-/// Ring buffer for passing audio from web-audio-api to cpal
-pub struct AudioRingBuffer {
-    buffer: Arc<RwLock<Vec<f32>>>,
-    write_pos: Arc<RwLock<usize>>,
-    read_pos: Arc<RwLock<usize>>,
-    capacity: usize,
-}
-
-impl AudioRingBuffer {
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            buffer: Arc::new(RwLock::new(vec![0.0; capacity])),
-            write_pos: Arc::new(RwLock::new(0)),
-            read_pos: Arc::new(RwLock::new(0)),
-            capacity,
-        }
-    }
-
-    /// Write samples to the ring buffer (called by web-audio-api ScriptProcessor)
-    pub fn write(&self, samples: &[f32]) -> usize {
-        let mut buffer = self.buffer.write();
-        let mut write_pos = self.write_pos.write();
-        let read_pos = *self.read_pos.read();
-
-        let mut written = 0;
-        for &sample in samples {
-            let next_write_pos = (*write_pos + 1) % self.capacity;
-            // Don't overwrite unread data
-            if next_write_pos == read_pos {
-                break; // Buffer full
-            }
-            buffer[*write_pos] = sample;
-            *write_pos = next_write_pos;
-            written += 1;
-        }
-
-        written
-    }
-
-    /// Read samples from ring buffer (called by cpal audio callback)
-    pub fn read(&self, output: &mut [f32]) -> usize {
-        let buffer = self.buffer.read();
-        let write_pos = *self.write_pos.read();
-        let mut read_pos = self.read_pos.write();
-
-        let mut read = 0;
-        for sample in output.iter_mut() {
-            if *read_pos == write_pos {
-                *sample = 0.0; // Underrun, output silence
-            } else {
-                *sample = buffer[*read_pos];
-                *read_pos = (*read_pos + 1) % self.capacity;
-                read += 1;
-            }
-        }
-
-        read
-    }
-
-    /// Get number of samples available to read
-    pub fn available(&self) -> usize {
-        let write_pos = *self.write_pos.read();
-        let read_pos = *self.read_pos.read();
-
-        if write_pos >= read_pos {
-            write_pos - read_pos
-        } else {
-            self.capacity - read_pos + write_pos
-        }
-    }
-}
 
 /// Hybrid audio backend mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -160,7 +89,10 @@ pub struct HybridAudioBackend {
     #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
     asio_backend: Option<AsioBackend>,
 
-    ring_buffer: Option<Arc<AudioRingBuffer>>,
+    // Lock-free ring buffer components (wrapped in Mutex for Sync, but taken out for use)
+    ring_producer: Mutex<Option<Producer<f32>>>,
+    ring_consumer: Mutex<Option<Consumer<f32>>>,
+    
     config: AudioConfig,
 }
 
@@ -212,7 +144,8 @@ impl HybridAudioBackend {
             cpal_backend,
             #[cfg(all(target_os = "windows", not(target_arch = "wasm32")))]
             asio_backend,
-            ring_buffer: None,
+            ring_producer: Mutex::new(None),
+            ring_consumer: Mutex::new(None),
             config: AudioConfig::default(),
         }
     }
@@ -272,16 +205,18 @@ impl HybridAudioBackend {
         Ok(())
     }
 
-    /// Create ring buffer for hybrid mode
+    /// Create lock-free ring buffer for hybrid mode
     fn create_ring_buffer(&mut self, buffer_size: usize) {
         // Use 8x buffer size for ring buffer to avoid underruns
         let capacity = buffer_size * 8;
-        self.ring_buffer = Some(Arc::new(AudioRingBuffer::new(capacity)));
+        let (producer, consumer) = RingBuffer::new(capacity);
+        *self.ring_producer.lock() = Some(producer);
+        *self.ring_consumer.lock() = Some(consumer);
     }
 
-    /// Get the ring buffer for connecting web-audio-api
-    pub fn ring_buffer(&self) -> Option<Arc<AudioRingBuffer>> {
-        self.ring_buffer.clone()
+    /// Take the producer for the ring buffer (to be given to WebAudioEngine)
+    pub fn take_ring_producer(&mut self) -> Option<Producer<f32>> {
+        self.ring_producer.lock().take()
     }
 
     /// Get the current fallback policy
@@ -632,7 +567,7 @@ impl AudioBackend for HybridAudioBackend {
 
                 // Create cpal stream that reads from ring buffer
                 if let Some(backend) = &mut self.cpal_backend {
-                    let ring_buffer = self.ring_buffer.as_ref().cloned().ok_or_else(|| {
+                    let mut ring_consumer = self.ring_consumer.lock().take().ok_or_else(|| {
                         AudioBackendError::Other(anyhow!(
                             "Ring buffer not initialized for hybrid output stream"
                         ))
@@ -644,7 +579,22 @@ impl AudioBackend for HybridAudioBackend {
                         config.clone(),
                         Box::new(move |output: &mut [f32]| {
                             // Read from ring buffer into output
-                            ring_buffer.read(output);
+                            let mut read = 0;
+                            let chunk_size = output.len();
+                            if let Ok(chunk) = ring_consumer.read_chunk(chunk_size) {
+                                // Copy available data
+                                let (s1, s2) = chunk.as_slices();
+                                let len1 = s1.len();
+                                output[..len1].copy_from_slice(s1);
+                                output[len1..len1 + s2.len()].copy_from_slice(s2);
+                                read = len1 + s2.len();
+                                chunk.commit_all();
+                            }
+                            
+                            // Fill remaining with silence
+                            if read < chunk_size {
+                                output[read..].fill(0.0);
+                            }
                         }),
                     )?;
 
@@ -833,10 +783,5 @@ impl AudioStream for NoOpStream {
     }
 }
 
-// Make ring buffer thread-safe
-unsafe impl Send for AudioRingBuffer {}
-unsafe impl Sync for AudioRingBuffer {}
+// Make no-op stream thread-safe
 unsafe impl Send for NoOpStream {}
-
-// Re-export for convenience
-pub use AudioRingBuffer as HybridRingBuffer;
